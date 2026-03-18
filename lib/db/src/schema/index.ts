@@ -4,3 +4,4 @@ export * from "./quotes";
 export * from "./tickets";
 export * from "./chat";
 export * from "./cms";
+export * from "./partners";

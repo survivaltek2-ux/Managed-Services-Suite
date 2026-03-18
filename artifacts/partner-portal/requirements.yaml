@@ -1,0 +1,27 @@
+packages:
+  "framer-motion": "Smooth page transitions and micro-interactions"
+  "recharts": "Dashboard metrics and deal pipeline visualization"
+  "date-fns": "Formatting timestamps for deals and leads"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+  "@hookform/resolvers": "Zod validation for forms"
+  "react-hook-form": "Form state management"
+
+images:
+  - path: "artifacts/partner-portal/public/images/hero-bg.png"
+    description: "Abstract geometric network background in deep navy blue and cyan, sleek enterprise technology feel, subtle glowing nodes"
+    aspect_ratio: "16:9"
+  - path: "artifacts/partner-portal/public/images/tier-silver.png"
+    description: "Sleek metallic silver shield icon or badge, 3D effect, premium enterprise design"
+    aspect_ratio: "1:1"
+  - path: "artifacts/partner-portal/public/images/tier-gold.png"
+    description: "Sleek metallic gold shield icon or badge, 3D effect, premium enterprise design"
+    aspect_ratio: "1:1"
+  - path: "artifacts/partner-portal/public/images/tier-platinum.png"
+    description: "Sleek dark metallic platinum/obsidian shield icon or badge with glowing edges, premium enterprise design"
+    aspect_ratio: "1:1"
+
+notes:
+  - Assumes REST API endpoints available under /api/partner/* 
+  - Token-based auth using localStorage 'partner_token'
+  - wouter configured with base path /partners

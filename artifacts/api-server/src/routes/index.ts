@@ -6,6 +6,7 @@ import quotesRouter from "./quotes";
 import ticketsRouter from "./tickets";
 import chatRouter from "./chat";
 import cmsRouter from "./cms";
+import partnersRouter from "./partners";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(quotesRouter);
 router.use(ticketsRouter);
 router.use(chatRouter);
 router.use(cmsRouter);
+router.use(partnersRouter);
 
 export default router;
