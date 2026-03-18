@@ -12,11 +12,12 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Quote from "./pages/Quote";
 import Portal from "./pages/Portal";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
 
-function Router() {
+function PublicRouter() {
   return (
     <Layout>
       <Switch>
@@ -38,7 +39,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <Switch>
+            <Route path="/admin" component={Admin} />
+            <Route>
+              <PublicRouter />
+            </Route>
+          </Switch>
         </WouterRouter>
         <Toaster />
       </AuthProvider>
