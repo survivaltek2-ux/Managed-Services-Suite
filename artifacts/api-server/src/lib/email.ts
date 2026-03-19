@@ -180,3 +180,177 @@ export async function sendTicketSubmittedNotification(ticket: {
     sendEmail(partner.email, `Support Ticket Received: ${ticket.subject}`, partnerHtml),
   ]);
 }
+
+export async function sendContactFormNotification(contact: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  service?: string | null;
+  message: string;
+}) {
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Contact Form Submission</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Name</td><td style="padding: 8px 0; font-weight: 600;">${esc(contact.name)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Email</td><td style="padding: 8px 0;">${esc(contact.email)}</td></tr>
+          ${contact.phone ? `<tr><td style="padding: 8px 0; color: #706e6b;">Phone</td><td style="padding: 8px 0;">${esc(contact.phone)}</td></tr>` : ""}
+          ${contact.company ? `<tr><td style="padding: 8px 0; color: #706e6b;">Company</td><td style="padding: 8px 0;">${esc(contact.company)}</td></tr>` : ""}
+          ${contact.service ? `<tr><td style="padding: 8px 0; color: #706e6b;">Service Interest</td><td style="padding: 8px 0;">${esc(contact.service)}</td></tr>` : ""}
+        </table>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Message:</p>
+        <p style="font-size: 14px; margin: 0; white-space: pre-wrap;">${esc(contact.message)}</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services website.</p>
+      </div>
+    </div>
+  `;
+
+  const confirmHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Thank You for Contacting Us</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(contact.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Thank you for reaching out to Siebert Services. We've received your message and our team will get back to you within 1 business day.</p>
+        <p style="font-size: 14px; margin: 0 0 4px;">In the meantime, you can reach us at:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:support@siebertservices.com" style="color: #0176d3;">support@siebertservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Team</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(NOTIFICATION_EMAIL, `New Contact: ${esc(contact.name)}${contact.company ? ` — ${esc(contact.company)}` : ""}`, adminHtml),
+    sendEmail(contact.email, "Thank You for Contacting Siebert Services", confirmHtml),
+  ]);
+}
+
+export async function sendQuoteRequestNotification(quote: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  company: string;
+  companySize?: string | null;
+  services: string;
+  budget?: string | null;
+  timeline?: string | null;
+  details?: string | null;
+}) {
+  const services = (() => {
+    try { return JSON.parse(quote.services).join(", "); } catch { return quote.services; }
+  })();
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Quote Request</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Name</td><td style="padding: 8px 0; font-weight: 600;">${esc(quote.name)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Email</td><td style="padding: 8px 0;">${esc(quote.email)}</td></tr>
+          ${quote.phone ? `<tr><td style="padding: 8px 0; color: #706e6b;">Phone</td><td style="padding: 8px 0;">${esc(quote.phone)}</td></tr>` : ""}
+          <tr><td style="padding: 8px 0; color: #706e6b;">Company</td><td style="padding: 8px 0;">${esc(quote.company)}</td></tr>
+          ${quote.companySize ? `<tr><td style="padding: 8px 0; color: #706e6b;">Company Size</td><td style="padding: 8px 0;">${esc(quote.companySize)}</td></tr>` : ""}
+          <tr><td style="padding: 8px 0; color: #706e6b;">Services</td><td style="padding: 8px 0; font-weight: 600;">${esc(services)}</td></tr>
+          ${quote.budget ? `<tr><td style="padding: 8px 0; color: #706e6b;">Budget</td><td style="padding: 8px 0;">${esc(quote.budget)}</td></tr>` : ""}
+          ${quote.timeline ? `<tr><td style="padding: 8px 0; color: #706e6b;">Timeline</td><td style="padding: 8px 0;">${esc(quote.timeline)}</td></tr>` : ""}
+        </table>
+        ${quote.details ? `<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" /><p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Additional Details:</p><p style="font-size: 14px; margin: 0; white-space: pre-wrap;">${esc(quote.details)}</p>` : ""}
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services website.</p>
+      </div>
+    </div>
+  `;
+
+  const confirmHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Quote Request Received</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(quote.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Thank you for requesting a quote from Siebert Services! We've received your request for the following services:</p>
+        <div style="background: #f9f9f9; padding: 12px 16px; border-radius: 4px; margin: 0 0 16px;">
+          <p style="font-size: 14px; font-weight: 600; margin: 0;">${esc(services)}</p>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 16px;">Our team will review your requirements and prepare a customized quote for you. You can expect to hear from us within 1-2 business days.</p>
+        <p style="font-size: 14px; margin: 0 0 4px;">Questions? Contact us:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:sales@siebertservices.com" style="color: #0176d3;">sales@siebertservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Sales Team</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(NOTIFICATION_EMAIL, `New Quote Request: ${esc(quote.name)} — ${esc(quote.company)}`, adminHtml),
+    sendEmail(quote.email, "Quote Request Received — Siebert Services", confirmHtml),
+  ]);
+}
+
+export async function sendClientTicketNotification(ticket: {
+  subject: string;
+  description: string;
+  priority: string;
+  category: string;
+}, userEmail: string, userName?: string) {
+  const priorityColors: Record<string, string> = {
+    urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
+  };
+  const pColor = priorityColors[ticket.priority] || "#706e6b";
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Client Support Ticket</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Subject</td><td style="padding: 8px 0; font-weight: 600;">${esc(ticket.subject)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Priority</td><td style="padding: 8px 0;"><span style="color: ${pColor}; font-weight: 600; text-transform: uppercase;">${esc(ticket.priority)}</span></td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Category</td><td style="padding: 8px 0; text-transform: capitalize;">${esc(ticket.category)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Submitted By</td><td style="padding: 8px 0;">${esc(userName || "Client")} (${esc(userEmail)})</td></tr>
+        </table>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Description:</p>
+        <p style="font-size: 14px; margin: 0; white-space: pre-wrap;">${esc(ticket.description)}</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services client portal.</p>
+      </div>
+    </div>
+  `;
+
+  const confirmHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Support Ticket Submitted</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(userName || "there")},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">We've received your support ticket and our team is on it.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Subject</td><td style="padding: 10px 12px; font-weight: 600;">${esc(ticket.subject)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Priority</td><td style="padding: 10px 12px;"><span style="color: ${pColor}; font-weight: 600; text-transform: uppercase;">${esc(ticket.priority)}</span></td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Category</td><td style="padding: 10px 12px; text-transform: capitalize;">${esc(ticket.category)}</td></tr>
+        </table>
+        <p style="font-size: 14px; margin: 16px 0 0;">You can view the status of your ticket by logging into your account.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Support Team</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(NOTIFICATION_EMAIL, `New Client Ticket: ${esc(ticket.subject)}`, adminHtml),
+    sendEmail(userEmail, `Support Ticket Submitted: ${ticket.subject}`, confirmHtml),
+  ]);
+}

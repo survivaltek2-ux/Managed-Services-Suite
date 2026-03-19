@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { db, ticketsTable } from "@workspace/db";
+import { db, ticketsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
+import { sendClientTicketNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,14 @@ router.post("/tickets", requireAuth, async (req: AuthRequest, res: Response) => 
       category,
       userId: req.userId!,
     }).returning();
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (user) {
+      sendClientTicketNotification(
+        { subject, description, priority, category },
+        user.email, user.name,
+      ).catch(err => console.error("[Email] Client ticket notification error:", err));
+    }
 
     res.status(201).json(ticket);
   } catch (err) {

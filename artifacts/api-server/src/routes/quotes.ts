@@ -3,6 +3,7 @@ import { Response } from "express";
 import { db, quotesTable, quoteProposalsTable, quoteLineItemsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
+import { sendQuoteRequestNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -39,6 +40,11 @@ router.post("/quotes", async (req, res) => {
       timeline: timeline || null,
       details: details || null,
     }).returning();
+
+    sendQuoteRequestNotification({
+      name, email, phone, company, companySize,
+      services: quote.services, budget, timeline, details,
+    }).catch(err => console.error("[Email] Quote notification error:", err));
 
     res.status(201).json({ ...quote, services: JSON.parse(quote.services) });
   } catch (err) {

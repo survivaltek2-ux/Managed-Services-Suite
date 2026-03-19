@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, contactsTable } from "@workspace/db";
+import { sendContactFormNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,9 @@ router.post("/contact", async (req, res) => {
       service: service || null,
       message,
     }).returning();
+
+    sendContactFormNotification({ name, email, phone, company, service, message })
+      .catch(err => console.error("[Email] Contact notification error:", err));
 
     res.status(201).json(contact);
   } catch (err) {
