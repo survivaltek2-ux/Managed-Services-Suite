@@ -221,7 +221,7 @@ export async function sendContactFormNotification(contact: {
         <p style="font-size: 14px; margin: 0 0 4px;">In the meantime, you can reach us at:</p>
         <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
           <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
-          <li>Email: <a href="mailto:support@siebertservices.com" style="color: #0176d3;">support@siebertservices.com</a></li>
+          <li>Email: <a href="mailto:support@siebertrservices.com" style="color: #0176d3;">support@siebertrservices.com</a></li>
         </ul>
         <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Team</p>
       </div>
@@ -286,7 +286,7 @@ export async function sendQuoteRequestNotification(quote: {
         <p style="font-size: 14px; margin: 0 0 4px;">Questions? Contact us:</p>
         <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
           <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
-          <li>Email: <a href="mailto:sales@siebertservices.com" style="color: #0176d3;">sales@siebertservices.com</a></li>
+          <li>Email: <a href="mailto:sales@siebertrservices.com" style="color: #0176d3;">sales@siebertrservices.com</a></li>
         </ul>
         <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Sales Team</p>
       </div>
