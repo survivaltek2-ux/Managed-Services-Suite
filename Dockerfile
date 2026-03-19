@@ -1,25 +1,7 @@
-# Multi-stage build for Siebert Services full-stack application
-FROM node:24-alpine AS builder
+# Simplified Dockerfile - uses pre-built artifacts
+# Build locally: pnpm run build
+# Then build image: docker build -t siebert-services .
 
-WORKDIR /app
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Copy workspace files
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY lib ./lib
-COPY artifacts/api-server ./artifacts/api-server
-COPY artifacts/siebert-services ./artifacts/siebert-services
-COPY artifacts/partner-portal ./artifacts/partner-portal
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Build everything (exclude mockup-sandbox which is dev-only)
-RUN PORT=8081 BASE_PATH="/" pnpm --filter='!@workspace/mockup-sandbox' run build
-
-# Production runtime image
 FROM node:24-alpine
 
 WORKDIR /app
@@ -34,17 +16,19 @@ RUN apk add --no-cache dumb-init netcat-openbsd
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Copy built artifacts from builder
-COPY --from=builder /app/artifacts/api-server/dist ./api-dist
-COPY --from=builder /app/artifacts/siebert-services/dist/public ./public/siebert
-COPY --from=builder /app/artifacts/partner-portal/dist/public ./public/partners
-COPY --from=builder /app/lib/db ./lib/db
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+# Copy pre-built API server
+COPY artifacts/api-server/dist ./api-dist
+
+# Copy pre-built frontend assets
+COPY artifacts/siebert-services/dist/public ./public/siebert
+COPY artifacts/partner-portal/dist/public ./public/partners
+
+# Copy database configuration (for migrations)
+COPY lib/db ./lib/db
+COPY package.json pnpm-lock.yaml ./
 
 # Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod && \
-    pnpm install --filter @workspace/db
+RUN pnpm install --prod
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
