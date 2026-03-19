@@ -80,7 +80,8 @@ Backend for both websites.
 - `src/routes/auth.ts` — Client auth (register, login, me)
 - `src/routes/cms.ts` — Blog CRUD, user management, dashboard stats, CSV export, activity log, status updates
 - `src/routes/quotes.ts` — Proposals CRUD with line items, public view, accept/reject workflow
-- `src/routes/partners.ts` — Partner auth, deals, leads, commissions, support tickets, MDF requests, dashboard, admin management
+- `src/routes/partners.ts` — Partner auth, deals, leads, commissions, support tickets, MDF requests, dashboard, admin management (auto-commission on deal close, admin commission CRUD with requireAdmin)
+- `src/middlewares/auth.ts` — `requireAuth` (any logged-in user) + `requireAdmin` (admin role check)
 - `src/routes/tickets.ts` — Client support tickets
 - `src/routes/chat.ts` — Live chat messages
 
@@ -132,7 +133,7 @@ artifacts-monorepo/
 - `partner_certifications` — Available certifications
 - `partner_cert_progress` — Partner certification progress
 - `partner_announcements` — Company announcements
-- `partner_commissions` — Commission tracking
+- `partner_commissions` — Commission tracking (status enum: pending/approved/paid/disputed/rejected; auto-created at 10% when deals marked won)
 - `partner_support_tickets` — Partner support tickets
 - `partner_ticket_messages` — Ticket conversation messages
 - `partner_mdf_requests` — Market Development Fund requests

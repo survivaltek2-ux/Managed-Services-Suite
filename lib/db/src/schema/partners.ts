@@ -124,7 +124,7 @@ export const partnerAnnouncementsTable = pgTable("partner_announcements", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "paid", "disputed"]);
+export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "paid", "disputed", "rejected"]);
 export const mdfStatusEnum = pgEnum("mdf_status", ["draft", "submitted", "approved", "rejected", "completed", "expired"]);
 export const partnerTicketStatusEnum = pgEnum("partner_ticket_status", ["open", "in_progress", "waiting", "resolved", "closed"]);
 export const partnerTicketPriorityEnum = pgEnum("partner_ticket_priority", ["low", "medium", "high", "urgent"]);

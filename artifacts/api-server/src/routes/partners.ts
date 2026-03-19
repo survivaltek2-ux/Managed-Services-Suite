@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, partnerMdfRequestsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum } from "drizzle-orm";
 import { requirePartnerAuth, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
-import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
+import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
@@ -204,10 +204,50 @@ router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest,
       notes: notes || null, updatedAt: new Date(),
     };
     if (status === "won") updateData.closedAt = new Date();
-    const [deal] = await db.update(partnerDealsTable).set(updateData)
-      .where(and(eq(partnerDealsTable.id, id), eq(partnerDealsTable.partnerId, req.partnerId!))).returning();
-    if (!deal) { res.status(404).json({ error: "not_found", message: "Deal not found" }); return; }
-    res.json({ ...deal, products: JSON.parse(deal.products) });
+
+    const existingDeal = await db.select().from(partnerDealsTable)
+      .where(and(eq(partnerDealsTable.id, id), eq(partnerDealsTable.partnerId, req.partnerId!))).then(r => r[0]);
+    if (!existingDeal) { res.status(404).json({ error: "not_found", message: "Deal not found" }); return; }
+    const wasPreviouslyWon = existingDeal.status === "won";
+
+    const result = await db.transaction(async (tx) => {
+      const [deal] = await tx.update(partnerDealsTable).set(updateData)
+        .where(and(eq(partnerDealsTable.id, id), eq(partnerDealsTable.partnerId, req.partnerId!))).returning();
+      if (!deal) return null;
+
+      if (status === "won" && !wasPreviouslyWon) {
+        const existingCommission = await tx.select({ id: partnerCommissionsTable.id })
+          .from(partnerCommissionsTable)
+          .where(and(eq(partnerCommissionsTable.dealId, deal.id), eq(partnerCommissionsTable.type, "deal")))
+          .then(r => r[0]);
+
+        if (!existingCommission) {
+          const COMMISSION_RATE = 0.10;
+          const dealValue = parseFloat(String(deal.actualValue || deal.estimatedValue || "0"));
+          if (dealValue > 0) {
+            const commissionAmount = (dealValue * COMMISSION_RATE).toFixed(2);
+            await tx.insert(partnerCommissionsTable).values({
+              partnerId: req.partnerId!,
+              dealId: deal.id,
+              type: "deal",
+              description: `Commission on deal: ${deal.title} (${(COMMISSION_RATE * 100).toFixed(0)}% of ${dealValue.toLocaleString("en-US", { style: "currency", currency: "USD" })})`,
+              amount: commissionAmount,
+              rate: (COMMISSION_RATE * 100).toFixed(2),
+              status: "pending",
+            });
+            await tx.update(partnersTable).set({
+              totalRevenue: sql`${partnersTable.totalRevenue} + ${dealValue}`,
+              ytdRevenue: sql`${partnersTable.ytdRevenue} + ${dealValue}`,
+            }).where(eq(partnersTable.id, req.partnerId!));
+          }
+        }
+      }
+
+      return deal;
+    });
+
+    if (!result) { res.status(404).json({ error: "not_found", message: "Deal not found" }); return; }
+    res.json({ ...result, products: JSON.parse(result.products) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update deal" });
@@ -597,7 +637,35 @@ router.post("/admin/partner/certifications", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/admin/partner/commissions", requireAuth, async (req, res) => {
+router.get("/admin/partner/commissions", requireAdmin, async (_req, res) => {
+  try {
+    const commissions = await db.select({
+      id: partnerCommissionsTable.id,
+      partnerId: partnerCommissionsTable.partnerId,
+      dealId: partnerCommissionsTable.dealId,
+      type: partnerCommissionsTable.type,
+      description: partnerCommissionsTable.description,
+      amount: partnerCommissionsTable.amount,
+      rate: partnerCommissionsTable.rate,
+      status: partnerCommissionsTable.status,
+      paidAt: partnerCommissionsTable.paidAt,
+      periodStart: partnerCommissionsTable.periodStart,
+      periodEnd: partnerCommissionsTable.periodEnd,
+      createdAt: partnerCommissionsTable.createdAt,
+      partnerCompany: partnersTable.companyName,
+      partnerContact: partnersTable.contactName,
+      partnerEmail: partnersTable.email,
+    }).from(partnerCommissionsTable)
+      .leftJoin(partnersTable, eq(partnerCommissionsTable.partnerId, partnersTable.id))
+      .orderBy(desc(partnerCommissionsTable.createdAt));
+    res.json(commissions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load commissions" });
+  }
+});
+
+router.post("/admin/partner/commissions", requireAdmin, async (req, res) => {
   try {
     const { partnerId, dealId, type, description, amount, rate, status, periodStart, periodEnd } = req.body;
     const [commission] = await db.insert(partnerCommissionsTable).values({
@@ -616,10 +684,15 @@ router.post("/admin/partner/commissions", requireAuth, async (req, res) => {
   }
 });
 
-router.put("/admin/partner/commissions/:id", requireAuth, async (req, res) => {
+router.put("/admin/partner/commissions/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { status } = req.body;
+    const validStatuses = ["pending", "approved", "paid", "disputed", "rejected"];
+    if (!validStatuses.includes(status)) {
+      res.status(400).json({ error: "invalid_status", message: `Status must be one of: ${validStatuses.join(", ")}` });
+      return;
+    }
     const updates: any = { status };
     if (status === "paid") updates.paidAt = new Date();
     const [commission] = await db.update(partnerCommissionsTable).set(updates).where(eq(partnerCommissionsTable.id, id)).returning();

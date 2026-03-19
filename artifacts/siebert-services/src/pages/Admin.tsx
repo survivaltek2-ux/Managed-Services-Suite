@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "users" | "activity";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "users" | "activity" | "partnerCommissions";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -28,6 +28,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "quotes", label: "Quote Requests", icon: <FileText size={18} /> },
   { id: "proposals", label: "Proposals", icon: <DollarSign size={18} /> },
   { id: "tickets", label: "Tickets", icon: <TicketIcon size={18} /> },
+  { id: "partnerCommissions", label: "Partner Commissions", icon: <DollarSign size={18} />, section: "Partners" },
   { id: "users", label: "Users", icon: <Users size={18} />, section: "System" },
   { id: "activity", label: "Activity Log", icon: <Activity size={18} /> },
 ];
@@ -69,6 +70,7 @@ export default function Admin() {
         quotes: "/api/admin/quotes",
         proposals: "/api/admin/proposals",
         tickets: "/api/admin/tickets",
+        partnerCommissions: "/api/admin/partner/commissions",
         users: "/api/admin/users",
         activity: "/api/admin/activity",
       };
@@ -264,6 +266,7 @@ export default function Admin() {
               {activeTab === "quotes" && <QuotesTab quotes={data.quotes || []} refresh={() => fetchData("quotes")} headers={headers} exportCSV={() => exportCSV("quotes")} />}
               {activeTab === "proposals" && <ProposalsTab proposals={data.proposals || []} refresh={() => fetchData("proposals")} headers={headers} />}
               {activeTab === "tickets" && <TicketsTab tickets={data.tickets || []} refresh={() => fetchData("tickets")} headers={headers} exportCSV={() => exportCSV("tickets")} />}
+              {activeTab === "partnerCommissions" && <PartnerCommissionsTab commissions={data.partnerCommissions || []} refresh={() => fetchData("partnerCommissions")} headers={headers} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
             </div>
@@ -1154,6 +1157,170 @@ function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; re
           {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No users found.</div>}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions: any[]; refresh: () => void; headers: () => Record<string, string> }) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10" });
+
+  const filtered = useMemo(() => commissions.filter((c: any) => {
+    const matchSearch = !search || [c.description, c.partnerCompany, c.partnerContact].some(f => f?.toLowerCase().includes(search.toLowerCase()));
+    const matchStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchSearch && matchStatus;
+  }), [commissions, search, statusFilter]);
+
+  const totals = useMemo(() => ({
+    pending: commissions.filter((c: any) => c.status === "pending").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
+    approved: commissions.filter((c: any) => c.status === "approved").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
+    paid: commissions.filter((c: any) => c.status === "paid").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
+    total: commissions.reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
+  }), [commissions]);
+
+  const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  const updateStatus = async (id: number, status: string) => {
+    try {
+      const res = await fetch(`/api/admin/partner/commissions/${id}`, {
+        method: "PUT", headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) { toast({ title: `Commission ${status}` }); refresh(); }
+      else { const err = await res.json().catch(() => ({})); toast({ title: err.message || "Failed to update commission", variant: "destructive" }); }
+    } catch { toast({ title: "Error updating commission", variant: "destructive" }); }
+  };
+
+  const createCommission = async () => {
+    try {
+      const res = await fetch("/api/admin/partner/commissions", {
+        method: "POST", headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, partnerId: parseInt(form.partnerId), dealId: form.dealId ? parseInt(form.dealId) : null }),
+      });
+      if (res.ok) { toast({ title: "Commission created" }); setCreateOpen(false); setForm({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10" }); refresh(); }
+      else toast({ title: "Failed to create commission", variant: "destructive" });
+    } catch { toast({ title: "Error creating commission", variant: "destructive" }); }
+  };
+
+  const statusBadge = (status: string) => {
+    const colors: Record<string, string> = { pending: "bg-yellow-100 text-yellow-800", approved: "bg-blue-100 text-blue-800", paid: "bg-emerald-100 text-emerald-800", rejected: "bg-red-100 text-red-800" };
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || "bg-gray-100 text-gray-800"}`}>{status}</span>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: "Pending", value: fmt(totals.pending), color: "text-yellow-600" },
+          { label: "Approved", value: fmt(totals.approved), color: "text-blue-600" },
+          { label: "Paid", value: fmt(totals.paid), color: "text-emerald-600" },
+          { label: "Total", value: fmt(totals.total), color: "text-primary" },
+        ].map(m => (
+          <Card key={m.label}>
+            <CardContent className="pt-4 pb-3 px-4">
+              <p className="text-xs text-muted-foreground">{m.label}</p>
+              <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Partner Commissions</CardTitle>
+            <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Commission</Button>
+          </div>
+          <div className="flex items-center gap-3 mt-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Search by partner or description..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <select className="h-9 px-3 rounded-md border text-sm bg-background" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="paid">Paid</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-5 py-3 text-left">Partner</th>
+                  <th className="px-5 py-3 text-left">Description</th>
+                  <th className="px-5 py-3 text-left">Type</th>
+                  <th className="px-5 py-3 text-right">Rate</th>
+                  <th className="px-5 py-3 text-right">Amount</th>
+                  <th className="px-5 py-3 text-left">Status</th>
+                  <th className="px-5 py-3 text-left">Date</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c: any) => (
+                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50">
+                    <td className="px-5 py-3">
+                      <div className="font-medium">{c.partnerCompany || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{c.partnerContact}</div>
+                    </td>
+                    <td className="px-5 py-3 max-w-[250px] truncate">{c.description}</td>
+                    <td className="px-5 py-3 capitalize">{c.type}</td>
+                    <td className="px-5 py-3 text-right">{c.rate ? `${c.rate}%` : "—"}</td>
+                    <td className="px-5 py-3 text-right font-medium">{fmt(parseFloat(c.amount || 0))}</td>
+                    <td className="px-5 py-3">{statusBadge(c.status)}</td>
+                    <td className="px-5 py-3 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {c.status === "pending" && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Approve" onClick={() => updateStatus(c.id, "approved")}><Check className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" title="Reject" onClick={() => updateStatus(c.id, "rejected")}><X className="w-4 h-4" /></Button>
+                          </>
+                        )}
+                        {c.status === "approved" && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Mark Paid" onClick={() => updateStatus(c.id, "paid")}><DollarSign className="w-4 h-4" /></Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No commissions found.</div>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent role="dialog" aria-modal="true">
+          <DialogHeader><DialogTitle>Create Commission</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Partner ID</Label><Input type="number" value={form.partnerId} onChange={e => setForm(p => ({ ...p, partnerId: e.target.value }))} placeholder="Enter partner ID" /></div>
+            <div><Label>Deal ID (optional)</Label><Input type="number" value={form.dealId} onChange={e => setForm(p => ({ ...p, dealId: e.target.value }))} placeholder="Associated deal ID" /></div>
+            <div><Label>Type</Label>
+              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+                <option value="deal">Deal</option><option value="recurring">Recurring</option><option value="spiff">Spiff</option><option value="bonus">Bonus</option>
+              </select>
+            </div>
+            <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Commission description" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Amount ($)</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" /></div>
+              <div><Label>Rate (%)</Label><Input type="number" step="0.01" value={form.rate} onChange={e => setForm(p => ({ ...p, rate: e.target.value }))} placeholder="10" /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={createCommission} disabled={!form.partnerId || !form.description || !form.amount}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

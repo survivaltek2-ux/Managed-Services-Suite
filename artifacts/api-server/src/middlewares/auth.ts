@@ -26,6 +26,16 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   }
 }
 
+export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  requireAuth(req, res, () => {
+    if (req.userRole !== "admin") {
+      res.status(403).json({ error: "forbidden", message: "Admin access required" });
+      return;
+    }
+    next();
+  });
+}
+
 export function generateToken(userId: number, role: string): string {
   return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "7d" });
 }
