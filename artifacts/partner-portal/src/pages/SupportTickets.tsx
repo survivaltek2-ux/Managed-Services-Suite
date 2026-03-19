@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { getAuthHeaders } from "@/hooks/use-auth";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Search, Plus, MessageSquare, Clock, CheckCircle2, AlertCircle, X, Send } from "lucide-react";
+import { Search, Plus, MessageSquare, X, Send, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface Ticket {
@@ -47,66 +44,78 @@ export default function SupportTickets() {
     (t.category || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const openCount = tickets.filter(t => t.status === "open").length;
+  const progressCount = tickets.filter(t => t.status === "in_progress").length;
+  const resolvedCount = tickets.filter(t => t.status === "resolved" || t.status === "closed").length;
+
   return (
     <PortalLayout>
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Support Tickets</h1>
-          <p className="text-muted-foreground mt-1">Get help from the Siebert Services team.</p>
+      <div className="sf-page-header px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-bold text-foreground">Support Cases</h1>
+            <span className="text-xs text-muted-foreground">{tickets.length} total</span>
+          </div>
+          <button onClick={() => setShowCreate(true)} className="sf-btn sf-btn-primary">
+            <Plus className="w-3.5 h-3.5" /> New Case
+          </button>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="rounded-xl shadow-md gap-2">
-          <Plus className="w-4 h-4" /> New Ticket
-        </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Open" count={tickets.filter(t => t.status === "open").length} icon={AlertCircle} color="text-blue-500" />
-        <StatCard label="In Progress" count={tickets.filter(t => t.status === "in_progress").length} icon={Clock} color="text-amber-500" />
-        <StatCard label="Resolved" count={tickets.filter(t => t.status === "resolved" || t.status === "closed").length} icon={CheckCircle2} color="text-emerald-500" />
-      </div>
-
-      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-        <div className="p-4 border-b border-border/50 flex items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tickets..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white dark:bg-slate-950 border-border/50 h-10 rounded-lg shadow-sm"
-            />
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="sf-card p-3 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-[#0176d3]" />
+            <div><p className="text-xl font-bold">{openCount}</p><p className="text-[10px] text-muted-foreground uppercase font-medium">Open</p></div>
+          </div>
+          <div className="sf-card p-3 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-[#fe9339]" />
+            <div><p className="text-xl font-bold">{progressCount}</p><p className="text-[10px] text-muted-foreground uppercase font-medium">In Progress</p></div>
+          </div>
+          <div className="sf-card p-3 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-[#2e844a]" />
+            <div><p className="text-xl font-bold">{resolvedCount}</p><p className="text-[10px] text-muted-foreground uppercase font-medium">Resolved</p></div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-slate-50/80 dark:bg-slate-900/80 border-b border-border/50">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input type="text" placeholder="Search cases..." value={search} onChange={e => setSearch(e.target.value)} className="sf-input pl-8" />
+          </div>
+        </div>
+
+        <div className="sf-card overflow-x-auto">
+          <table className="w-full sf-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4 font-semibold tracking-wider">Subject</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Category</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Priority</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Status</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Created</th>
-                <th className="px-6 py-4 font-semibold tracking-wider"></th>
+                <th>Case Number</th>
+                <th>Subject</th>
+                <th>Category</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="text-center p-8 text-muted-foreground">Loading tickets...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="text-center p-12 text-muted-foreground">No tickets found. Create one if you need help.</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No cases found.</td></tr>
               ) : (
-                filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer" onClick={() => setSelectedTicket(t)}>
-                    <td className="px-6 py-4 font-medium text-foreground">{t.subject}</td>
-                    <td className="px-6 py-4 text-muted-foreground capitalize">{t.category || "General"}</td>
-                    <td className="px-6 py-4"><PriorityBadge priority={t.priority} /></td>
-                    <td className="px-6 py-4"><TicketStatus status={t.status} /></td>
-                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{format(new Date(t.createdAt), 'MMM d, yyyy')}</td>
-                    <td className="px-6 py-4">
-                      <Button variant="ghost" size="sm" className="rounded-lg gap-1">
-                        <MessageSquare className="w-3.5 h-3.5" /> View
-                      </Button>
+                filtered.map(t => (
+                  <tr key={t.id} className="cursor-pointer" onClick={() => setSelectedTicket(t)}>
+                    <td className="font-medium text-[#0176d3]">CASE-{String(t.id).padStart(5, '0')}</td>
+                    <td className="font-medium">{t.subject}</td>
+                    <td><span className="sf-badge sf-badge-default capitalize">{t.category || "General"}</span></td>
+                    <td><PriorityBadge priority={t.priority} /></td>
+                    <td><TicketStatus status={t.status} /></td>
+                    <td className="text-xs text-muted-foreground">{format(new Date(t.createdAt), 'MMM d, yyyy')}</td>
+                    <td>
+                      <button className="sf-btn sf-btn-neutral text-xs h-6 px-2">
+                        <MessageSquare className="w-3 h-3" /> View
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -122,34 +131,18 @@ export default function SupportTickets() {
   );
 }
 
-function StatCard({ label, count, icon: Icon, color }: { label: string; count: number; icon: any; color: string }) {
-  return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-      <Icon className={`w-5 h-5 ${color}`} />
-      <div>
-        <p className="text-2xl font-bold text-foreground">{count}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-}
-
 function PriorityBadge({ priority }: { priority: string }) {
-  const map: Record<string, any> = {
-    low: "secondary", medium: "default", high: "warning", urgent: "destructive",
+  const map: Record<string, string> = {
+    low: "sf-badge-default", medium: "sf-badge-info", high: "sf-badge-warning", urgent: "sf-badge-error",
   };
-  return <Badge variant={map[priority] || "secondary"} className="capitalize">{priority}</Badge>;
+  return <span className={`sf-badge ${map[priority] || 'sf-badge-default'} capitalize`}>{priority}</span>;
 }
 
 function TicketStatus({ status }: { status: string }) {
-  const map: Record<string, { variant: any; label: string }> = {
-    open: { variant: "default", label: "Open" },
-    in_progress: { variant: "warning", label: "In Progress" },
-    resolved: { variant: "success", label: "Resolved" },
-    closed: { variant: "secondary", label: "Closed" },
+  const map: Record<string, string> = {
+    open: "sf-badge-info", in_progress: "sf-badge-warning", resolved: "sf-badge-success", closed: "sf-badge-default",
   };
-  const config = map[status] || { variant: "secondary", label: status };
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <span className={`sf-badge ${map[status] || 'sf-badge-default'} capitalize`}>{status.replace('_', ' ')}</span>;
 }
 
 function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -161,45 +154,38 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setSubmitting(true);
     try {
       const res = await fetch("/api/partner/tickets", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(form),
+        method: "POST", headers: getAuthHeaders(), body: JSON.stringify(form),
       });
-      if (res.ok) {
-        onCreated();
-        onClose();
-      }
-    } finally {
-      setSubmitting(false);
-    }
+      if (res.ok) { onCreated(); onClose(); }
+    } finally { setSubmitting(false); }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-lg rounded-3xl shadow-2xl border border-border flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-border flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 rounded-t-3xl">
-          <h2 className="text-xl font-display font-bold">Create Support Ticket</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4" role="dialog" aria-modal="true" aria-labelledby="ticket-modal-title" onKeyDown={(e) => e.key === "Escape" && onClose()}>
+      <div className="bg-white w-full max-w-lg rounded shadow-xl border border-[#d8dde6] flex flex-col max-h-[80vh]">
+        <div className="px-4 py-3 border-b border-[#d8dde6] flex justify-between items-center bg-[#fafaf9]">
+          <h2 id="ticket-modal-title" className="text-base font-bold">New Support Case</h2>
+          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">
-          <form id="ticket-form" onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Subject *</label>
-              <Input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} required />
+        <div className="p-4 overflow-y-auto flex-1">
+          <form id="ticket-form" onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Subject *</label>
+              <input className="sf-input" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} required />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Priority</label>
-                <select className="w-full h-10 px-3 rounded-lg border border-border bg-white dark:bg-slate-950 text-sm" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Priority</label>
+                <select className="sf-input" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
                   <option value="urgent">Urgent</option>
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Category</label>
-                <select className="w-full h-10 px-3 rounded-lg border border-border bg-white dark:bg-slate-950 text-sm" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Category</label>
+                <select className="sf-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
                   <option value="general">General</option>
                   <option value="billing">Billing</option>
                   <option value="technical">Technical</option>
@@ -208,17 +194,17 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 </select>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Description *</label>
-              <textarea className="w-full min-h-[120px] px-3 py-2 rounded-lg border border-border bg-white dark:bg-slate-950 text-sm resize-y" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Description *</label>
+              <textarea className="sf-input min-h-[100px] py-2 resize-y" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
             </div>
           </form>
         </div>
-        <div className="p-6 border-t border-border bg-slate-50/50 dark:bg-slate-900/50 rounded-b-3xl flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl">Cancel</Button>
-          <Button type="submit" form="ticket-form" disabled={submitting} className="rounded-xl px-8 shadow-md">
-            {submitting ? "Creating..." : "Submit Ticket"}
-          </Button>
+        <div className="px-4 py-3 border-t border-[#d8dde6] bg-[#fafaf9] flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="sf-btn sf-btn-neutral">Cancel</button>
+          <button type="submit" form="ticket-form" disabled={submitting} className="sf-btn sf-btn-primary">
+            {submitting ? "Saving..." : "Save"}
+          </button>
         </div>
       </div>
     </div>
@@ -245,50 +231,47 @@ function TicketDetail({ ticket, onClose }: { ticket: Ticket; onClose: () => void
     setSending(true);
     try {
       await fetch(`/api/partner/tickets/${ticket.id}/messages`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ message: newMessage }),
+        method: "POST", headers: getAuthHeaders(), body: JSON.stringify({ message: newMessage }),
       });
       setNewMessage("");
       loadMessages();
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl border border-border flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-border bg-slate-50/50 dark:bg-slate-900/50 rounded-t-3xl">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-10 px-4" role="dialog" aria-modal="true" aria-labelledby="ticket-detail-title" onKeyDown={(e) => e.key === "Escape" && onClose()}>
+      <div className="bg-white w-full max-w-2xl rounded shadow-xl border border-[#d8dde6] flex flex-col max-h-[85vh]">
+        <div className="px-4 py-3 border-b border-[#d8dde6] bg-[#fafaf9]">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-display font-bold">{ticket.subject}</h2>
-              <div className="flex items-center gap-2 mt-2">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase">CASE-{String(ticket.id).padStart(5, '0')}</p>
+              <h2 id="ticket-detail-title" className="text-base font-bold mt-0.5">{ticket.subject}</h2>
+              <div className="flex items-center gap-2 mt-1.5">
                 <TicketStatus status={ticket.status} />
                 <PriorityBadge priority={ticket.priority} />
-                <span className="text-xs text-muted-foreground">{format(new Date(ticket.createdAt), 'MMM d, yyyy h:mm a')}</span>
+                <span className="text-[10px] text-muted-foreground">{format(new Date(ticket.createdAt), 'MMM d, yyyy h:mm a')}</span>
               </div>
             </div>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 text-sm">
-            <p className="text-muted-foreground text-xs mb-1 font-semibold uppercase">Original Description</p>
-            <p className="text-foreground whitespace-pre-wrap">{ticket.description}</p>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="bg-[#fafaf9] border border-[#d8dde6] rounded p-3 text-sm">
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase mb-1">Description</p>
+            <p className="whitespace-pre-wrap">{ticket.description}</p>
           </div>
 
           {loading ? (
-            <p className="text-center text-muted-foreground text-sm py-4">Loading messages...</p>
+            <p className="text-center text-sm text-muted-foreground py-4">Loading...</p>
           ) : messages.length === 0 ? (
-            <p className="text-center text-muted-foreground text-sm py-4">No replies yet.</p>
+            <p className="text-center text-sm text-muted-foreground py-4">No replies yet.</p>
           ) : (
             messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.senderType === "partner" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${msg.senderType === "partner" ? "bg-primary text-primary-foreground" : "bg-slate-100 dark:bg-slate-800 text-foreground"}`}>
+                <div className={`max-w-[80%] rounded p-3 text-sm ${msg.senderType === "partner" ? "bg-[#0176d3] text-white" : "bg-[#fafaf9] border border-[#d8dde6] text-foreground"}`}>
                   <p className="whitespace-pre-wrap">{msg.message}</p>
-                  <p className={`text-xs mt-1 ${msg.senderType === "partner" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                  <p className={`text-[10px] mt-1 ${msg.senderType === "partner" ? "text-white/60" : "text-muted-foreground"}`}>
                     {format(new Date(msg.createdAt), 'MMM d, h:mm a')}
                   </p>
                 </div>
@@ -298,19 +281,17 @@ function TicketDetail({ ticket, onClose }: { ticket: Ticket; onClose: () => void
         </div>
 
         {ticket.status !== "closed" && (
-          <div className="p-4 border-t border-border bg-slate-50/50 dark:bg-slate-900/50 rounded-b-3xl">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-                className="bg-white dark:bg-slate-950 rounded-xl"
-              />
-              <Button onClick={handleSend} disabled={sending || !newMessage.trim()} className="rounded-xl px-4 shadow-md">
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+          <div className="p-3 border-t border-[#d8dde6] bg-[#fafaf9] flex gap-2">
+            <input
+              className="sf-input flex-1"
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={e => setNewMessage(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
+            />
+            <button onClick={handleSend} disabled={sending || !newMessage.trim()} className="sf-btn sf-btn-primary">
+              <Send className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>

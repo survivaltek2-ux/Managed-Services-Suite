@@ -1,89 +1,143 @@
 import { useState } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useDeals, useCreateDeal, type Deal } from "@/hooks/use-deals";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, List, Columns3, X, ChevronDown, Filter } from "lucide-react";
 import { format } from "date-fns";
+
+const STAGES = ["prospect", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"];
+const STAGE_COLORS: Record<string, string> = {
+  prospect: "#0176d3",
+  qualification: "#1b96ff",
+  proposal: "#fe9339",
+  negotiation: "#9050e9",
+  closed_won: "#2e844a",
+  closed_lost: "#ea001e",
+};
 
 export default function Deals() {
   const { data: deals = [], isLoading } = useDeals();
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"list" | "kanban">("list");
 
-  const filteredDeals = deals.filter(d => 
-    d.title.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredDeals = deals.filter(d =>
+    d.title.toLowerCase().includes(search.toLowerCase()) ||
     d.customerName.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <PortalLayout>
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Deal Registration</h1>
-          <p className="text-muted-foreground mt-1">Register and track your opportunities.</p>
+      {/* Page Header */}
+      <div className="sf-page-header px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-bold text-foreground">Deals</h1>
+            <span className="text-xs text-muted-foreground">{filteredDeals.length} items</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex border border-border rounded overflow-hidden">
+              <button onClick={() => setView("list")} aria-label="List view" className={`p-1.5 ${view === "list" ? "bg-[#0176d3] text-white" : "bg-white text-muted-foreground hover:bg-[#f3f3f3]"}`}>
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => setView("kanban")} aria-label="Kanban view" className={`p-1.5 ${view === "kanban" ? "bg-[#0176d3] text-white" : "bg-white text-muted-foreground hover:bg-[#f3f3f3]"}`}>
+                <Columns3 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <button onClick={() => setShowModal(true)} className="sf-btn sf-btn-primary">
+              <Plus className="w-3.5 h-3.5" /> New Deal
+            </button>
+          </div>
         </div>
-        <Button onClick={() => setShowModal(true)} className="rounded-xl shadow-md gap-2">
-          <Plus className="w-4 h-4" /> Register New Deal
-        </Button>
       </div>
 
-      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-        <div className="p-4 border-b border-border/50 flex items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search deals..." 
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        {/* Search & Filter Bar */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search deals..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white dark:bg-slate-950 border-border/50 h-10 rounded-lg shadow-sm"
+              className="sf-input pl-8"
             />
           </div>
-          <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-lg">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-          </Button>
+          <button className="sf-btn sf-btn-neutral">
+            <Filter className="w-3.5 h-3.5" /> Filters <ChevronDown className="w-3 h-3" />
+          </button>
         </div>
 
-        <div className="flex-1 overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-slate-50/80 dark:bg-slate-900/80 border-b border-border/50">
-              <tr>
-                <th className="px-6 py-4 font-semibold tracking-wider">Deal Name</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Customer</th>
-                <th className="px-6 py-4 font-semibold tracking-wider text-right">Est. Value</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Stage</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Status</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {isLoading ? (
-                <tr><td colSpan={6} className="text-center p-8 text-muted-foreground">Loading deals...</td></tr>
-              ) : filteredDeals.length === 0 ? (
-                <tr><td colSpan={6} className="text-center p-12 text-muted-foreground">No deals found. Register your first deal to get started.</td></tr>
-              ) : (
-                filteredDeals.map((deal) => (
-                  <tr key={deal.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors group cursor-pointer">
-                    <td className="px-6 py-4 font-medium text-foreground">{deal.title}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{deal.customerName}</td>
-                    <td className="px-6 py-4 font-semibold text-right text-foreground">{formatCurrency(deal.estimatedValue)}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="outline" className="capitalize bg-white dark:bg-slate-950 shadow-sm">{deal.stage.replace('_', ' ')}</Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={deal.status} />
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                      {format(new Date(deal.createdAt), 'MMM d, yyyy')}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {view === "list" ? (
+          <div className="sf-card overflow-x-auto">
+            <table className="w-full sf-table">
+              <thead>
+                <tr>
+                  <th>Deal Name</th>
+                  <th>Customer</th>
+                  <th className="text-right">Est. Value</th>
+                  <th>Stage</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
+                ) : filteredDeals.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No deals found. Register your first deal to get started.</td></tr>
+                ) : (
+                  filteredDeals.map((deal) => (
+                    <tr key={deal.id} className="cursor-pointer">
+                      <td className="font-medium text-[#0176d3]">{deal.title}</td>
+                      <td>{deal.customerName}</td>
+                      <td className="text-right font-semibold">{formatCurrency(deal.estimatedValue)}</td>
+                      <td>
+                        <span className="sf-badge capitalize" style={{ backgroundColor: `${STAGE_COLORS[deal.stage] || '#706e6b'}15`, color: STAGE_COLORS[deal.stage] || '#706e6b' }}>
+                          {deal.stage.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td><StatusBadge status={deal.status} /></td>
+                      <td className="text-muted-foreground text-xs">{format(new Date(deal.createdAt), 'MMM d, yyyy')}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {STAGES.map(stage => {
+              const stageDeals = filteredDeals.filter(d => d.stage === stage);
+              const stageTotal = stageDeals.reduce((s, d) => s + parseFloat(String(d.estimatedValue) || "0"), 0);
+              return (
+                <div key={stage} className="min-w-[260px] flex-1">
+                  <div className="rounded-t px-3 py-2 flex items-center justify-between" style={{ backgroundColor: `${STAGE_COLORS[stage]}15`, borderBottom: `2px solid ${STAGE_COLORS[stage]}` }}>
+                    <span className="text-xs font-bold uppercase tracking-wider capitalize" style={{ color: STAGE_COLORS[stage] }}>{stage.replace('_', ' ')}</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground">{stageDeals.length} &middot; {formatCurrency(stageTotal)}</span>
+                  </div>
+                  <div className="space-y-2 mt-2 min-h-[200px]">
+                    {stageDeals.map(deal => (
+                      <div key={deal.id} className="sf-card p-3 cursor-pointer hover:shadow-md transition-shadow">
+                        <p className="font-medium text-sm text-[#0176d3] mb-1">{deal.title}</p>
+                        <p className="text-xs text-muted-foreground mb-2">{deal.customerName}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold">{formatCurrency(deal.estimatedValue)}</span>
+                          <StatusBadge status={deal.status} />
+                        </div>
+                      </div>
+                    ))}
+                    {stageDeals.length === 0 && (
+                      <div className="text-center py-8 text-xs text-muted-foreground">No deals</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {showModal && <AddDealModal onClose={() => setShowModal(false)} />}
@@ -92,15 +146,14 @@ export default function Deals() {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { v: any, l: string }> = {
-    registered: { v: "default", l: "Registered" },
-    in_progress: { v: "warning", l: "In Progress" },
-    won: { v: "success", l: "Closed Won" },
-    lost: { v: "destructive", l: "Closed Lost" },
-    expired: { v: "secondary", l: "Expired" }
+  const map: Record<string, string> = {
+    registered: "sf-badge-info",
+    in_progress: "sf-badge-warning",
+    won: "sf-badge-success",
+    lost: "sf-badge-error",
+    expired: "sf-badge-default",
   };
-  const config = map[status] || map.registered;
-  return <Badge variant={config.v}>{config.l}</Badge>;
+  return <span className={`sf-badge ${map[status] || 'sf-badge-default'} capitalize`}>{status.replace('_', ' ')}</span>;
 }
 
 function AddDealModal({ onClose }: { onClose: () => void }) {
@@ -129,51 +182,51 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl border border-border flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-border flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 rounded-t-3xl">
-          <h2 className="text-xl font-display font-bold">Register New Deal</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><Plus className="w-6 h-6 rotate-45" /></button>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4" role="dialog" aria-modal="true" aria-labelledby="deal-modal-title" onKeyDown={(e) => e.key === "Escape" && onClose()}>
+      <div className="bg-white w-full max-w-xl rounded shadow-xl border border-[#d8dde6] flex flex-col max-h-[80vh]">
+        <div className="px-4 py-3 border-b border-[#d8dde6] flex justify-between items-center bg-[#fafaf9]">
+          <h2 id="deal-modal-title" className="text-base font-bold">New Deal Registration</h2>
+          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">
-          <form id="deal-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Opportunity Name *</label>
-              <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
+        <div className="p-4 overflow-y-auto flex-1">
+          <form id="deal-form" onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Opportunity Name *</label>
+              <input className="sf-input" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
             </div>
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Customer Company *</label>
-                <Input value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} required />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Customer Company *</label>
+                <input className="sf-input" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} required />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Customer Email</label>
-                <Input type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Customer Email</label>
+                <input className="sf-input" type="email" value={formData.customerEmail} onChange={e => setFormData({...formData, customerEmail: e.target.value})} />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Estimated Value ($) *</label>
-              <Input type="number" min="0" step="0.01" value={formData.estimatedValue} onChange={e => setFormData({...formData, estimatedValue: e.target.value})} required />
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Estimated Value ($) *</label>
+              <input className="sf-input" type="number" min="0" step="0.01" value={formData.estimatedValue} onChange={e => setFormData({...formData, estimatedValue: e.target.value})} required />
             </div>
-            <div className="space-y-3">
-              <label className="text-sm font-semibold">Products of Interest</label>
-              <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Products of Interest</label>
+              <div className="grid grid-cols-2 gap-2">
                 {PRODUCTS.map(p => (
-                  <label key={p} className="flex items-center gap-3 p-3 border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-colors">
-                    <input type="checkbox" className="w-4 h-4 rounded text-primary focus:ring-primary" 
+                  <label key={p} className="flex items-center gap-2 p-2 border border-border rounded hover:bg-[#f3f3f3] cursor-pointer text-sm">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded text-[#0176d3] focus:ring-[#0176d3]"
                       checked={formData.products.includes(p)} onChange={() => toggleProduct(p)} />
-                    <span className="text-sm font-medium">{p}</span>
+                    {p}
                   </label>
                 ))}
               </div>
             </div>
           </form>
         </div>
-        <div className="p-6 border-t border-border bg-slate-50/50 dark:bg-slate-900/50 rounded-b-3xl flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl">Cancel</Button>
-          <Button type="submit" form="deal-form" disabled={isPending} className="rounded-xl px-8 shadow-md">
-            {isPending ? "Registering..." : "Submit Registration"}
-          </Button>
+        <div className="px-4 py-3 border-t border-[#d8dde6] bg-[#fafaf9] flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="sf-btn sf-btn-neutral">Cancel</button>
+          <button type="submit" form="deal-form" disabled={isPending} className="sf-btn sf-btn-primary">
+            {isPending ? "Saving..." : "Save"}
+          </button>
         </div>
       </div>
     </div>

@@ -3,16 +3,11 @@ import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useDeals } from "@/hooks/use-deals";
 import { formatCurrency } from "@/lib/utils";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Target, TrendingUp, Handshake, ChevronRight, Award, DollarSign, Headphones, FileText } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { TrendingUp, Handshake, DollarSign, Headphones, Target, FileText, ArrowRight, ChevronRight } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
-const MOCK_CHART_DATA = [
-  { name: 'Jan', value: 12000 }, { name: 'Feb', value: 19000 }, { name: 'Mar', value: 15000 },
-  { name: 'Apr', value: 28000 }, { name: 'May', value: 22000 }, { name: 'Jun', value: 35000 },
-];
+const PIE_COLORS = ['#0176d3', '#2e844a', '#fe9339', '#ea001e', '#706e6b'];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -31,126 +26,192 @@ export default function Dashboard() {
   const activeDealsCount = deals.filter(d => ['registered', 'in_progress'].includes(d.status)).length;
   const recentDeals = deals.slice(0, 5);
 
+  const dealsByStage: Record<string, number> = {};
+  deals.forEach(d => { dealsByStage[d.stage] = (dealsByStage[d.stage] || 0) + 1; });
+  const pieData = Object.entries(dealsByStage).map(([name, value]) => ({ name: name.replace('_', ' '), value }));
+
+  const monthlyData = deals.reduce((acc: Record<string, number>, d) => {
+    const m = new Date(d.createdAt).toLocaleString('default', { month: 'short' });
+    acc[m] = (acc[m] || 0) + parseFloat(String(d.estimatedValue) || "0");
+    return acc;
+  }, {});
+  const chartData = Object.entries(monthlyData).slice(-6).map(([name, value]) => ({ name, value }));
+
   return (
     <PortalLayout>
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Overview</h1>
-          <p className="text-muted-foreground mt-1">Welcome back. Here's what's happening with your pipeline.</p>
-        </div>
-        <div className="flex items-center gap-3 bg-card px-4 py-2 rounded-xl border border-border shadow-sm">
-          <Award className="w-5 h-5 text-amber-500" />
-          <div className="text-sm">
-            <span className="text-muted-foreground mr-2">Current Tier:</span>
-            <span className="font-bold text-foreground capitalize">{user.tier}</span>
+      {/* Page Header */}
+      <div className="sf-page-header px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Home</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Welcome back, {user.contactName}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="sf-badge sf-badge-info font-semibold uppercase text-[10px]">{user.tier} Partner</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <MetricCard title="Total YTD Revenue" value={formatCurrency(user.ytdRevenue)} icon={TrendingUp} trend="+14% from last year" />
-        <MetricCard title="Active Deals" value={activeDealsCount.toString()} icon={Target} trend={`${deals.length} total historical`} />
-        <MetricCard title="Commissions Earned" value={stats ? formatCurrency(stats.pendingCommissions + stats.paidCommissions) : "$0"} icon={DollarSign} trend={stats ? `$${stats.pendingCommissions.toFixed(0)} pending` : undefined} />
-        <MetricCard title="Open Tickets" value={stats?.openTickets?.toString() || "0"} icon={Headphones} />
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8 mb-8">
-        <div className="lg:col-span-2">
-          <Card className="p-6 h-full flex flex-col rounded-2xl shadow-sm border-border/50">
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-foreground font-display">Revenue Pipeline</h3>
-              <p className="text-sm text-muted-foreground">Estimated deal value by month</p>
-            </div>
-            <div className="flex-1 min-h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MOCK_CHART_DATA} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 12}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 12}} tickFormatter={(val) => `$${val/1000}k`} />
-                  <Tooltip 
-                    cursor={{fill: 'hsl(var(--muted)/0.5)'}}
-                    contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    formatter={(val: number) => [formatCurrency(val), "Revenue"]}
-                  />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KpiCard label="YTD Revenue" value={formatCurrency(user.ytdRevenue)} icon={TrendingUp} color="#0176d3" />
+          <KpiCard label="Active Deals" value={activeDealsCount.toString()} icon={Target} color="#2e844a" />
+          <KpiCard label="Total Commissions" value={stats ? formatCurrency(stats.pendingCommissions + stats.paidCommissions) : "$0"} icon={DollarSign} color="#fe9339" />
+          <KpiCard label="Open Tickets" value={stats?.openTickets?.toString() || "0"} icon={Headphones} color="#706e6b" />
         </div>
 
-        <div>
-          <Card className="p-0 overflow-hidden h-full rounded-2xl shadow-sm border-border/50 flex flex-col">
-            <div className="p-6 border-b border-border/50 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-              <h3 className="text-lg font-bold text-foreground font-display">Recent Deals</h3>
-              <Link href="/deals" className="text-sm text-primary hover:underline font-medium">View all</Link>
+        {/* Charts Row */}
+        <div className="grid lg:grid-cols-3 gap-4 mb-6">
+          <div className="lg:col-span-2 sf-card">
+            <div className="sf-card-header">
+              <span>Revenue Pipeline</span>
+              <Link href="/deals" className="text-xs text-[#0176d3] hover:underline flex items-center gap-1">View All <ChevronRight className="w-3 h-3" /></Link>
             </div>
-            <div className="flex-1 overflow-auto">
-              {recentDeals.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                  <Handshake className="w-8 h-8 mb-2 opacity-20" />
-                  <p className="text-sm">No deals registered yet</p>
-                </div>
+            <div className="p-4 h-[280px]">
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8dde6" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#706e6b', fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#706e6b', fontSize: 11 }} tickFormatter={(v) => `$${v/1000}k`} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '4px', border: '1px solid #d8dde6', fontSize: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                      formatter={(val: number) => [formatCurrency(val), "Revenue"]}
+                    />
+                    <Bar dataKey="value" fill="#0176d3" radius={[2, 2, 0, 0]} maxBarSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
-                <div className="divide-y divide-border/50">
-                  {recentDeals.map(deal => (
-                    <div key={deal.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors flex items-center justify-between group">
-                      <div>
-                        <p className="font-semibold text-sm text-foreground">{deal.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{deal.customerName}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-foreground">{formatCurrency(deal.estimatedValue)}</p>
-                        <Badge variant="outline" className="mt-1 text-[10px] py-0">{deal.stage.replace('_', ' ')}</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No deal data to display</div>
               )}
             </div>
-          </Card>
-        </div>
-      </div>
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <QuickLink href="/commissions" icon={DollarSign} title="Commissions" desc="Track earnings & payments" color="text-emerald-500" bg="bg-emerald-500/10" />
-        <QuickLink href="/support" icon={Headphones} title="Support Tickets" desc="Get help from our team" color="text-blue-500" bg="bg-blue-500/10" />
-        <QuickLink href="/mdf" icon={FileText} title="MDF Requests" desc="Co-marketing fund requests" color="text-violet-500" bg="bg-violet-500/10" />
+          <div className="sf-card">
+            <div className="sf-card-header">
+              <span>Deals by Stage</span>
+            </div>
+            <div className="p-4 h-[280px]">
+              {pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="45%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={2}>
+                      {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: '4px', border: '1px solid #d8dde6', fontSize: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No deals yet</div>
+              )}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center -mt-4">
+                {pieData.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
+                    <div className="w-2 h-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <span className="capitalize text-muted-foreground">{d.name}</span>
+                    <span className="font-semibold text-foreground">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Row */}
+        <div className="grid lg:grid-cols-3 gap-4">
+          {/* Recent Deals List */}
+          <div className="lg:col-span-2 sf-card">
+            <div className="sf-card-header">
+              <span>Recent Deals</span>
+              <Link href="/deals" className="text-xs text-[#0176d3] hover:underline flex items-center gap-1">View All <ChevronRight className="w-3 h-3" /></Link>
+            </div>
+            <table className="w-full sf-table">
+              <thead>
+                <tr>
+                  <th>Deal Name</th>
+                  <th>Customer</th>
+                  <th className="text-right">Est. Value</th>
+                  <th>Stage</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentDeals.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No deals registered yet</td></tr>
+                ) : (
+                  recentDeals.map(deal => (
+                    <tr key={deal.id} className="cursor-pointer">
+                      <td className="font-medium text-[#0176d3]">{deal.title}</td>
+                      <td>{deal.customerName}</td>
+                      <td className="text-right font-semibold">{formatCurrency(deal.estimatedValue)}</td>
+                      <td><span className="sf-badge sf-badge-info capitalize">{deal.stage.replace('_', ' ')}</span></td>
+                      <td><DealStatusBadge status={deal.status} /></td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="sf-card">
+            <div className="sf-card-header">
+              <span>Quick Actions</span>
+            </div>
+            <div className="p-3 space-y-1">
+              <QuickAction href="/deals" icon={Handshake} label="Register New Deal" />
+              <QuickAction href="/commissions" icon={DollarSign} label="View Commissions" />
+              <QuickAction href="/support" icon={Headphones} label="Open Support Ticket" />
+              <QuickAction href="/mdf" icon={FileText} label="Request MDF Funds" />
+              <QuickAction href="/resources" icon={Target} label="Browse Resources" />
+              <QuickAction href="/training" icon={TrendingUp} label="Continue Training" />
+            </div>
+          </div>
+        </div>
       </div>
     </PortalLayout>
   );
 }
 
-function QuickLink({ href, icon: Icon, title, desc, color, bg }: { href: string; icon: any; title: string; desc: string; color: string; bg: string }) {
+function KpiCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
+  return (
+    <div className="sf-card p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+        </div>
+        <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: `${color}10` }}>
+          <Icon className="w-4 h-4" style={{ color }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickAction({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
   return (
     <Link href={href}>
-      <Card className="p-5 rounded-2xl shadow-sm border-border/50 hover:shadow-md transition-all cursor-pointer group">
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-xl ${bg}`}>
-            <Icon className={`w-5 h-5 ${color}`} />
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{title}</p>
-            <p className="text-xs text-muted-foreground">{desc}</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded hover:bg-[#f3f3f3] cursor-pointer transition-colors group">
+        <div className="w-7 h-7 bg-[#0176d3]/10 rounded flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 text-[#0176d3]" />
         </div>
-      </Card>
+        <span className="text-sm font-medium text-foreground flex-1">{label}</span>
+        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
     </Link>
   );
 }
 
-function MetricCard({ title, value, icon: Icon, trend }: any) {
-  return (
-    <Card className="p-6 rounded-2xl shadow-sm border-border/50 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <div className="p-2 bg-primary/10 rounded-lg">
-          <Icon className="w-5 h-5 text-primary" />
-        </div>
-      </div>
-      <h3 className="text-3xl font-display font-bold text-foreground tracking-tight">{value}</h3>
-      {trend && <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-2">{trend}</p>}
-    </Card>
-  );
+function DealStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    registered: "sf-badge-info",
+    in_progress: "sf-badge-warning",
+    won: "sf-badge-success",
+    lost: "sf-badge-error",
+    expired: "sf-badge-default",
+  };
+  return <span className={`sf-badge ${map[status] || 'sf-badge-default'} capitalize`}>{status.replace('_', ' ')}</span>;
 }
+

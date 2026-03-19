@@ -46,23 +46,32 @@ Full-featured MSP/Reseller marketing + client portal website for **Siebert Repai
 - Full admin panel with dashboard, blog, services, testimonials, team, FAQ, contacts, quotes, tickets, proposals, users, activity log management
 - All data persisted to PostgreSQL
 
-### `artifacts/partner-portal` — Partner Portal (Salesforce-style)
-Reseller/MSP partner portal at `/partners/` base path.
+### `artifacts/partner-portal` — Partner Portal (Salesforce Lightning Design)
+Reseller/MSP partner portal at `/partners/` base path. Fully redesigned with Salesforce Lightning design system.
+
+**Design System:**
+- Salesforce Lightning color palette: Primary `#0176d3`, Dark `#032d60`, Success `#2e844a`, Warning `#fe9339`, Error `#ea001e`, Gray `#706e6b`
+- Top navigation bar (44px, gradient `#032d60` → `#0176d3`) with tab-based navigation
+- CSS utility classes: `sf-header`, `sf-page-header`, `sf-card`, `sf-card-header`, `sf-table`, `sf-badge-{success,warning,error,info,default}`, `sf-btn`, `sf-btn-primary`, `sf-btn-neutral`, `sf-input`
+- 0.25rem border radius (tight enterprise style)
+- Inter font family
+- Accessible modals with `role="dialog"`, `aria-modal`, `aria-label`, ESC key support
+- Responsive tables with `overflow-x-auto`
 
 **Pages:**
 - `/` — Public landing page
 - `/login` — Partner login
 - `/register` — Partner registration
-- `/dashboard` — Overview with metrics, charts, quick links
-- `/deals` — Deal registration and tracking
-- `/leads` — Lead management
-- `/commissions` — Commission tracking and payment history
-- `/resources` — Partner resources library
-- `/training` — Training & certifications
-- `/support` — Support ticket system with messaging
-- `/mdf` — Market Development Fund requests
-- `/announcements` — Company announcements
-- `/profile` — Partner profile management
+- `/dashboard` — Salesforce-style home with KPI cards, revenue pipeline chart, deals by stage pie chart, recent deals table, quick actions
+- `/deals` — Deal registration with list/kanban toggle, search, filters (stages: prospect, qualification, proposal, negotiation, closed_won, closed_lost)
+- `/leads` — Lead management with search, inline status updates
+- `/commissions` — Commission KPI cards (total, paid, approved, pending) + transaction table
+- `/resources` — Resource library with category filter tabs + search
+- `/training` — Training courses with progress bars, summary cards
+- `/support` — Support cases with create/view/message modals, priority/status badges
+- `/mdf` — MDF request management with KPI cards + create modal
+- `/announcements` — Company news with pinned/regular announcement cards
+- `/profile` — Company profile with business info, contact, account status sections
 
 ### `artifacts/api-server` — Express API Server
 Backend for both websites.

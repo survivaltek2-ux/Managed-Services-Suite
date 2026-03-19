@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { getAuthHeaders } from "@/hooks/use-auth";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/Input";
 import { formatCurrency } from "@/lib/utils";
-import { DollarSign, TrendingUp, Clock, CheckCircle, Search, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle, Search } from "lucide-react";
 import { format } from "date-fns";
 
 interface Commission {
@@ -51,62 +48,56 @@ export default function Commissions() {
 
   return (
     <PortalLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-foreground">Commissions</h1>
-        <p className="text-muted-foreground mt-1">Track your earnings and payment history.</p>
+      <div className="sf-page-header px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-bold text-foreground">Commissions</h1>
+            <span className="text-xs text-muted-foreground">{summary?.totalTransactions || 0} total</span>
+          </div>
+        </div>
       </div>
 
-      {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <MetricCard title="Total Earned" value={formatCurrency(summary.totalEarned)} icon={DollarSign} color="text-emerald-500" bg="bg-emerald-500/10" />
-          <MetricCard title="Paid Out" value={formatCurrency(summary.paid)} icon={CheckCircle} color="text-blue-500" bg="bg-blue-500/10" />
-          <MetricCard title="Approved" value={formatCurrency(summary.approved)} icon={ArrowUpRight} color="text-violet-500" bg="bg-violet-500/10" />
-          <MetricCard title="Pending" value={formatCurrency(summary.pending)} icon={Clock} color="text-amber-500" bg="bg-amber-500/10" />
-        </div>
-      )}
-
-      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-        <div className="p-4 border-b border-border/50 flex items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search commissions..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white dark:bg-slate-950 border-border/50 h-10 rounded-lg shadow-sm"
-            />
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        {summary && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <KpiCard label="Total Earned" value={formatCurrency(summary.totalEarned)} icon={DollarSign} color="#2e844a" />
+            <KpiCard label="Paid Out" value={formatCurrency(summary.paid)} icon={CheckCircle} color="#0176d3" />
+            <KpiCard label="Approved" value={formatCurrency(summary.approved)} icon={TrendingUp} color="#9050e9" />
+            <KpiCard label="Pending" value={formatCurrency(summary.pending)} icon={Clock} color="#fe9339" />
           </div>
-          <span className="text-sm text-muted-foreground">{summary?.totalTransactions || 0} total</span>
+        )}
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input type="text" placeholder="Search commissions..." value={search} onChange={e => setSearch(e.target.value)} className="sf-input pl-8" />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-slate-50/80 dark:bg-slate-900/80 border-b border-border/50">
+        <div className="sf-card overflow-x-auto">
+          <table className="w-full sf-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4 font-semibold tracking-wider">Description</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Type</th>
-                <th className="px-6 py-4 font-semibold tracking-wider text-right">Amount</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Status</th>
-                <th className="px-6 py-4 font-semibold tracking-wider">Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th className="text-right">Amount</th>
+                <th>Status</th>
+                <th>Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="text-center p-8 text-muted-foreground">Loading commissions...</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="text-center p-12 text-muted-foreground">No commissions found yet.</td></tr>
+                <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">No commissions found.</td></tr>
               ) : (
-                filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-foreground">{c.description || "Commission payment"}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="outline" className="capitalize bg-white dark:bg-slate-950 shadow-sm">{c.type.replace('_', ' ')}</Badge>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-right text-emerald-600 dark:text-emerald-400">{formatCurrency(parseFloat(c.amount))}</td>
-                    <td className="px-6 py-4"><CommissionStatus status={c.status} /></td>
-                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                      {format(new Date(c.createdAt), 'MMM d, yyyy')}
-                    </td>
+                filtered.map(c => (
+                  <tr key={c.id}>
+                    <td className="font-medium">{c.description || "Commission payment"}</td>
+                    <td><span className="sf-badge sf-badge-default capitalize">{c.type.replace('_', ' ')}</span></td>
+                    <td className="text-right font-semibold text-[#2e844a]">{formatCurrency(parseFloat(c.amount))}</td>
+                    <td><CommissionStatus status={c.status} /></td>
+                    <td className="text-xs text-muted-foreground">{format(new Date(c.createdAt), 'MMM d, yyyy')}</td>
                   </tr>
                 ))
               )}
@@ -118,29 +109,28 @@ export default function Commissions() {
   );
 }
 
-function MetricCard({ title, value, icon: Icon, color, bg }: { title: string; value: string; icon: any; color: string; bg: string }) {
+function KpiCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
   return (
-    <Card className="p-6 rounded-2xl shadow-sm border-border/50 hover:shadow-md transition-shadow">
+    <div className="sf-card p-4">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-2xl font-bold mt-2 text-foreground">{value}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
         </div>
-        <div className={`p-3 rounded-xl ${bg}`}>
-          <Icon className={`w-5 h-5 ${color}`} />
+        <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: `${color}10` }}>
+          <Icon className="w-4 h-4" style={{ color }} />
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
 function CommissionStatus({ status }: { status: string }) {
-  const map: Record<string, { variant: any; label: string }> = {
-    pending: { variant: "warning", label: "Pending" },
-    approved: { variant: "default", label: "Approved" },
-    paid: { variant: "success", label: "Paid" },
-    rejected: { variant: "destructive", label: "Rejected" },
+  const map: Record<string, string> = {
+    pending: "sf-badge-warning",
+    approved: "sf-badge-info",
+    paid: "sf-badge-success",
+    rejected: "sf-badge-error",
   };
-  const config = map[status] || { variant: "secondary", label: status };
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <span className={`sf-badge ${map[status] || 'sf-badge-default'} capitalize`}>{status}</span>;
 }
