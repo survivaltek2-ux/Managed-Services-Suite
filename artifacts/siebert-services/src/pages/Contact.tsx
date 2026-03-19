@@ -68,7 +68,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold text-navy text-lg">Headquarters</h3>
-                  <p className="text-muted-foreground mt-1">123 Tech Boulevard<br/>Suite 400<br/>Innovation City, ST 12345</p>
+                  <p className="text-muted-foreground mt-1">4 Maple Court<br/>Washingtonville, NY 10992</p>
                 </div>
               </CardContent>
             </Card>
