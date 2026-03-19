@@ -32,7 +32,7 @@ packages = ["docker", "docker-compose"]
 [userenv]
 
 [userenv.shared]
-SMTP_HOST = "smtp.gmail.com"
+SMTP_HOST = "smtp.office365.com"
 SMTP_PORT = "587"
 SMTP_FROM_EMAIL = "notifications@siebertservices.com"
 SMTP_FROM_NAME = "Siebert Services"
