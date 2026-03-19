@@ -8,8 +8,9 @@ RUN npm install -g pnpm && \
     apt-get install -y --no-install-recommends dumb-init netcat-openbsd && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy workspace config
+# Copy workspace config (including root tsconfig files referenced by all artifacts)
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY tsconfig.base.json tsconfig.json ./
 COPY lib ./lib
 COPY artifacts/api-server ./artifacts/api-server
 COPY artifacts/siebert-services ./artifacts/siebert-services

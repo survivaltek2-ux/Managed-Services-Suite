@@ -1,0 +1,55 @@
+ => ERROR [13/15] RUN PORT=8081 BASE_PATH="/" pnpm     --filter '@workspace/api-server'     --filter '@workspace/siebert-services'     --filter '@workspace/partner-portal'     run build                   1.9s
+------
+ > [13/15] RUN PORT=8081 BASE_PATH="/" pnpm     --filter '@workspace/api-server'     --filter '@workspace/siebert-services'     --filter '@workspace/partner-portal'     run build:
+1.130 Scope: 3 of 9 workspace projects
+1.133 artifacts/siebert-services build$ vite build --config vite.config.ts
+1.134 artifacts/api-server build$ tsx ./build.ts
+1.361 artifacts/siebert-services build: ▲ [WARNING] Cannot find base config file "../../tsconfig.base.json" [tsconfig.json]
+1.363 artifacts/siebert-services build:     tsconfig.json:2:13:
+1.366 artifacts/siebert-services build:       2 │   "extends": "../../tsconfig.base.json",
+1.367 artifacts/siebert-services build:         ╵              ~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.448 artifacts/api-server build: building server...
+1.461 artifacts/api-server build: ▲ [WARNING] Cannot find base config file "../../tsconfig.base.json" [tsconfig.json]
+1.463 artifacts/api-server build:     tsconfig.json:2:13:
+1.464 artifacts/api-server build:       2 │   "extends": "../../tsconfig.base.json",
+1.465 artifacts/api-server build:         ╵              ~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.484 artifacts/api-server build: ▲ [WARNING] Cannot find base config file "../../tsconfig.base.json" [tsconfig.json]
+1.485 artifacts/api-server build:     ../../lib/db/tsconfig.json:2:13:
+1.487 artifacts/api-server build:       2 │   "extends": "../../tsconfig.base.json",
+1.488 artifacts/api-server build:         ╵              ~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.529 artifacts/api-server build: ▲ [WARNING] Cannot find base config file "../../tsconfig.base.json" [tsconfig.json]
+1.530 artifacts/api-server build:     ../../lib/api-zod/tsconfig.json:2:13:
+1.530 artifacts/api-server build:       2 │   "extends": "../../tsconfig.base.json",
+1.531 artifacts/api-server build:         ╵              ~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.657 artifacts/siebert-services build: vite v7.3.1 building client environment for production...
+1.784 artifacts/siebert-services build: ✓ 0 modules transformed.
+1.790 artifacts/siebert-services build: ✗ Build failed in 82ms
+1.790 artifacts/siebert-services build: error during build:
+1.791 artifacts/siebert-services build: [vite:build-html] failed to resolve "extends":"../../tsconfig.base.json" in /app/artifacts/siebert-services/tsconfig.json
+1.791 artifacts/siebert-services build: file: /app/artifacts/siebert-services/index.html
+1.791 artifacts/siebert-services build:     at resolveExtends (file:///app/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:5809:8)
+1.791 artifacts/siebert-services build:     at parseExtends (file:///app/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:5775:71)
+1.792 artifacts/siebert-services build:     at parse$13 (file:///app/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:5677:23)
+1.792 artifacts/siebert-services build:     at async loadTsconfigJsonForFile (file:///app/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:6286:37)
+1.792 artifacts/siebert-services build:     at async transformWithEsbuild (file:///app/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:6086:55)
+1.792 artifacts/siebert-services build:     at async Object.transform (file:///app/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:6172:20)
+1.792 artifacts/siebert-services build:     at async transform (file:///app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:21269:16)
+1.792 artifacts/siebert-services build:     at async ModuleLoader.addModuleSource (file:///app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:21497:36)
+1.812 artifacts/siebert-services build: Failed
+1.832 /app/artifacts/siebert-services:
+1.832  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/siebert-services@0.0.0 build: `vite build --config vite.config.ts`
+1.832 Exit status 1
+1.832 artifacts/partner-portal build$ vite build --config vite.config.ts
+------
+Dockerfile:25
+--------------------
+  24 |     # Build all three artifacts
+  25 | >>> RUN PORT=8081 BASE_PATH="/" pnpm \
+  26 | >>>     --filter '@workspace/api-server' \
+  27 | >>>     --filter '@workspace/siebert-services' \
+  28 | >>>     --filter '@workspace/partner-portal' \
+  29 | >>>     run build
+  30 |
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c PORT=8081 BASE_PATH=\"/\" pnpm     --filter '@workspace/api-server'     --filter '@workspace/siebert-services'     --filter '@workspace/partner-portal'     run build" did not complete successfully: exit code: 1
+ERROR: Service 'app' failed to build : Build failed
