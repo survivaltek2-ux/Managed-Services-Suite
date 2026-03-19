@@ -1,52 +1,48 @@
-FROM node:24-alpine
+FROM node:24-slim
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install pnpm and system tools (debian-based, glibc-compatible)
+RUN npm install -g pnpm && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init netcat-openbsd && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install build tools
-RUN apk add --no-cache dumb-init netcat-openbsd
-
-# Copy everything needed to build
+# Copy workspace config
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY lib ./lib
-COPY artifacts ./artifacts
+COPY artifacts/api-server ./artifacts/api-server
+COPY artifacts/siebert-services ./artifacts/siebert-services
+COPY artifacts/partner-portal ./artifacts/partner-portal
 COPY scripts ./scripts
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh
 
-# Install all dependencies
+# Install all dependencies (glibc, so rollup native binaries work)
 RUN pnpm install --frozen-lockfile
 
-# Build the applications
-RUN PORT=8081 BASE_PATH="/" pnpm --filter '@workspace/api-server' --filter '@workspace/siebert-services' --filter '@workspace/partner-portal' run build
+# Build all three artifacts
+RUN PORT=8081 BASE_PATH="/" pnpm \
+    --filter '@workspace/api-server' \
+    --filter '@workspace/siebert-services' \
+    --filter '@workspace/partner-portal' \
+    run build
 
-# Copy entrypoint
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# Move built artifacts to clean locations
+RUN mkdir -p api-dist public/siebert public/partners && \
+    cp -r artifacts/api-server/dist/* api-dist/ && \
+    cp -r artifacts/siebert-services/dist/public/* public/siebert/ && \
+    cp -r artifacts/partner-portal/dist/public/* public/partners/
 
-# Create dist output directories if they don't exist
-RUN mkdir -p /app/api-dist /app/public/siebert /app/public/partners
-
-# Move built artifacts to final locations
-RUN test -d artifacts/api-server/dist && cp -r artifacts/api-server/dist/* api-dist/ || echo "API dist not found"
-RUN test -d artifacts/siebert-services/dist/public && cp -r artifacts/siebert-services/dist/public/* public/siebert/ || echo "Siebert dist not found"
-RUN test -d artifacts/partner-portal/dist/public && cp -r artifacts/partner-portal/dist/public/* public/partners/ || echo "Partner dist not found"
-
-# Remove source files to save space
-RUN rm -rf artifacts scripts pnpm-lock.yaml lib/*/src lib/*/dist
-
-# Install only production dependencies
-RUN npm prune --production
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+# Run as non-root for security
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home nodejs
 USER nodejs
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/api/healthz', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/api/healthz', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
 
 EXPOSE 8080
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["/bin/sh", "/app/docker-entrypoint.sh"]
+CMD ["/bin/bash", "/app/docker-entrypoint.sh"]

@@ -1,0 +1,55 @@
+------
+ > [10/19] RUN PORT=8081 BASE_PATH="/" pnpm --filter '@workspace/api-server' --filter '@workspace/siebert-services' --filter '@workspace/partner-portal' run build:
+1.191 Scope: 3 of 9 workspace projects
+1.195 artifacts/siebert-services build$ vite build --config vite.config.ts
+1.197 artifacts/api-server build$ tsx ./build.ts
+1.399 artifacts/siebert-services build: /app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:115
+1.401 artifacts/siebert-services build:                 throw new Error(
+1.402 artifacts/siebert-services build:                       ^
+1.403 artifacts/siebert-services build: Error: Cannot find module @rollup/rollup-linux-x64-musl. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+1.404 artifacts/siebert-services build:     at requireWithFriendlyError (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:115:9)
+1.407 artifacts/siebert-services build:     at Object.<anonymous> (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:124:76)
+1.408 artifacts/siebert-services build:     at Module._compile (node:internal/modules/cjs/loader:1812:14)
+1.409 artifacts/siebert-services build:     at Object..js (node:internal/modules/cjs/loader:1943:10)
+1.410 artifacts/siebert-services build:     at Module.load (node:internal/modules/cjs/loader:1533:32)
+1.411 artifacts/siebert-services build:     at Module._load (node:internal/modules/cjs/loader:1335:12)
+1.411 artifacts/siebert-services build:     at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+1.412 artifacts/siebert-services build:     at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:328:3)
+1.413 artifacts/siebert-services build:     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:233:7)
+1.414 artifacts/siebert-services build:     at ModuleJob.run (node:internal/modules/esm/module_job:430:25) {
+1.416 artifacts/siebert-services build:   [cause]: Error: Cannot find module '@rollup/rollup-linux-x64-musl'
+1.418 artifacts/siebert-services build:   Require stack:
+1.419 artifacts/siebert-services build:   - /app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js
+1.419 artifacts/siebert-services build:       at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+1.419 artifacts/siebert-services build:       at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+1.419 artifacts/siebert-services build:       at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+1.419 artifacts/siebert-services build:       at Module._load (node:internal/modules/cjs/loader:1242:25)
+1.420 artifacts/siebert-services build:       at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+1.420 artifacts/siebert-services build:       at Module.require (node:internal/modules/cjs/loader:1556:12)
+1.420 artifacts/siebert-services build:       at require (node:internal/modules/helpers:152:16)
+1.420 artifacts/siebert-services build:       at requireWithFriendlyError (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:97:10)
+1.421 artifacts/siebert-services build:       at Object.<anonymous> (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:124:76)
+1.421 artifacts/siebert-services build:       at Module._compile (node:internal/modules/cjs/loader:1812:14) {
+1.423 artifacts/siebert-services build:     code: 'MODULE_NOT_FOUND',
+1.423 artifacts/siebert-services build:     requireStack: [
+1.423 artifacts/siebert-services build:       '/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js'
+1.423 artifacts/siebert-services build:     ]
+1.423 artifacts/siebert-services build:   }
+1.423 artifacts/siebert-services build: }
+1.423 artifacts/siebert-services build: Node.js v24.14.0
+1.427 artifacts/siebert-services build: Failed
+1.444 /app/artifacts/siebert-services:
+1.444  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/siebert-services@0.0.0 build: `vite build --config vite.config.ts`
+1.444 Exit status 1
+1.445 artifacts/partner-portal build$ vite build --config vite.config.ts
+------
+Dockerfile:21
+--------------------
+  19 |
+  20 |     # Build the applications
+  21 | >>> RUN PORT=8081 BASE_PATH="/" pnpm --filter '@workspace/api-server' --filter '@workspace/siebert-services' --filter '@workspace/partner-portal' run build
+  22 |
+  23 |     # Copy entrypoint
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c PORT=8081 BASE_PATH=\"/\" pnpm --filter '@workspace/api-server' --filter '@workspace/siebert-services' --filter '@workspace/partner-portal' run build" did not complete successfully: exit code: 1
+ERROR: Service 'app' failed to build : Build failed

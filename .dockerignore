@@ -1,25 +1,32 @@
-node_modules
+# Git
 .git
 .gitignore
-README.md
+
+# Dev environment
+.replit
+.upm
 .env
 .env.local
 .env.*.local
-*.log
-.DS_Store
-.replit
-.upm
-venv
 .vscode
 .idea
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp files
 *.swp
 *.swo
 *~
 .cache
-.next
-out
 coverage
 .turbo
+
+# Exclude mockup-sandbox (dev-only, not needed in Docker)
 artifacts/mockup-sandbox
-artifacts/*/node_modules
-lib/*/node_modules
+
+# Never exclude dist folders - we need them if pre-built
+# Never exclude node_modules exclusion to keep image small
+# (Docker rebuilds them from lockfile)
