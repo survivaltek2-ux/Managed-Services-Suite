@@ -33,7 +33,8 @@ RUN PORT=8081 BASE_PATH="/" pnpm \
 RUN mkdir -p api-dist public/siebert public/partners && \
     cp -r artifacts/api-server/dist/* api-dist/ && \
     cp -r artifacts/siebert-services/dist/public/* public/siebert/ && \
-    cp -r artifacts/partner-portal/dist/public/* public/partners/
+    cp -r artifacts/partner-portal/dist/public/* public/partners/ && \
+    rm -rf artifacts scripts tsconfig* pnpm-workspace.yaml
 
 # Run as non-root for security
 RUN groupadd --gid 1001 nodejs && \
