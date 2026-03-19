@@ -3,6 +3,7 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Shield, Zap, TrendingUp, Users, ArrowRight, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function PublicHome() {
   return (
