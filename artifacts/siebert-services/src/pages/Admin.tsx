@@ -151,26 +151,36 @@ export default function Admin() {
     setLoginError("");
 
     try {
+      console.log("Attempting login with email:", email);
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
+      console.log("Login response status:", res.status);
+      const data = await res.json();
+      console.log("Login response data:", data);
+
       if (res.ok) {
-        const data = await res.json();
         if (data.user.role === "admin") {
+          console.log("Login successful, user role:", data.user.role);
           login(data.token, data.user);
           toast({ title: "Logged in as Admin successfully" });
         } else {
-          setLoginError("Access denied. Admin role required.");
+          const msg = `Access denied. Your role is '${data.user.role}', admin role required.`;
+          console.warn(msg);
+          setLoginError(msg);
         }
       } else {
-        const data = await res.json();
-        setLoginError(data.message || "Invalid credentials");
+        const errorMsg = data.error || data.message || "Invalid credentials";
+        console.error("Login failed:", errorMsg);
+        setLoginError(errorMsg);
       }
-    } catch (err) {
-      setLoginError("An error occurred during login");
+    } catch (err: any) {
+      const errorMsg = err?.message || "An error occurred during login";
+      console.error("Login error:", err);
+      setLoginError(errorMsg);
     } finally {
       setIsLoggingIn(false);
     }
@@ -190,7 +200,7 @@ export default function Admin() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               {loginError && (
-                <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg font-medium text-center">
+                <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg font-medium whitespace-pre-wrap break-words">
                   {loginError}
                 </div>
               )}
