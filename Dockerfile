@@ -27,8 +27,12 @@ WORKDIR /app
 # Install pnpm for runtime (needed for pushing migrations)
 RUN npm install -g pnpm
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init and netcat for proper signal handling and db checks
+RUN apk add --no-cache dumb-init netcat-openbsd
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Copy built artifacts from builder
 COPY --from=builder /app/artifacts/api-server/dist ./api-dist
@@ -58,5 +62,5 @@ EXPOSE 8080
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Run API server
-CMD ["node", "api-dist/index.cjs"]
+# Run the entrypoint script which handles db setup and starts the server
+CMD ["/bin/sh", "/app/docker-entrypoint.sh"]
