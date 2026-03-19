@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -55,14 +55,47 @@ export const faqItemsTable = pgTable("faq_items", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const blogPostStatusEnum = pgEnum("blog_post_status", ["draft", "published", "archived"]);
+
+export const blogPostsTable = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(),
+  coverImage: text("cover_image"),
+  author: text("author").notNull().default("Siebert Services"),
+  category: text("category").notNull().default("general"),
+  tags: text("tags").notNull().default("[]"),
+  status: blogPostStatusEnum("status").notNull().default("draft"),
+  featured: boolean("featured").notNull().default(false),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const activityLogTable = pgTable("activity_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  action: text("action").notNull(),
+  entity: text("entity").notNull(),
+  entityId: integer("entity_id"),
+  details: text("details"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertSiteSettingSchema = createInsertSchema(siteSettingsTable).omit({ id: true, updatedAt: true });
 export const insertServiceSchema = createInsertSchema(servicesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTestimonialSchema = createInsertSchema(testimonialsTable).omit({ id: true, createdAt: true });
 export const insertTeamMemberSchema = createInsertSchema(teamMembersTable).omit({ id: true, createdAt: true });
 export const insertFaqItemSchema = createInsertSchema(faqItemsTable).omit({ id: true, createdAt: true });
+export const insertBlogPostSchema = createInsertSchema(blogPostsTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type SiteSetting = typeof siteSettingsTable.$inferSelect;
 export type CmsService = typeof servicesTable.$inferSelect;
 export type Testimonial = typeof testimonialsTable.$inferSelect;
 export type TeamMember = typeof teamMembersTable.$inferSelect;
 export type FaqItem = typeof faqItemsTable.$inferSelect;
+export type BlogPost = typeof blogPostsTable.$inferSelect;
+export type ActivityLog = typeof activityLogTable.$inferSelect;

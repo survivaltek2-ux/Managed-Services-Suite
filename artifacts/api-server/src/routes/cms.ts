@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
-import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable } from "@workspace/db";
+import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -12,6 +12,12 @@ function requireAdmin(req: AuthRequest, res: Response, next: Function) {
     return;
   }
   next();
+}
+
+async function logActivity(userId: number | undefined, action: string, entity: string, entityId?: number, details?: string) {
+  try {
+    await db.insert(activityLogTable).values({ userId: userId || null, action, entity, entityId: entityId || null, details: details || null });
+  } catch (e) { /* silent */ }
 }
 
 // ─── Public CMS Reads ────────────────────────────────────────────────────────
@@ -72,7 +78,64 @@ router.get("/cms/faq", async (_req, res) => {
   }
 });
 
+router.get("/cms/blog", async (_req, res) => {
+  try {
+    const posts = await db.select().from(blogPostsTable)
+      .where(eq(blogPostsTable.status, "published"))
+      .orderBy(desc(blogPostsTable.publishedAt));
+    res.json(posts.map(p => ({ ...p, tags: JSON.parse(p.tags) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load blog posts" });
+  }
+});
+
+router.get("/cms/blog/:slug", async (req, res) => {
+  try {
+    const [post] = await db.select().from(blogPostsTable)
+      .where(eq(blogPostsTable.slug, req.params.slug as string))
+      .limit(1);
+    if (!post || post.status !== "published") {
+      res.status(404).json({ error: "not_found", message: "Blog post not found" });
+      return;
+    }
+    res.json({ ...post, tags: JSON.parse(post.tags) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load blog post" });
+  }
+});
+
 // ─── Admin CMS Writes ─────────────────────────────────────────────────────────
+
+// Dashboard Stats
+router.get("/admin/dashboard/stats", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const [contactCount] = await db.select({ count: count() }).from(contactsTable);
+    const [quoteCount] = await db.select({ count: count() }).from(quotesTable);
+    const [ticketCount] = await db.select({ count: count() }).from(ticketsTable);
+    const [openTickets] = await db.select({ count: count() }).from(ticketsTable).where(eq(ticketsTable.status, "open"));
+    const [blogCount] = await db.select({ count: count() }).from(blogPostsTable);
+    const [userCount] = await db.select({ count: count() }).from(usersTable);
+
+    const recentContacts = await db.select().from(contactsTable).orderBy(desc(contactsTable.createdAt)).limit(5);
+    const recentQuotes = await db.select().from(quotesTable).orderBy(desc(quotesTable.createdAt)).limit(5);
+
+    res.json({
+      contacts: contactCount.count,
+      quotes: quoteCount.count,
+      tickets: ticketCount.count,
+      openTickets: openTickets.count,
+      blogPosts: blogCount.count,
+      users: userCount.count,
+      recentContacts,
+      recentQuotes: recentQuotes.map(q => ({ ...q, services: JSON.parse(q.services) })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load dashboard stats" });
+  }
+});
 
 // Settings
 router.put("/admin/cms/settings", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
@@ -86,6 +149,7 @@ router.put("/admin/cms/settings", requireAuth, requireAdmin, async (req: AuthReq
         await db.insert(siteSettingsTable).values({ key, value });
       }
     }
+    await logActivity(req.userId, "update", "settings", undefined, `Updated ${Object.keys(updates).length} settings`);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -115,6 +179,7 @@ router.post("/admin/cms/services", requireAuth, requireAdmin, async (req: AuthRe
       sortOrder: sortOrder || 0,
       active: active !== false,
     }).returning();
+    await logActivity(req.userId, "create", "service", service.id, `Created service: ${title}`);
     res.status(201).json({ ...service, features: JSON.parse(service.features) });
   } catch (err) {
     console.error(err);
@@ -136,6 +201,7 @@ router.put("/admin/cms/services/:id", requireAuth, requireAdmin, async (req: Aut
       updatedAt: new Date(),
     }).where(eq(servicesTable.id, id)).returning();
     if (!service) { res.status(404).json({ error: "not_found", message: "Service not found" }); return; }
+    await logActivity(req.userId, "update", "service", id, `Updated service: ${title}`);
     res.json({ ...service, features: JSON.parse(service.features) });
   } catch (err) {
     console.error(err);
@@ -147,6 +213,7 @@ router.delete("/admin/cms/services/:id", requireAuth, requireAdmin, async (req: 
   try {
     const id = parseInt(req.params.id as string);
     await db.delete(servicesTable).where(eq(servicesTable.id, id));
+    await logActivity(req.userId, "delete", "service", id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -172,6 +239,7 @@ router.post("/admin/cms/testimonials", requireAuth, requireAdmin, async (req: Au
       name, company, role: role || null, content,
       rating: rating || 5, active: active !== false, sortOrder: sortOrder || 0,
     }).returning();
+    await logActivity(req.userId, "create", "testimonial", item.id, `Created testimonial from: ${name}`);
     res.status(201).json(item);
   } catch (err) {
     console.error(err);
@@ -188,6 +256,7 @@ router.put("/admin/cms/testimonials/:id", requireAuth, requireAdmin, async (req:
       rating: rating || 5, active: active !== false, sortOrder: sortOrder ?? 0,
     }).where(eq(testimonialsTable.id, id)).returning();
     if (!item) { res.status(404).json({ error: "not_found", message: "Testimonial not found" }); return; }
+    await logActivity(req.userId, "update", "testimonial", id);
     res.json(item);
   } catch (err) {
     console.error(err);
@@ -199,6 +268,7 @@ router.delete("/admin/cms/testimonials/:id", requireAuth, requireAdmin, async (r
   try {
     const id = parseInt(req.params.id as string);
     await db.delete(testimonialsTable).where(eq(testimonialsTable.id, id));
+    await logActivity(req.userId, "delete", "testimonial", id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -224,6 +294,7 @@ router.post("/admin/cms/team", requireAuth, requireAdmin, async (req: AuthReques
       name, role, bio: bio || null, imageUrl: imageUrl || null,
       sortOrder: sortOrder || 0, active: active !== false,
     }).returning();
+    await logActivity(req.userId, "create", "team_member", member.id, `Added team member: ${name}`);
     res.status(201).json(member);
   } catch (err) {
     console.error(err);
@@ -240,6 +311,7 @@ router.put("/admin/cms/team/:id", requireAuth, requireAdmin, async (req: AuthReq
       sortOrder: sortOrder ?? 0, active: active !== false,
     }).where(eq(teamMembersTable.id, id)).returning();
     if (!member) { res.status(404).json({ error: "not_found", message: "Team member not found" }); return; }
+    await logActivity(req.userId, "update", "team_member", id);
     res.json(member);
   } catch (err) {
     console.error(err);
@@ -251,6 +323,7 @@ router.delete("/admin/cms/team/:id", requireAuth, requireAdmin, async (req: Auth
   try {
     const id = parseInt(req.params.id as string);
     await db.delete(teamMembersTable).where(eq(teamMembersTable.id, id));
+    await logActivity(req.userId, "delete", "team_member", id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -276,6 +349,7 @@ router.post("/admin/cms/faq", requireAuth, requireAdmin, async (req: AuthRequest
       question, answer, category: category || "general",
       sortOrder: sortOrder || 0, active: active !== false,
     }).returning();
+    await logActivity(req.userId, "create", "faq", item.id);
     res.status(201).json(item);
   } catch (err) {
     console.error(err);
@@ -292,6 +366,7 @@ router.put("/admin/cms/faq/:id", requireAuth, requireAdmin, async (req: AuthRequ
       sortOrder: sortOrder ?? 0, active: active !== false,
     }).where(eq(faqItemsTable.id, id)).returning();
     if (!item) { res.status(404).json({ error: "not_found", message: "FAQ item not found" }); return; }
+    await logActivity(req.userId, "update", "faq", id);
     res.json(item);
   } catch (err) {
     console.error(err);
@@ -303,6 +378,7 @@ router.delete("/admin/cms/faq/:id", requireAuth, requireAdmin, async (req: AuthR
   try {
     const id = parseInt(req.params.id as string);
     await db.delete(faqItemsTable).where(eq(faqItemsTable.id, id));
+    await logActivity(req.userId, "delete", "faq", id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -310,11 +386,131 @@ router.delete("/admin/cms/faq/:id", requireAuth, requireAdmin, async (req: AuthR
   }
 });
 
-// Admin: read contact submissions and quote requests
+// ─── Blog CRUD ──────────────────────────────────────────────────────────────
+
+router.get("/admin/cms/blog", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const posts = await db.select().from(blogPostsTable).orderBy(desc(blogPostsTable.createdAt));
+    res.json(posts.map(p => ({ ...p, tags: JSON.parse(p.tags) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load blog posts" });
+  }
+});
+
+router.post("/admin/cms/blog", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, slug, excerpt, content, coverImage, author, category, tags, status, featured } = req.body;
+    if (!title || !content) {
+      res.status(400).json({ error: "validation_error", message: "title and content are required" });
+      return;
+    }
+    const autoSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const [post] = await db.insert(blogPostsTable).values({
+      title, slug: autoSlug, excerpt: excerpt || null, content,
+      coverImage: coverImage || null, author: author || "Siebert Services",
+      category: category || "general", tags: JSON.stringify(tags || []),
+      status: status || "draft", featured: featured || false,
+      publishedAt: status === "published" ? new Date() : null,
+    }).returning();
+    await logActivity(req.userId, "create", "blog_post", post.id, `Created blog post: ${title}`);
+    res.status(201).json({ ...post, tags: JSON.parse(post.tags) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create blog post" });
+  }
+});
+
+router.put("/admin/cms/blog/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { title, slug, excerpt, content, coverImage, author, category, tags, status, featured } = req.body;
+    const existing = await db.select().from(blogPostsTable).where(eq(blogPostsTable.id, id)).limit(1);
+    const wasPublished = existing[0]?.status === "published";
+    const [post] = await db.update(blogPostsTable).set({
+      title, slug, excerpt: excerpt || null, content,
+      coverImage: coverImage || null, author: author || "Siebert Services",
+      category: category || "general", tags: JSON.stringify(tags || []),
+      status: status || "draft", featured: featured || false,
+      publishedAt: status === "published" && !wasPublished ? new Date() : existing[0]?.publishedAt,
+      updatedAt: new Date(),
+    }).where(eq(blogPostsTable.id, id)).returning();
+    if (!post) { res.status(404).json({ error: "not_found", message: "Blog post not found" }); return; }
+    await logActivity(req.userId, "update", "blog_post", id, `Updated blog post: ${title}`);
+    res.json({ ...post, tags: JSON.parse(post.tags) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update blog post" });
+  }
+});
+
+router.delete("/admin/cms/blog/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(blogPostsTable).where(eq(blogPostsTable.id, id));
+    await logActivity(req.userId, "delete", "blog_post", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete blog post" });
+  }
+});
+
+// ─── User Management ────────────────────────────────────────────────────────
+
+router.get("/admin/users", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await db.select({
+      id: usersTable.id, name: usersTable.name, email: usersTable.email,
+      company: usersTable.company, phone: usersTable.phone, role: usersTable.role,
+      createdAt: usersTable.createdAt,
+    }).from(usersTable).orderBy(desc(usersTable.createdAt));
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load users" });
+  }
+});
+
+router.put("/admin/users/:id/role", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { role } = req.body;
+    if (!["client", "admin"].includes(role)) {
+      res.status(400).json({ error: "validation_error", message: "Invalid role" });
+      return;
+    }
+    const [user] = await db.update(usersTable).set({ role }).where(eq(usersTable.id, id)).returning();
+    if (!user) { res.status(404).json({ error: "not_found" }); return; }
+    await logActivity(req.userId, "update", "user", id, `Changed role to: ${role}`);
+    res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update user role" });
+  }
+});
+
+router.delete("/admin/users/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (id === req.userId) {
+      res.status(400).json({ error: "validation_error", message: "Cannot delete your own account" });
+      return;
+    }
+    await db.delete(usersTable).where(eq(usersTable.id, id));
+    await logActivity(req.userId, "delete", "user", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete user" });
+  }
+});
+
+// ─── Enhanced Contacts / Quotes / Tickets ─────────────────────────────────────
+
 router.get("/admin/contacts", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { contactsTable } = await import("@workspace/db");
-    const items = await db.select().from(contactsTable);
+    const items = await db.select().from(contactsTable).orderBy(desc(contactsTable.createdAt));
     res.json(items);
   } catch (err) {
     console.error(err);
@@ -322,10 +518,20 @@ router.get("/admin/contacts", requireAuth, requireAdmin, async (req: AuthRequest
   }
 });
 
+router.delete("/admin/contacts/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(contactsTable).where(eq(contactsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete contact" });
+  }
+});
+
 router.get("/admin/quotes", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { quotesTable } = await import("@workspace/db");
-    const items = await db.select().from(quotesTable);
+    const items = await db.select().from(quotesTable).orderBy(desc(quotesTable.createdAt));
     res.json(items.map(q => ({ ...q, services: JSON.parse(q.services) })));
   } catch (err) {
     console.error(err);
@@ -333,15 +539,139 @@ router.get("/admin/quotes", requireAuth, requireAdmin, async (req: AuthRequest, 
   }
 });
 
+router.put("/admin/quotes/:id/status", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { status, internalNotes, assignedTo } = req.body;
+    const updates: any = {};
+    if (status) updates.status = status;
+    if (internalNotes !== undefined) updates.internalNotes = internalNotes;
+    if (assignedTo !== undefined) updates.assignedTo = assignedTo;
+    const [quote] = await db.update(quotesTable).set(updates).where(eq(quotesTable.id, id)).returning();
+    if (!quote) { res.status(404).json({ error: "not_found" }); return; }
+    await logActivity(req.userId, "update", "quote", id, `Status changed to: ${status}`);
+    res.json({ ...quote, services: JSON.parse(quote.services) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update quote" });
+  }
+});
+
+router.delete("/admin/quotes/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(quotesTable).where(eq(quotesTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete quote" });
+  }
+});
+
 router.get("/admin/tickets", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { ticketsTable } = await import("@workspace/db");
-    const items = await db.select().from(ticketsTable);
+    const items = await db.select().from(ticketsTable).orderBy(desc(ticketsTable.createdAt));
     res.json(items);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load tickets" });
   }
 });
+
+router.put("/admin/tickets/:id/status", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { status } = req.body;
+    const [ticket] = await db.update(ticketsTable).set({ status, updatedAt: new Date() }).where(eq(ticketsTable.id, id)).returning();
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+    await logActivity(req.userId, "update", "ticket", id, `Status changed to: ${status}`);
+    res.json(ticket);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update ticket" });
+  }
+});
+
+router.delete("/admin/tickets/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(ticketsTable).where(eq(ticketsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete ticket" });
+  }
+});
+
+// ─── Activity Log ───────────────────────────────────────────────────────────
+
+router.get("/admin/activity", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const activities = await db.select().from(activityLogTable)
+      .orderBy(desc(activityLogTable.createdAt))
+      .limit(limit);
+    res.json(activities);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load activity log" });
+  }
+});
+
+// ─── CSV Exports ────────────────────────────────────────────────────────────
+
+router.get("/admin/export/contacts", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(contactsTable).orderBy(desc(contactsTable.createdAt));
+    const csv = generateCSV(items, ["id", "name", "email", "phone", "company", "service", "message", "createdAt"]);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=contacts.csv");
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to export contacts" });
+  }
+});
+
+router.get("/admin/export/quotes", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(quotesTable).orderBy(desc(quotesTable.createdAt));
+    const csv = generateCSV(items, ["id", "name", "email", "phone", "company", "companySize", "services", "budget", "timeline", "status", "createdAt"]);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=quotes.csv");
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to export quotes" });
+  }
+});
+
+router.get("/admin/export/tickets", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(ticketsTable).orderBy(desc(ticketsTable.createdAt));
+    const csv = generateCSV(items, ["id", "subject", "description", "priority", "category", "status", "createdAt"]);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=tickets.csv");
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to export tickets" });
+  }
+});
+
+function generateCSV(data: any[], fields: string[]): string {
+  const header = fields.join(",");
+  const rows = data.map(item =>
+    fields.map(f => {
+      const val = item[f];
+      if (val === null || val === undefined) return "";
+      const str = String(val);
+      return str.includes(",") || str.includes('"') || str.includes("\n")
+        ? `"${str.replace(/"/g, '""')}"`
+        : str;
+    }).join(",")
+  );
+  return [header, ...rows].join("\n");
+}
 
 export default router;

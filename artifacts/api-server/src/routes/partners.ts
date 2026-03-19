@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, partnerMdfRequestsTable } from "@workspace/db";
+import { eq, and, desc, sql, count, sum } from "drizzle-orm";
 import { requirePartnerAuth, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
+import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
@@ -91,6 +92,62 @@ router.put("/partner/profile", requirePartnerAuth, async (req: PartnerRequest, r
   }
 });
 
+// ─── Dashboard Stats ─────────────────────────────────────────────────────────
+
+router.get("/partner/dashboard", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    const deals = await db.select().from(partnerDealsTable).where(eq(partnerDealsTable.partnerId, req.partnerId!));
+    const commissions = await db.select().from(partnerCommissionsTable).where(eq(partnerCommissionsTable.partnerId, req.partnerId!));
+    const tickets = await db.select().from(partnerSupportTicketsTable).where(eq(partnerSupportTicketsTable.partnerId, req.partnerId!));
+    const leads = await db.select().from(partnerLeadsTable).where(eq(partnerLeadsTable.partnerId, req.partnerId!));
+
+    const activeDeals = deals.filter(d => !["won", "lost", "expired"].includes(d.status));
+    const wonDeals = deals.filter(d => d.status === "won");
+    const totalPipeline = activeDeals.reduce((sum, d) => sum + parseFloat(d.estimatedValue || "0"), 0);
+    const totalRevenue = wonDeals.reduce((sum, d) => sum + parseFloat(d.actualValue || d.estimatedValue || "0"), 0);
+    const pendingCommissions = commissions.filter(c => c.status === "pending").reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const paidCommissions = commissions.filter(c => c.status === "paid").reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const openTickets = tickets.filter(t => !["resolved", "closed"].includes(t.status)).length;
+
+    const dealsByStage = deals.reduce((acc: Record<string, number>, d) => {
+      acc[d.stage] = (acc[d.stage] || 0) + 1;
+      return acc;
+    }, {});
+
+    const monthlyDeals: Record<string, { count: number; value: number }> = {};
+    deals.forEach(d => {
+      const month = new Date(d.createdAt).toISOString().slice(0, 7);
+      if (!monthlyDeals[month]) monthlyDeals[month] = { count: 0, value: 0 };
+      monthlyDeals[month].count++;
+      monthlyDeals[month].value += parseFloat(d.estimatedValue || "0");
+    });
+
+    res.json({
+      partner: sanitizePartner(partner),
+      stats: {
+        totalDeals: deals.length,
+        activeDeals: activeDeals.length,
+        wonDeals: wonDeals.length,
+        totalPipeline,
+        totalRevenue,
+        pendingCommissions,
+        paidCommissions,
+        openTickets,
+        totalLeads: leads.length,
+        convertedLeads: leads.filter(l => l.status === "converted").length,
+      },
+      dealsByStage,
+      monthlyDeals,
+      recentDeals: deals.slice(0, 5),
+      recentCommissions: commissions.slice(0, 5),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load dashboard" });
+  }
+});
+
 // ─── Deals ────────────────────────────────────────────────────────────────────
 
 router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
@@ -123,7 +180,6 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
       expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
       notes: notes || null,
     }).returning();
-    // Update partner deal count
     await db.update(partnersTable)
       .set({ totalDeals: (await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1))[0].totalDeals + 1 })
       .where(eq(partnersTable.id, req.partnerId!));
@@ -138,7 +194,7 @@ router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest,
   try {
     const id = parseInt(req.params.id as string);
     const { title, customerName, customerEmail, description, products, estimatedValue, actualValue, stage, status, expectedCloseDate, notes } = req.body;
-    const [deal] = await db.update(partnerDealsTable).set({
+    const updateData: any = {
       title: title || undefined, customerName: customerName || undefined,
       customerEmail: customerEmail || null, description: description || null,
       products: products ? JSON.stringify(products) : undefined,
@@ -146,7 +202,10 @@ router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest,
       stage: stage || undefined, status: status || undefined,
       expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
       notes: notes || null, updatedAt: new Date(),
-    }).where(and(eq(partnerDealsTable.id, id), eq(partnerDealsTable.partnerId, req.partnerId!))).returning();
+    };
+    if (status === "won") updateData.closedAt = new Date();
+    const [deal] = await db.update(partnerDealsTable).set(updateData)
+      .where(and(eq(partnerDealsTable.id, id), eq(partnerDealsTable.partnerId, req.partnerId!))).returning();
     if (!deal) { res.status(404).json({ error: "not_found", message: "Deal not found" }); return; }
     res.json({ ...deal, products: JSON.parse(deal.products) });
   } catch (err) {
@@ -188,7 +247,6 @@ router.put("/partner/leads/:id", requirePartnerAuth, async (req: PartnerRequest,
 
 router.get("/partner/resources", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const [partner] = await db.select({ tier: partnersTable.tier }).from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     const resources = await db.select().from(partnerResourcesTable)
       .where(eq(partnerResourcesTable.active, true))
       .orderBy(desc(partnerResourcesTable.featured), desc(partnerResourcesTable.createdAt));
@@ -270,9 +328,181 @@ router.get("/partner/announcements", requirePartnerAuth, async (_req, res: Respo
   }
 });
 
+// ─── Commissions ──────────────────────────────────────────────────────────────
+
+router.get("/partner/commissions", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const commissions = await db.select().from(partnerCommissionsTable)
+      .where(eq(partnerCommissionsTable.partnerId, req.partnerId!))
+      .orderBy(desc(partnerCommissionsTable.createdAt));
+    res.json(commissions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load commissions" });
+  }
+});
+
+router.get("/partner/commissions/summary", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const commissions = await db.select().from(partnerCommissionsTable)
+      .where(eq(partnerCommissionsTable.partnerId, req.partnerId!));
+
+    const totalEarned = commissions.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const pending = commissions.filter(c => c.status === "pending").reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const paid = commissions.filter(c => c.status === "paid").reduce((sum, c) => sum + parseFloat(c.amount), 0);
+    const approved = commissions.filter(c => c.status === "approved").reduce((sum, c) => sum + parseFloat(c.amount), 0);
+
+    const monthlyEarnings: Record<string, number> = {};
+    commissions.forEach(c => {
+      const month = new Date(c.createdAt).toISOString().slice(0, 7);
+      monthlyEarnings[month] = (monthlyEarnings[month] || 0) + parseFloat(c.amount);
+    });
+
+    res.json({ totalEarned, pending, paid, approved, monthlyEarnings, totalTransactions: commissions.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load commission summary" });
+  }
+});
+
+// ─── Support Tickets ──────────────────────────────────────────────────────────
+
+router.get("/partner/tickets", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const tickets = await db.select().from(partnerSupportTicketsTable)
+      .where(eq(partnerSupportTicketsTable.partnerId, req.partnerId!))
+      .orderBy(desc(partnerSupportTicketsTable.createdAt));
+    res.json(tickets);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load tickets" });
+  }
+});
+
+router.post("/partner/tickets", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { subject, description, category, priority } = req.body;
+    if (!subject || !description) {
+      res.status(400).json({ error: "validation_error", message: "subject and description are required" });
+      return;
+    }
+    const [ticket] = await db.insert(partnerSupportTicketsTable).values({
+      partnerId: req.partnerId!,
+      subject, description,
+      category: category || "general",
+      priority: priority || "medium",
+    }).returning();
+    res.status(201).json(ticket);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create ticket" });
+  }
+});
+
+router.get("/partner/tickets/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [ticket] = await db.select().from(partnerSupportTicketsTable)
+      .where(and(eq(partnerSupportTicketsTable.id, id), eq(partnerSupportTicketsTable.partnerId, req.partnerId!)))
+      .limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+    const messages = await db.select().from(partnerTicketMessagesTable)
+      .where(eq(partnerTicketMessagesTable.ticketId, id))
+      .orderBy(partnerTicketMessagesTable.createdAt);
+    res.json({ ...ticket, messages });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load ticket" });
+  }
+});
+
+router.post("/partner/tickets/:id/messages", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const ticketId = parseInt(req.params.id as string);
+    const { message } = req.body;
+    if (!message) { res.status(400).json({ error: "validation_error", message: "message is required" }); return; }
+
+    const [ticket] = await db.select().from(partnerSupportTicketsTable)
+      .where(and(eq(partnerSupportTicketsTable.id, ticketId), eq(partnerSupportTicketsTable.partnerId, req.partnerId!)))
+      .limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+
+    const [msg] = await db.insert(partnerTicketMessagesTable).values({
+      ticketId, senderType: "partner",
+      senderName: partner?.contactName || "Partner",
+      message,
+    }).returning();
+
+    if (ticket.status === "resolved" || ticket.status === "closed") {
+      await db.update(partnerSupportTicketsTable).set({ status: "open", updatedAt: new Date() }).where(eq(partnerSupportTicketsTable.id, ticketId));
+    }
+
+    res.status(201).json(msg);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to send message" });
+  }
+});
+
+// ─── MDF Requests ─────────────────────────────────────────────────────────────
+
+router.get("/partner/mdf", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const requests = await db.select().from(partnerMdfRequestsTable)
+      .where(eq(partnerMdfRequestsTable.partnerId, req.partnerId!))
+      .orderBy(desc(partnerMdfRequestsTable.createdAt));
+    res.json(requests);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load MDF requests" });
+  }
+});
+
+router.post("/partner/mdf", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { title, description, activityType, requestedAmount, startDate, endDate, expectedLeads } = req.body;
+    if (!title || !description || !activityType || !requestedAmount) {
+      res.status(400).json({ error: "validation_error", message: "title, description, activityType, and requestedAmount are required" });
+      return;
+    }
+    const [request] = await db.insert(partnerMdfRequestsTable).values({
+      partnerId: req.partnerId!,
+      title, description, activityType,
+      requestedAmount: parseFloat(requestedAmount).toFixed(2),
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      expectedLeads: expectedLeads || null,
+      status: "submitted",
+    }).returning();
+    res.status(201).json(request);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create MDF request" });
+  }
+});
+
+router.put("/partner/mdf/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { proofOfExecution } = req.body;
+    const [request] = await db.update(partnerMdfRequestsTable).set({
+      proofOfExecution: proofOfExecution || null,
+      status: proofOfExecution ? "completed" : undefined,
+      updatedAt: new Date(),
+    }).where(and(eq(partnerMdfRequestsTable.id, id), eq(partnerMdfRequestsTable.partnerId, req.partnerId!))).returning();
+    if (!request) { res.status(404).json({ error: "not_found" }); return; }
+    res.json(request);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update MDF request" });
+  }
+});
+
 // ─── Admin Partner Management ─────────────────────────────────────────────────
 
-router.get("/admin/partners", async (_req, res) => {
+router.get("/admin/partners", requireAuth, async (_req, res) => {
   try {
     const partners = await db.select().from(partnersTable).orderBy(desc(partnersTable.createdAt));
     res.json(partners.map(p => sanitizePartner(p)));
@@ -282,7 +512,7 @@ router.get("/admin/partners", async (_req, res) => {
   }
 });
 
-router.put("/admin/partners/:id/approve", async (req, res) => {
+router.put("/admin/partners/:id/approve", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const [partner] = await db.update(partnersTable).set({
@@ -295,7 +525,7 @@ router.put("/admin/partners/:id/approve", async (req, res) => {
   }
 });
 
-router.put("/admin/partners/:id/tier", async (req, res) => {
+router.put("/admin/partners/:id/tier", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { tier } = req.body;
@@ -307,7 +537,7 @@ router.put("/admin/partners/:id/tier", async (req, res) => {
   }
 });
 
-router.post("/admin/partner/leads", async (req, res) => {
+router.post("/admin/partner/leads", requireAuth, async (req, res) => {
   try {
     const { partnerId, companyName, contactName, email, phone, source, interest } = req.body;
     const [lead] = await db.insert(partnerLeadsTable).values({
@@ -322,7 +552,7 @@ router.post("/admin/partner/leads", async (req, res) => {
   }
 });
 
-router.post("/admin/partner/resources", async (req, res) => {
+router.post("/admin/partner/resources", requireAuth, async (req, res) => {
   try {
     const { title, description, url, type, category, minTier, featured } = req.body;
     const [resource] = await db.insert(partnerResourcesTable).values({
@@ -337,7 +567,7 @@ router.post("/admin/partner/resources", async (req, res) => {
   }
 });
 
-router.post("/admin/partner/announcements", async (req, res) => {
+router.post("/admin/partner/announcements", requireAuth, async (req, res) => {
   try {
     const { title, body, category, minTier, pinned } = req.body;
     const [announcement] = await db.insert(partnerAnnouncementsTable).values({
@@ -351,7 +581,7 @@ router.post("/admin/partner/announcements", async (req, res) => {
   }
 });
 
-router.post("/admin/partner/certifications", async (req, res) => {
+router.post("/admin/partner/certifications", requireAuth, async (req, res) => {
   try {
     const { name, description, provider, category, duration, sortOrder } = req.body;
     const [cert] = await db.insert(partnerCertificationsTable).values({
@@ -364,6 +594,98 @@ router.post("/admin/partner/certifications", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to create certification" });
+  }
+});
+
+router.post("/admin/partner/commissions", requireAuth, async (req, res) => {
+  try {
+    const { partnerId, dealId, type, description, amount, rate, status, periodStart, periodEnd } = req.body;
+    const [commission] = await db.insert(partnerCommissionsTable).values({
+      partnerId, dealId: dealId || null,
+      type: type || "deal", description,
+      amount: parseFloat(amount).toFixed(2),
+      rate: rate || null,
+      status: status || "pending",
+      periodStart: periodStart ? new Date(periodStart) : null,
+      periodEnd: periodEnd ? new Date(periodEnd) : null,
+    }).returning();
+    res.status(201).json(commission);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create commission" });
+  }
+});
+
+router.put("/admin/partner/commissions/:id", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    const updates: any = { status };
+    if (status === "paid") updates.paidAt = new Date();
+    const [commission] = await db.update(partnerCommissionsTable).set(updates).where(eq(partnerCommissionsTable.id, id)).returning();
+    res.json(commission);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update commission" });
+  }
+});
+
+router.get("/admin/partner/tickets", requireAuth, async (_req, res) => {
+  try {
+    const tickets = await db.select().from(partnerSupportTicketsTable).orderBy(desc(partnerSupportTicketsTable.createdAt));
+    res.json(tickets);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load partner tickets" });
+  }
+});
+
+router.put("/admin/partner/tickets/:id", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status, assignedTo, resolution } = req.body;
+    const updates: any = { updatedAt: new Date() };
+    if (status) updates.status = status;
+    if (assignedTo !== undefined) updates.assignedTo = assignedTo;
+    if (resolution !== undefined) updates.resolution = resolution;
+    if (status === "resolved") updates.resolvedAt = new Date();
+    const [ticket] = await db.update(partnerSupportTicketsTable).set(updates).where(eq(partnerSupportTicketsTable.id, id)).returning();
+    res.json(ticket);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update ticket" });
+  }
+});
+
+router.post("/admin/partner/tickets/:id/messages", requireAuth, async (req, res) => {
+  try {
+    const ticketId = parseInt(req.params.id);
+    const { message, senderName } = req.body;
+    const [msg] = await db.insert(partnerTicketMessagesTable).values({
+      ticketId, senderType: "admin",
+      senderName: senderName || "Siebert Services",
+      message,
+    }).returning();
+    res.status(201).json(msg);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to send message" });
+  }
+});
+
+router.put("/admin/partner/mdf/:id", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status, approvedAmount } = req.body;
+    const updates: any = { updatedAt: new Date() };
+    if (status) updates.status = status;
+    if (approvedAmount !== undefined) updates.approvedAmount = parseFloat(approvedAmount).toFixed(2);
+    if (status === "approved") updates.approvedAt = new Date();
+    const [request] = await db.update(partnerMdfRequestsTable).set(updates).where(eq(partnerMdfRequestsTable.id, id)).returning();
+    res.json(request);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update MDF request" });
   }
 });
 

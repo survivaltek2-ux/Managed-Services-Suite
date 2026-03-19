@@ -1,145 +1,84 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import {
-  LayoutDashboard,
-  Settings,
-  Briefcase,
-  MessageSquare,
-  Users,
-  HelpCircle,
-  Inbox,
-  FileText,
-  Ticket as TicketIcon,
-  LogOut,
-  Loader2,
-  Plus,
-  Edit2,
-  Trash2,
-  Save
+  LayoutDashboard, Settings, Briefcase, MessageSquare, Users, HelpCircle,
+  Inbox, FileText, Ticket as TicketIcon, LogOut, Loader2, Plus, Edit2,
+  Trash2, Save, Search, Download, Activity, PenTool, Eye, Send, Check,
+  X, ChevronDown, BarChart3, Clock, DollarSign, AlertCircle
 } from "lucide-react";
 import {
-  Button,
-  Input,
-  Textarea,
-  Label,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Badge,
+  Button, Input, Textarea, Label, Card, CardHeader, CardTitle, CardContent, Badge,
 } from "@/components/ui";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "contacts" | "quotes" | "tickets";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "users" | "activity";
 
-const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
-  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
-  { id: "settings", label: "Site Settings", icon: <Settings size={20} /> },
-  { id: "services", label: "Services", icon: <Briefcase size={20} /> },
-  { id: "testimonials", label: "Testimonials", icon: <MessageSquare size={20} /> },
-  { id: "team", label: "Team Members", icon: <Users size={20} /> },
-  { id: "faq", label: "FAQ", icon: <HelpCircle size={20} /> },
-  { id: "contacts", label: "Contacts", icon: <Inbox size={20} /> },
-  { id: "quotes", label: "Quotes", icon: <FileText size={20} /> },
-  { id: "tickets", label: "Tickets", icon: <TicketIcon size={20} /> },
+const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
+  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
+  { id: "blog", label: "Blog Posts", icon: <PenTool size={18} />, section: "Content" },
+  { id: "services", label: "Services", icon: <Briefcase size={18} /> },
+  { id: "testimonials", label: "Testimonials", icon: <MessageSquare size={18} /> },
+  { id: "team", label: "Team Members", icon: <Users size={18} /> },
+  { id: "faq", label: "FAQ", icon: <HelpCircle size={18} /> },
+  { id: "settings", label: "Site Settings", icon: <Settings size={18} /> },
+  { id: "contacts", label: "Contacts", icon: <Inbox size={18} />, section: "Inquiries" },
+  { id: "quotes", label: "Quote Requests", icon: <FileText size={18} /> },
+  { id: "proposals", label: "Proposals", icon: <DollarSign size={18} /> },
+  { id: "tickets", label: "Tickets", icon: <TicketIcon size={18} /> },
+  { id: "users", label: "Users", icon: <Users size={18} />, section: "System" },
+  { id: "activity", label: "Activity Log", icon: <Activity size={18} /> },
 ];
 
 export default function Admin() {
   const { user, token, login, logout, isAuthenticated } = useAuth();
   const { toast } = useToast();
-
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<Record<string, any>>({});
 
-  // Data states
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
-  const [settings, setSettings] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [testimonials, setTestimonials] = useState<any[]>([]);
-  const [team, setTeam] = useState<any[]>([]);
-  const [faqs, setFaqs] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
-  const [quotes, setQuotes] = useState<any[]>([]);
-  const [tickets, setTickets] = useState<any[]>([]);
-
-  // Check admin role
   const isAdmin = user?.role === "admin";
-
-  useEffect(() => {
-    if (isAuthenticated && isAdmin) {
-      fetchData(activeTab);
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated, isAdmin, activeTab]);
-
-  const getHeaders = () => ({
+  const headers = () => ({
     "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}`,
     "Content-Type": "application/json"
   });
 
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) fetchData(activeTab);
+    else setLoading(false);
+  }, [isAuthenticated, isAdmin, activeTab]);
+
   const fetchData = async (tab: TabType) => {
     setLoading(true);
     try {
-      if (tab === "dashboard") {
-        const [cRes, qRes, tRes, sRes] = await Promise.all([
-          fetch("/api/admin/contacts", { headers: getHeaders() }),
-          fetch("/api/admin/quotes", { headers: getHeaders() }),
-          fetch("/api/admin/tickets", { headers: getHeaders() }),
-          fetch("/api/admin/cms/services", { headers: getHeaders() })
-        ]);
-        const [c, q, t, s] = await Promise.all([
-          cRes.ok ? cRes.json() : [],
-          qRes.ok ? qRes.json() : [],
-          tRes.ok ? tRes.json() : [],
-          sRes.ok ? sRes.json() : []
-        ]);
-        setDashboardStats({
-          contacts: Array.isArray(c) ? c.length : 0,
-          quotes: Array.isArray(q) ? q.length : 0,
-          tickets: Array.isArray(t) ? t.length : 0,
-          services: Array.isArray(s) ? s.length : 0
-        });
-      } else if (tab === "settings") {
-        const res = await fetch("/api/admin/cms/settings", { headers: getHeaders() });
-        if (res.ok) setSettings(await res.json());
-      } else if (tab === "services") {
-        const res = await fetch("/api/admin/cms/services", { headers: getHeaders() });
-        if (res.ok) setServices(await res.json());
-      } else if (tab === "testimonials") {
-        const res = await fetch("/api/admin/cms/testimonials", { headers: getHeaders() });
-        if (res.ok) setTestimonials(await res.json());
-      } else if (tab === "team") {
-        const res = await fetch("/api/admin/cms/team", { headers: getHeaders() });
-        if (res.ok) setTeam(await res.json());
-      } else if (tab === "faq") {
-        const res = await fetch("/api/admin/cms/faq", { headers: getHeaders() });
-        if (res.ok) setFaqs(await res.json());
-      } else if (tab === "contacts") {
-        const res = await fetch("/api/admin/contacts", { headers: getHeaders() });
-        if (res.ok) setContacts(await res.json());
-      } else if (tab === "quotes") {
-        const res = await fetch("/api/admin/quotes", { headers: getHeaders() });
-        if (res.ok) setQuotes(await res.json());
-      } else if (tab === "tickets") {
-        const res = await fetch("/api/admin/tickets", { headers: getHeaders() });
-        if (res.ok) setTickets(await res.json());
+      const endpoints: Record<string, string> = {
+        dashboard: "/api/admin/dashboard/stats",
+        settings: "/api/admin/cms/settings",
+        services: "/api/admin/cms/services",
+        testimonials: "/api/admin/cms/testimonials",
+        team: "/api/admin/cms/team",
+        faq: "/api/admin/cms/faq",
+        blog: "/api/admin/cms/blog",
+        contacts: "/api/admin/contacts",
+        quotes: "/api/admin/quotes",
+        proposals: "/api/admin/proposals",
+        tickets: "/api/admin/tickets",
+        users: "/api/admin/users",
+        activity: "/api/admin/activity",
+      };
+      const res = await fetch(endpoints[tab], { headers: headers() });
+      if (res.ok) {
+        const result = await res.json();
+        setData(prev => ({ ...prev, [tab]: result }));
       }
     } catch (error) {
       console.error(`Error fetching ${tab}:`, error);
-      toast({ title: "Error fetching data", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -149,40 +88,45 @@ export default function Admin() {
     e.preventDefault();
     setIsLoggingIn(true);
     setLoginError("");
-
     try {
-      console.log("Attempting login with email:", email);
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
-      console.log("Login response status:", res.status);
-      const data = await res.json();
-      console.log("Login response data:", data);
-
+      const d = await res.json();
       if (res.ok) {
-        if (data.user.role === "admin") {
-          console.log("Login successful, user role:", data.user.role);
-          login(data.token, data.user);
-          toast({ title: "Logged in as Admin successfully" });
+        if (d.user.role === "admin") {
+          login(d.token, d.user);
+          toast({ title: "Logged in as Admin" });
         } else {
-          const msg = `Access denied. Your role is '${data.user.role}', admin role required.`;
-          console.warn(msg);
-          setLoginError(msg);
+          setLoginError(`Access denied. Your role is '${d.user.role}', admin required.`);
         }
       } else {
-        const errorMsg = data.error || data.message || "Invalid credentials";
-        console.error("Login failed:", errorMsg);
-        setLoginError(errorMsg);
+        setLoginError(d.message || "Invalid credentials");
       }
     } catch (err: any) {
-      const errorMsg = err?.message || "An error occurred during login";
-      console.error("Login error:", err);
-      setLoginError(errorMsg);
+      setLoginError(err?.message || "Login failed");
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const exportCSV = async (type: string) => {
+    try {
+      const res = await fetch(`/api/admin/export/${type}`, { headers: headers() });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${type}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: `${type} exported` });
+      }
+    } catch {
+      toast({ title: "Export failed", variant: "destructive" });
     }
   };
 
@@ -199,36 +143,17 @@ export default function Admin() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && (
-                <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg font-medium whitespace-pre-wrap break-words">
-                  {loginError}
-                </div>
-              )}
+              {loginError && <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">{loginError}</div>}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@example.com"
-                />
+                <Label>Email</Label>
+                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
+                <Label>Password</Label>
+                <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
               <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Sign In
+                {isLoggingIn && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Sign In
               </Button>
             </form>
           </CardContent>
@@ -237,80 +162,110 @@ export default function Admin() {
     );
   }
 
+  let lastSection = "";
   return (
     <div className="min-h-screen flex bg-muted/30">
-      {/* Sidebar */}
-      <aside className="w-64 bg-navy text-white flex-shrink-0 flex flex-col h-screen sticky top-0">
-        <div className="p-6">
-          <h2 className="text-xl font-bold font-display tracking-tight text-white/90 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
-            Admin Panel
+      <aside className="w-60 bg-navy text-white flex-shrink-0 flex flex-col h-screen sticky top-0">
+        <div className="p-5">
+          <h2 className="text-lg font-bold font-display tracking-tight text-white/90 flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary" /> CMS Admin
           </h2>
         </div>
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+          {TABS.map((tab) => {
+            const showSection = tab.section && tab.section !== lastSection;
+            if (tab.section) lastSection = tab.section;
+            return (
+              <React.Fragment key={tab.id}>
+                {showSection && (
+                  <div className="text-[10px] uppercase tracking-wider text-white/40 pt-4 pb-1 px-3 font-semibold">
+                    {tab.section}
+                  </div>
+                )}
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {tab.icon}{tab.label}
+                </button>
+              </React.Fragment>
+            );
+          })}
         </nav>
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+        <div className="p-3 border-t border-white/10">
+          <div className="flex items-center gap-2 mb-3 px-2">
+            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
               {user?.name?.charAt(0) || "A"}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-white/50 truncate">{user?.email}</p>
+              <p className="text-xs font-medium text-white truncate">{user?.name}</p>
+              <p className="text-[10px] text-white/50 truncate">{user?.email}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10"
-            onClick={() => {
-              logout();
-              toast({ title: "Logged out" });
-            }}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+          <Button variant="ghost" size="sm" className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10 text-xs"
+            onClick={() => { logout(); toast({ title: "Logged out" }); }}>
+            <LogOut className="w-3.5 h-3.5 mr-2" />Sign Out
           </Button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto min-h-screen p-8">
+      <main className="flex-1 overflow-y-auto min-h-screen p-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-navy capitalize tracking-tight">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-navy capitalize tracking-tight">
               {TABS.find(t => t.id === activeTab)?.label}
             </h1>
           </div>
-
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
+            <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : (
             <div className="animate-fade-in">
-              {activeTab === "dashboard" && <DashboardTab stats={dashboardStats} />}
-              {activeTab === "settings" && <SettingsTab settings={settings} fetchSettings={() => fetchData("settings")} token={token || ""} />}
-              {activeTab === "services" && <ServicesTab services={services} fetchServices={() => fetchData("services")} token={token || ""} />}
-              {activeTab === "testimonials" && <TestimonialsTab testimonials={testimonials} fetchTestimonials={() => fetchData("testimonials")} token={token || ""} />}
-              {activeTab === "team" && <TeamTab team={team} fetchTeam={() => fetchData("team")} token={token || ""} />}
-              {activeTab === "faq" && <FaqTab faqs={faqs} fetchFaqs={() => fetchData("faq")} token={token || ""} />}
-              {activeTab === "contacts" && <ContactsTab contacts={contacts} />}
-              {activeTab === "quotes" && <QuotesTab quotes={quotes} />}
-              {activeTab === "tickets" && <TicketsTab tickets={tickets} />}
+              {activeTab === "dashboard" && <DashboardTab stats={data.dashboard} />}
+              {activeTab === "settings" && <SettingsTab data={data.settings} refresh={() => fetchData("settings")} headers={headers} />}
+              {activeTab === "services" && <CrudTab items={data.services || []} refresh={() => fetchData("services")} headers={headers} entity="services" fields={[
+                { key: "title", label: "Title", type: "text", required: true },
+                { key: "description", label: "Description", type: "textarea", required: true },
+                { key: "icon", label: "Icon", type: "text" },
+                { key: "category", label: "Category", type: "text" },
+                { key: "features", label: "Features (one per line)", type: "features" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["title", "category", "active"]} />}
+              {activeTab === "testimonials" && <CrudTab items={data.testimonials || []} refresh={() => fetchData("testimonials")} headers={headers} entity="testimonials" fields={[
+                { key: "name", label: "Name", type: "text", required: true },
+                { key: "company", label: "Company", type: "text", required: true },
+                { key: "role", label: "Role", type: "text" },
+                { key: "content", label: "Content", type: "textarea", required: true },
+                { key: "rating", label: "Rating (1-5)", type: "number" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["name", "company", "rating", "active"]} />}
+              {activeTab === "team" && <CrudTab items={data.team || []} refresh={() => fetchData("team")} headers={headers} entity="team" fields={[
+                { key: "name", label: "Name", type: "text", required: true },
+                { key: "role", label: "Role", type: "text", required: true },
+                { key: "bio", label: "Bio", type: "textarea" },
+                { key: "imageUrl", label: "Image URL", type: "text" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["name", "role", "active"]} />}
+              {activeTab === "faq" && <CrudTab items={data.faq || []} refresh={() => fetchData("faq")} headers={headers} entity="faq" fields={[
+                { key: "question", label: "Question", type: "text", required: true },
+                { key: "answer", label: "Answer", type: "textarea", required: true },
+                { key: "category", label: "Category", type: "text" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["question", "category", "active"]} />}
+              {activeTab === "blog" && <BlogTab posts={data.blog || []} refresh={() => fetchData("blog")} headers={headers} />}
+              {activeTab === "contacts" && <ContactsTab contacts={data.contacts || []} refresh={() => fetchData("contacts")} headers={headers} exportCSV={() => exportCSV("contacts")} />}
+              {activeTab === "quotes" && <QuotesTab quotes={data.quotes || []} refresh={() => fetchData("quotes")} headers={headers} exportCSV={() => exportCSV("quotes")} />}
+              {activeTab === "proposals" && <ProposalsTab proposals={data.proposals || []} refresh={() => fetchData("proposals")} headers={headers} />}
+              {activeTab === "tickets" && <TicketsTab tickets={data.tickets || []} refresh={() => fetchData("tickets")} headers={headers} exportCSV={() => exportCSV("tickets")} />}
+              {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
+              {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
             </div>
           )}
         </div>
@@ -319,103 +274,128 @@ export default function Admin() {
   );
 }
 
-// --- TABS COMPONENTS ---
-
-function DashboardTab({ stats }: { stats: any }) {
-  if (!stats) return null;
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <StatCard title="Total Contacts" value={stats.contacts} icon={<Inbox className="text-blue-500" />} />
-      <StatCard title="Quote Requests" value={stats.quotes} icon={<FileText className="text-emerald-500" />} />
-      <StatCard title="Support Tickets" value={stats.tickets} icon={<TicketIcon className="text-amber-500" />} />
-      <StatCard title="Active Services" value={stats.services} icon={<Briefcase className="text-purple-500" />} />
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon }: { title: string, value: number, icon: React.ReactNode }) {
+function StatCard({ title, value, icon, sub }: { title: string; value: string | number; icon: React.ReactNode; sub?: string }) {
   return (
     <Card>
-      <CardContent className="p-6 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          {icon}
-        </div>
+      <CardContent className="p-5 flex items-center gap-4">
+        <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">{icon}</div>
         <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold text-navy">{value}</p>
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <p className="text-2xl font-bold text-navy">{value}</p>
+          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function SettingsTab({ settings, fetchSettings, token }: { settings: any[], fetchSettings: () => void, token: string }) {
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <Input className="pl-9 h-9" placeholder={placeholder || "Search..."} value={value} onChange={e => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function DashboardTab({ stats }: { stats: any }) {
+  if (!stats) return <p className="text-muted-foreground">Loading stats...</p>;
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <StatCard title="Contacts" value={stats.contacts} icon={<Inbox className="text-blue-500 w-5 h-5" />} />
+        <StatCard title="Quotes" value={stats.quotes} icon={<FileText className="text-emerald-500 w-5 h-5" />} />
+        <StatCard title="Tickets" value={stats.tickets} icon={<TicketIcon className="text-amber-500 w-5 h-5" />} />
+        <StatCard title="Open Tickets" value={stats.openTickets} icon={<AlertCircle className="text-red-500 w-5 h-5" />} />
+        <StatCard title="Blog Posts" value={stats.blogPosts} icon={<PenTool className="text-purple-500 w-5 h-5" />} />
+        <StatCard title="Users" value={stats.users} icon={<Users className="text-teal-500 w-5 h-5" />} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Recent Contacts</CardTitle></CardHeader>
+          <CardContent>
+            {stats.recentContacts?.length > 0 ? (
+              <div className="space-y-3">
+                {stats.recentContacts.map((c: any) => (
+                  <div key={c.id} className="flex justify-between items-center text-sm">
+                    <div>
+                      <p className="font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.email}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-muted-foreground">No contacts yet</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-base">Recent Quote Requests</CardTitle></CardHeader>
+          <CardContent>
+            {stats.recentQuotes?.length > 0 ? (
+              <div className="space-y-3">
+                {stats.recentQuotes.map((q: any) => (
+                  <div key={q.id} className="flex justify-between items-center text-sm">
+                    <div>
+                      <p className="font-medium">{q.company}</p>
+                      <p className="text-xs text-muted-foreground">{q.name} - {q.budget || "No budget"}</p>
+                    </div>
+                    <Badge variant={q.status === "pending" ? "default" : "secondary"}>{q.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-muted-foreground">No quotes yet</p>}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function SettingsTab({ data, refresh, headers }: { data: any; refresh: () => void; headers: () => any }) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const data: Record<string, string> = {};
-    settings.forEach(s => {
-      data[s.key] = s.value;
-    });
-    setFormData(data);
-  }, [settings]);
-
-  const handleChange = (key: string, value: string) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  };
+    if (Array.isArray(data)) {
+      const m: Record<string, string> = {};
+      data.forEach((s: any) => { m[s.key] = s.value; });
+      setFormData(m);
+    } else if (data && typeof data === "object") {
+      setFormData(data);
+    }
+  }, [data]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = { settings: Object.entries(formData).map(([key, value]) => ({ key, value })) };
-      
       const res = await fetch("/api/admin/cms/settings", {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
+        method: "PUT", headers: headers(), body: JSON.stringify(formData),
       });
-      if (res.ok) {
-        toast({ title: "Settings saved successfully" });
-        fetchSettings();
-      } else {
-        toast({ title: "Failed to save settings", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error saving settings", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+      if (res.ok) { toast({ title: "Settings saved" }); refresh(); }
+      else toast({ title: "Failed to save", variant: "destructive" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+    finally { setSaving(false); }
   };
 
   const textareas = ["hero_description", "about_story", "zoom_partner_description"];
-
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Site Settings</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <CardContent className="p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(formData).map(([key, value]) => (
-            <div key={key} className={textareas.includes(key) ? "md:col-span-2 space-y-2" : "space-y-2"}>
-              <Label className="capitalize">{key.replace(/_/g, " ")}</Label>
-              {textareas.includes(key) ? (
-                <Textarea value={value} onChange={e => handleChange(key, e.target.value)} />
-              ) : (
-                <Input value={value} onChange={e => handleChange(key, e.target.value)} />
-              )}
+            <div key={key} className={textareas.includes(key) ? "md:col-span-2 space-y-1" : "space-y-1"}>
+              <Label className="text-xs capitalize">{key.replace(/_/g, " ")}</Label>
+              {textareas.includes(key)
+                ? <Textarea value={value} onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))} className="min-h-[80px]" />
+                : <Input value={value} onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))} />}
             </div>
           ))}
         </div>
         <div className="flex justify-end pt-4 border-t">
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Settings
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Settings
           </Button>
         </div>
       </CardContent>
@@ -423,146 +403,130 @@ function SettingsTab({ settings, fetchSettings, token }: { settings: any[], fetc
   );
 }
 
-function ServicesTab({ services, fetchServices, token }: { services: any[], fetchServices: () => void, token: string }) {
+interface FieldDef { key: string; label: string; type: "text" | "textarea" | "number" | "checkbox" | "features" | "select"; required?: boolean; options?: string[] }
+
+function CrudTab({ items, refresh, headers, entity, fields, columns }: {
+  items: any[]; refresh: () => void; headers: () => any; entity: string;
+  fields: FieldDef[]; columns: string[];
+}) {
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ title: "", description: "", icon: "", category: "", features: "", sortOrder: 0, active: true });
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState<Record<string, any>>({});
+
+  const filtered = useMemo(() => {
+    if (!search) return items;
+    const s = search.toLowerCase();
+    return items.filter(i => columns.some(c => String(i[c] ?? "").toLowerCase().includes(s)));
+  }, [items, search, columns]);
 
   const openAdd = () => {
-    setEditingItem(null);
-    setFormData({ title: "", description: "", icon: "", category: "", features: "", sortOrder: 0, active: true });
-    setIsDialogOpen(true);
+    setEditing(null);
+    const init: Record<string, any> = {};
+    fields.forEach(f => {
+      if (f.type === "checkbox") init[f.key] = true;
+      else if (f.type === "number") init[f.key] = 0;
+      else init[f.key] = "";
+    });
+    setForm(init);
+    setOpen(true);
   };
 
   const openEdit = (item: any) => {
-    setEditingItem(item);
-    setFormData({ ...item, features: Array.isArray(item.features) ? item.features.join("\n") : item.features || "" });
-    setIsDialogOpen(true);
+    setEditing(item);
+    const init: Record<string, any> = {};
+    fields.forEach(f => {
+      if (f.type === "features") init[f.key] = Array.isArray(item[f.key]) ? item[f.key].join("\n") : (item[f.key] || "");
+      else init[f.key] = item[f.key] ?? "";
+    });
+    setForm(init);
+    setOpen(true);
   };
 
   const handleSave = async () => {
+    const method = editing ? "PUT" : "POST";
+    const url = editing ? `/api/admin/cms/${entity}/${editing.id}` : `/api/admin/cms/${entity}`;
+    const payload = { ...form };
+    fields.forEach(f => {
+      if (f.type === "features") payload[f.key] = form[f.key].split("\n").map((s: string) => s.trim()).filter(Boolean);
+      if (f.type === "number") payload[f.key] = Number(form[f.key]);
+    });
     try {
-      const method = editingItem ? "PUT" : "POST";
-      const url = editingItem ? `/api/admin/cms/services/${editingItem.id}` : "/api/admin/cms/services";
-      
-      const payload = {
-        ...formData,
-        features: formData.features.split("\n").map(f => f.trim()).filter(Boolean),
-        sortOrder: Number(formData.sortOrder)
-      };
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        toast({ title: "Saved successfully" });
-        setIsDialogOpen(false);
-        fetchServices();
-      } else {
-        toast({ title: "Failed to save", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error saving", variant: "destructive" });
-    }
+      const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(payload) });
+      if (res.ok) { toast({ title: "Saved" }); setOpen(false); refresh(); }
+      else toast({ title: "Failed", variant: "destructive" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure?")) return;
+    if (!confirm("Delete this item?")) return;
     try {
-      const res = await fetch(`/api/admin/cms/services/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}` }
-      });
-      if (res.ok) {
-        toast({ title: "Deleted" });
-        fetchServices();
-      }
-    } catch (err) {
-      toast({ title: "Error", variant: "destructive" });
-    }
+      const res = await fetch(`/api/admin/cms/${entity}/${id}`, { method: "DELETE", headers: headers() });
+      if (res.ok) { toast({ title: "Deleted" }); refresh(); }
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-2"/> Add Service</Button>
+      <div className="flex justify-between gap-4">
+        <SearchBar value={search} onChange={setSearch} />
+        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-1.5" />Add</Button>
       </div>
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase">
               <tr>
-                <th className="px-6 py-3">Title</th>
-                <th className="px-6 py-3">Category</th>
-                <th className="px-6 py-3">Active</th>
-                <th className="px-6 py-3 text-right">Actions</th>
+                {columns.map(c => <th key={c} className="px-5 py-3 text-left">{c}</th>)}
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {services.map((item) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-navy">{item.title}</td>
-                  <td className="px-6 py-4">{item.category}</td>
-                  <td className="px-6 py-4">
-                    <Badge variant={item.active ? "default" : "secondary"}>{item.active ? "Yes" : "No"}</Badge>
-                  </td>
-                  <td className="px-6 py-4 text-right space-x-2">
+              {filtered.map(item => (
+                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50">
+                  {columns.map(c => (
+                    <td key={c} className="px-5 py-3">
+                      {typeof item[c] === "boolean" ? <Badge variant={item[c] ? "default" : "secondary"}>{item[c] ? "Yes" : "No"}</Badge>
+                       : String(item[c] ?? "").slice(0, 60)}
+                    </td>
+                  ))}
+                  <td className="px-5 py-3 text-right space-x-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Edit2 className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {services.length === 0 && <div className="p-8 text-center text-muted-foreground">No services found.</div>}
+          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No items found.</div>}
         </div>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Service" : "Add Service"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+          <DialogHeader><DialogTitle>{editing ? "Edit" : "Add"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-4">
+            {fields.map(f => (
+              <div key={f.key} className="space-y-1">
+                {f.type === "checkbox" ? (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={!!form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.checked }))} className="w-4 h-4" />
+                    {f.label}
+                  </label>
+                ) : (
+                  <>
+                    <Label className="text-xs">{f.label}</Label>
+                    {f.type === "textarea" || f.type === "features"
+                      ? <Textarea value={form[f.key] || ""} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} className="min-h-[80px]" />
+                      : <Input type={f.type === "number" ? "number" : "text"} value={form[f.key] ?? ""} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} />}
+                  </>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Input value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Icon (Lucide icon name)</Label>
-                <Input value={formData.icon} onChange={e => setFormData({...formData, icon: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: Number(e.target.value)})} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea className="min-h-[80px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Features (One per line)</Label>
-              <Textarea className="min-h-[120px]" value={formData.features} onChange={e => setFormData({...formData, features: e.target.value})} />
-            </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <input type="checkbox" id="active" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} className="w-4 h-4" />
-              <Label htmlFor="active">Active</Label>
-            </div>
+            ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleSave}>Save</Button>
           </DialogFooter>
         </DialogContent>
@@ -571,141 +535,123 @@ function ServicesTab({ services, fetchServices, token }: { services: any[], fetc
   );
 }
 
-function TestimonialsTab({ testimonials, fetchTestimonials, token }: { testimonials: any[], fetchTestimonials: () => void, token: string }) {
+function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => void; headers: () => any }) {
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: "", company: "", role: "", content: "", rating: 5, sortOrder: 0, active: true });
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ title: "", slug: "", excerpt: "", content: "", coverImage: "", author: "Siebert Services", category: "general", tags: "", status: "draft", featured: false });
+
+  const filtered = useMemo(() => {
+    if (!search) return posts;
+    const s = search.toLowerCase();
+    return posts.filter(p => p.title.toLowerCase().includes(s) || p.category.toLowerCase().includes(s));
+  }, [posts, search]);
 
   const openAdd = () => {
-    setEditingItem(null);
-    setFormData({ name: "", company: "", role: "", content: "", rating: 5, sortOrder: 0, active: true });
-    setIsDialogOpen(true);
+    setEditing(null);
+    setForm({ title: "", slug: "", excerpt: "", content: "", coverImage: "", author: "Siebert Services", category: "general", tags: "", status: "draft", featured: false });
+    setOpen(true);
   };
 
-  const openEdit = (item: any) => {
-    setEditingItem(item);
-    setFormData({ ...item });
-    setIsDialogOpen(true);
+  const openEdit = (post: any) => {
+    setEditing(post);
+    setForm({
+      ...post,
+      tags: Array.isArray(post.tags) ? post.tags.join(", ") : "",
+    });
+    setOpen(true);
   };
 
   const handleSave = async () => {
+    const method = editing ? "PUT" : "POST";
+    const url = editing ? `/api/admin/cms/blog/${editing.id}` : "/api/admin/cms/blog";
+    const payload = { ...form, tags: form.tags.split(",").map(t => t.trim()).filter(Boolean) };
     try {
-      const method = editingItem ? "PUT" : "POST";
-      const url = editingItem ? `/api/admin/cms/testimonials/${editingItem.id}` : "/api/admin/cms/testimonials";
-      
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ ...formData, sortOrder: Number(formData.sortOrder), rating: Number(formData.rating) })
-      });
-      if (res.ok) {
-        toast({ title: "Saved successfully" });
-        setIsDialogOpen(false);
-        fetchTestimonials();
-      } else {
-        toast({ title: "Failed to save", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error saving", variant: "destructive" });
-    }
+      const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(payload) });
+      if (res.ok) { toast({ title: "Saved" }); setOpen(false); refresh(); }
+      else toast({ title: "Failed", variant: "destructive" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure?")) return;
+    if (!confirm("Delete this post?")) return;
     try {
-      const res = await fetch(`/api/admin/cms/testimonials/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}` }
-      });
-      if (res.ok) {
-        toast({ title: "Deleted" });
-        fetchTestimonials();
-      }
-    } catch (err) {
-      toast({ title: "Error", variant: "destructive" });
-    }
+      const res = await fetch(`/api/admin/cms/blog/${id}`, { method: "DELETE", headers: headers() });
+      if (res.ok) { toast({ title: "Deleted" }); refresh(); }
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-2"/> Add Testimonial</Button>
+      <div className="flex justify-between gap-4">
+        <SearchBar value={search} onChange={setSearch} />
+        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-1.5" />New Post</Button>
       </div>
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase">
               <tr>
-                <th className="px-6 py-3">Name</th>
-                <th className="px-6 py-3">Company</th>
-                <th className="px-6 py-3">Rating</th>
-                <th className="px-6 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 text-left">Title</th>
+                <th className="px-5 py-3 text-left">Category</th>
+                <th className="px-5 py-3 text-left">Status</th>
+                <th className="px-5 py-3 text-left">Date</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {testimonials.map((item) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-navy">{item.name}</td>
-                  <td className="px-6 py-4">{item.company}</td>
-                  <td className="px-6 py-4">{item.rating}/5</td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Edit2 className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
+              {filtered.map(post => (
+                <tr key={post.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-5 py-3 font-medium">{post.title}{post.featured && <Badge className="ml-2" variant="default">Featured</Badge>}</td>
+                  <td className="px-5 py-3">{post.category}</td>
+                  <td className="px-5 py-3">
+                    <Badge variant={post.status === "published" ? "default" : post.status === "draft" ? "secondary" : "outline"}>{post.status}</Badge>
+                  </td>
+                  <td className="px-5 py-3 text-muted-foreground text-xs">{new Date(post.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-right space-x-1">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(post)}><Edit2 className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(post.id)}><Trash2 className="w-4 h-4" /></Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {testimonials.length === 0 && <div className="p-8 text-center text-muted-foreground">No testimonials found.</div>}
+          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No blog posts yet.</div>}
         </div>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Testimonial" : "Add Testimonial"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Company</Label>
-                <Input value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Rating (1-5)</Label>
-                <Input type="number" min="1" max="5" value={formData.rating} onChange={e => setFormData({...formData, rating: Number(e.target.value)})} />
-              </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? "Edit Post" : "New Post"}</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">Title</Label><Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Slug</Label><Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto-generated" /></div>
+              <div className="space-y-1"><Label className="text-xs">Category</Label><Input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Author</Label><Input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Cover Image URL</Label><Input value={form.coverImage} onChange={e => setForm(p => ({ ...p, coverImage: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Tags (comma separated)</Label><Input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} /></div>
             </div>
-            <div className="space-y-2">
-              <Label>Content</Label>
-              <Textarea className="min-h-[100px]" value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: Number(e.target.value)})} />
+            <div className="space-y-1"><Label className="text-xs">Excerpt</Label><Textarea value={form.excerpt} onChange={e => setForm(p => ({ ...p, excerpt: e.target.value }))} className="min-h-[60px]" /></div>
+            <div className="space-y-1"><Label className="text-xs">Content (Markdown/HTML)</Label><Textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} className="min-h-[200px] font-mono text-xs" /></div>
+            <div className="flex items-center gap-6">
+              <div className="space-y-1">
+                <Label className="text-xs">Status</Label>
+                <select className="h-9 px-3 rounded-md border text-sm bg-background" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
+                </select>
               </div>
-              <div className="flex items-center space-x-2 pt-8">
-                <input type="checkbox" id="testi-active" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} className="w-4 h-4" />
-                <Label htmlFor="testi-active">Active</Label>
-              </div>
+              <label className="flex items-center gap-2 text-sm pt-5">
+                <input type="checkbox" checked={form.featured} onChange={e => setForm(p => ({ ...p, featured: e.target.checked }))} className="w-4 h-4" />Featured
+              </label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave}>Save Post</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -713,265 +659,357 @@ function TestimonialsTab({ testimonials, fetchTestimonials, token }: { testimoni
   );
 }
 
-function TeamTab({ team, fetchTeam, token }: { team: any[], fetchTeam: () => void, token: string }) {
+function ContactsTab({ contacts, refresh, headers, exportCSV }: { contacts: any[]; refresh: () => void; headers: () => any; exportCSV: () => void }) {
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: "", role: "", bio: "", imageUrl: "", sortOrder: 0, active: true });
-
-  const openAdd = () => {
-    setEditingItem(null);
-    setFormData({ name: "", role: "", bio: "", imageUrl: "", sortOrder: 0, active: true });
-    setIsDialogOpen(true);
-  };
-
-  const openEdit = (item: any) => {
-    setEditingItem(item);
-    setFormData({ ...item });
-    setIsDialogOpen(true);
-  };
-
-  const handleSave = async () => {
-    try {
-      const method = editingItem ? "PUT" : "POST";
-      const url = editingItem ? `/api/admin/cms/team/${editingItem.id}` : "/api/admin/cms/team";
-      
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ ...formData, sortOrder: Number(formData.sortOrder) })
-      });
-      if (res.ok) {
-        toast({ title: "Saved successfully" });
-        setIsDialogOpen(false);
-        fetchTeam();
-      } else {
-        toast({ title: "Failed to save", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error saving", variant: "destructive" });
-    }
-  };
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    if (!search) return contacts;
+    const s = search.toLowerCase();
+    return contacts.filter(c => c.name.toLowerCase().includes(s) || c.email.toLowerCase().includes(s) || (c.company || "").toLowerCase().includes(s));
+  }, [contacts, search]);
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure?")) return;
+    if (!confirm("Delete?")) return;
     try {
-      const res = await fetch(`/api/admin/cms/team/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}` }
-      });
-      if (res.ok) {
-        toast({ title: "Deleted" });
-        fetchTeam();
-      }
-    } catch (err) {
-      toast({ title: "Error", variant: "destructive" });
-    }
+      await fetch(`/api/admin/contacts/${id}`, { method: "DELETE", headers: headers() });
+      toast({ title: "Deleted" }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-2"/> Add Member</Button>
+      <div className="flex justify-between gap-4">
+        <SearchBar value={search} onChange={setSearch} />
+        <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" />Export CSV</Button>
       </div>
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase">
               <tr>
-                <th className="px-6 py-3">Name</th>
-                <th className="px-6 py-3">Role</th>
-                <th className="px-6 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 text-left">Date</th>
+                <th className="px-5 py-3 text-left">Name</th>
+                <th className="px-5 py-3 text-left">Email</th>
+                <th className="px-5 py-3 text-left">Company</th>
+                <th className="px-5 py-3 text-left">Service</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {team.map((item) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-navy">{item.name}</td>
-                  <td className="px-6 py-4">{item.role}</td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Edit2 className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
+              {filtered.map(c => (
+                <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 font-medium">{c.name}</td>
+                  <td className="px-5 py-3">{c.email}</td>
+                  <td className="px-5 py-3">{c.company || "-"}</td>
+                  <td className="px-5 py-3">{c.service || "-"}</td>
+                  <td className="px-5 py-3 text-right">
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(c.id)}><Trash2 className="w-4 h-4" /></Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {team.length === 0 && <div className="p-8 text-center text-muted-foreground">No team members found.</div>}
+          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No contacts found.</div>}
         </div>
       </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Team Member" : "Add Team Member"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Image URL</Label>
-              <Input value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Bio</Label>
-              <Textarea className="min-h-[100px]" value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: Number(e.target.value)})} />
-              </div>
-              <div className="flex items-center space-x-2 pt-8">
-                <input type="checkbox" id="team-active" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} className="w-4 h-4" />
-                <Label htmlFor="team-active">Active</Label>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-function FaqTab({ faqs, fetchFaqs, token }: { faqs: any[], fetchFaqs: () => void, token: string }) {
+function QuotesTab({ quotes, refresh, headers, exportCSV }: { quotes: any[]; refresh: () => void; headers: () => any; exportCSV: () => void }) {
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ question: "", answer: "", category: "", sortOrder: 0, active: true });
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<any>(null);
 
-  const openAdd = () => {
-    setEditingItem(null);
-    setFormData({ question: "", answer: "", category: "", sortOrder: 0, active: true });
-    setIsDialogOpen(true);
-  };
+  const filtered = useMemo(() => {
+    if (!search) return quotes;
+    const s = search.toLowerCase();
+    return quotes.filter(q => q.company.toLowerCase().includes(s) || q.name.toLowerCase().includes(s) || q.email.toLowerCase().includes(s));
+  }, [quotes, search]);
 
-  const openEdit = (item: any) => {
-    setEditingItem(item);
-    setFormData({ ...item });
-    setIsDialogOpen(true);
-  };
-
-  const handleSave = async () => {
+  const updateStatus = async (id: number, status: string) => {
     try {
-      const method = editingItem ? "PUT" : "POST";
-      const url = editingItem ? `/api/admin/cms/faq/${editingItem.id}` : "/api/admin/cms/faq";
-      
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ ...formData, sortOrder: Number(formData.sortOrder) })
-      });
-      if (res.ok) {
-        toast({ title: "Saved successfully" });
-        setIsDialogOpen(false);
-        fetchFaqs();
-      } else {
-        toast({ title: "Failed to save", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error saving", variant: "destructive" });
-    }
+      await fetch(`/api/admin/quotes/${id}/status`, { method: "PUT", headers: headers(), body: JSON.stringify({ status }) });
+      toast({ title: `Status updated to ${status}` }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure?")) return;
+    if (!confirm("Delete?")) return;
     try {
-      const res = await fetch(`/api/admin/cms/faq/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token || localStorage.getItem("siebert_token")}` }
-      });
-      if (res.ok) {
-        toast({ title: "Deleted" });
-        fetchFaqs();
-      }
-    } catch (err) {
-      toast({ title: "Error", variant: "destructive" });
-    }
+      await fetch(`/api/admin/quotes/${id}`, { method: "DELETE", headers: headers() });
+      toast({ title: "Deleted" }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-2"/> Add FAQ</Button>
+      <div className="flex justify-between gap-4">
+        <SearchBar value={search} onChange={setSearch} />
+        <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" />Export CSV</Button>
       </div>
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase">
               <tr>
-                <th className="px-6 py-3">Question</th>
-                <th className="px-6 py-3">Category</th>
-                <th className="px-6 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 text-left">Date</th>
+                <th className="px-5 py-3 text-left">Company</th>
+                <th className="px-5 py-3 text-left">Contact</th>
+                <th className="px-5 py-3 text-left">Budget</th>
+                <th className="px-5 py-3 text-left">Status</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {faqs.map((item) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-navy">{item.question}</td>
-                  <td className="px-6 py-4">{item.category}</td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Edit2 className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item.id)}><Trash2 className="w-4 h-4" /></Button>
+              {filtered.map(q => (
+                <tr key={q.id} className="border-b last:border-0 hover:bg-muted/50 cursor-pointer" onClick={() => setSelected(q)}>
+                  <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 font-medium">{q.company}</td>
+                  <td className="px-5 py-3">{q.name}</td>
+                  <td className="px-5 py-3">{q.budget || "-"}</td>
+                  <td className="px-5 py-3">
+                    <select className="h-7 px-2 rounded border text-xs bg-background" value={q.status}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => updateStatus(q.id, e.target.value)}>
+                      <option value="pending">Pending</option>
+                      <option value="reviewed">Reviewed</option>
+                      <option value="quoted">Quoted</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </td>
+                  <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(q.id)}><Trash2 className="w-4 h-4" /></Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {faqs.length === 0 && <div className="p-8 text-center text-muted-foreground">No FAQs found.</div>}
+          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No quotes found.</div>}
         </div>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit FAQ" : "Add FAQ"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Question</Label>
-              <Input value={formData.question} onChange={e => setFormData({...formData, question: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Answer</Label>
-              <Textarea className="min-h-[100px]" value={formData.answer} onChange={e => setFormData({...formData, answer: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Input value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} />
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Quote Request Details</DialogTitle></DialogHeader>
+          {selected && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-xs text-muted-foreground">Name</p><p className="font-medium">{selected.name}</p></div>
+                <div><p className="text-xs text-muted-foreground">Email</p><p>{selected.email}</p></div>
+                <div><p className="text-xs text-muted-foreground">Phone</p><p>{selected.phone || "-"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Company</p><p>{selected.company}</p></div>
+                <div><p className="text-xs text-muted-foreground">Company Size</p><p>{selected.companySize || "-"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Budget</p><p>{selected.budget || "-"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Timeline</p><p>{selected.timeline || "-"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Status</p><Badge>{selected.status}</Badge></div>
               </div>
-              <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: Number(e.target.value)})} />
+              <div><p className="text-xs text-muted-foreground">Services</p><div className="flex flex-wrap gap-1 mt-1">{(selected.services || []).map((s: string) => <Badge key={s} variant="outline">{s}</Badge>)}</div></div>
+              {selected.details && <div><p className="text-xs text-muted-foreground">Details</p><p className="mt-1">{selected.details}</p></div>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ProposalsTab({ proposals, refresh, headers }: { proposals: any[]; refresh: () => void; headers: () => any }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState<any>({
+    clientName: "", clientEmail: "", clientCompany: "", clientPhone: "", title: "",
+    summary: "", discount: "0", discountType: "fixed", tax: "0", validUntil: "",
+    terms: "Payment is due within 30 days of invoice.\nPrices are valid for the duration specified.\nAll services subject to the terms of our Master Service Agreement.",
+    notes: "", lineItems: [{ name: "", description: "", quantity: 1, unitPrice: "", unit: "each", category: "service", recurring: false, recurringInterval: "" }],
+  });
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm({
+      clientName: "", clientEmail: "", clientCompany: "", clientPhone: "", title: "",
+      summary: "", discount: "0", discountType: "fixed", tax: "0",
+      validUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      terms: "Payment is due within 30 days of invoice.\nPrices are valid for the duration specified.\nAll services subject to the terms of our Master Service Agreement.",
+      notes: "", lineItems: [{ name: "", description: "", quantity: 1, unitPrice: "", unit: "each", category: "service", recurring: false, recurringInterval: "" }],
+    });
+    setOpen(true);
+  };
+
+  const openEdit = (p: any) => {
+    setEditing(p);
+    setForm({
+      clientName: p.clientName, clientEmail: p.clientEmail, clientCompany: p.clientCompany,
+      clientPhone: p.clientPhone || "", title: p.title, summary: p.summary || "",
+      discount: p.discount || "0", discountType: p.discountType || "fixed", tax: p.tax || "0",
+      validUntil: p.validUntil ? new Date(p.validUntil).toISOString().slice(0, 10) : "",
+      terms: p.terms || "", notes: p.notes || "",
+      lineItems: p.lineItems?.length > 0 ? p.lineItems : [{ name: "", description: "", quantity: 1, unitPrice: "", unit: "each", category: "service", recurring: false, recurringInterval: "" }],
+    });
+    setOpen(true);
+  };
+
+  const addLineItem = () => setForm((p: any) => ({
+    ...p, lineItems: [...p.lineItems, { name: "", description: "", quantity: 1, unitPrice: "", unit: "each", category: "service", recurring: false, recurringInterval: "" }]
+  }));
+
+  const removeLineItem = (idx: number) => setForm((p: any) => ({
+    ...p, lineItems: p.lineItems.filter((_: any, i: number) => i !== idx)
+  }));
+
+  const updateLineItem = (idx: number, field: string, value: any) => setForm((p: any) => ({
+    ...p, lineItems: p.lineItems.map((item: any, i: number) => i === idx ? { ...item, [field]: value } : item)
+  }));
+
+  const subtotal = form.lineItems.reduce((sum: number, item: any) => sum + (parseFloat(item.unitPrice || "0") * (item.quantity || 1)), 0);
+
+  const handleSave = async () => {
+    const method = editing ? "PUT" : "POST";
+    const url = editing ? `/api/admin/proposals/${editing.id}` : "/api/admin/proposals";
+    try {
+      const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(form) });
+      if (res.ok) { toast({ title: "Proposal saved" }); setOpen(false); refresh(); }
+      else { const d = await res.json(); toast({ title: d.message || "Failed", variant: "destructive" }); }
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const handleSend = async (id: number) => {
+    try {
+      await fetch(`/api/admin/proposals/${id}/send`, { method: "PUT", headers: headers() });
+      toast({ title: "Proposal marked as sent" }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this proposal?")) return;
+    try {
+      await fetch(`/api/admin/proposals/${id}`, { method: "DELETE", headers: headers() });
+      toast({ title: "Deleted" }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const statusColor = (s: string) => {
+    switch (s) { case "accepted": return "default"; case "sent": case "viewed": return "secondary"; case "rejected": case "expired": return "destructive"; default: return "outline"; }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={openAdd}><Plus className="w-4 h-4 mr-1.5" />New Proposal</Button>
+      </div>
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted text-muted-foreground text-xs uppercase">
+              <tr>
+                <th className="px-5 py-3 text-left">Number</th>
+                <th className="px-5 py-3 text-left">Client</th>
+                <th className="px-5 py-3 text-left">Title</th>
+                <th className="px-5 py-3 text-left">Total</th>
+                <th className="px-5 py-3 text-left">Status</th>
+                <th className="px-5 py-3 text-left">Valid Until</th>
+                <th className="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {proposals.map((p: any) => (
+                <tr key={p.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-5 py-3 font-mono text-xs">{p.proposalNumber}</td>
+                  <td className="px-5 py-3 font-medium">{p.clientCompany}</td>
+                  <td className="px-5 py-3">{p.title}</td>
+                  <td className="px-5 py-3 font-medium">${parseFloat(p.total || "0").toLocaleString()}</td>
+                  <td className="px-5 py-3"><Badge variant={statusColor(p.status)}>{p.status}</Badge></td>
+                  <td className="px-5 py-3 text-xs text-muted-foreground">{p.validUntil ? new Date(p.validUntil).toLocaleDateString() : "-"}</td>
+                  <td className="px-5 py-3 text-right space-x-1">
+                    {p.status === "draft" && <Button variant="ghost" size="icon" onClick={() => handleSend(p.id)} title="Mark as Sent"><Send className="w-4 h-4" /></Button>}
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Edit2 className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      const base = window.location.origin + (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                      navigator.clipboard.writeText(`${base}/proposal/${p.proposalNumber}`);
+                      toast({ title: "Link copied!" });
+                    }}><Eye className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(p.id)}><Trash2 className="w-4 h-4" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {proposals.length === 0 && <div className="p-8 text-center text-muted-foreground">No proposals yet. Create one to get started.</div>}
+        </div>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editing ? "Edit Proposal" : "New Proposal"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">Client Name *</Label><Input value={form.clientName} onChange={e => setForm((p: any) => ({ ...p, clientName: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Client Email *</Label><Input type="email" value={form.clientEmail} onChange={e => setForm((p: any) => ({ ...p, clientEmail: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Client Company *</Label><Input value={form.clientCompany} onChange={e => setForm((p: any) => ({ ...p, clientCompany: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Client Phone</Label><Input value={form.clientPhone} onChange={e => setForm((p: any) => ({ ...p, clientPhone: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">Proposal Title *</Label><Input value={form.title} onChange={e => setForm((p: any) => ({ ...p, title: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Valid Until</Label><Input type="date" value={form.validUntil} onChange={e => setForm((p: any) => ({ ...p, validUntil: e.target.value }))} /></div>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">Summary</Label><Textarea value={form.summary} onChange={e => setForm((p: any) => ({ ...p, summary: e.target.value }))} className="min-h-[60px]" /></div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-sm font-semibold">Line Items</Label>
+                <Button size="sm" variant="outline" onClick={addLineItem}><Plus className="w-3 h-3 mr-1" />Add Item</Button>
               </div>
+              {form.lineItems.map((item: any, idx: number) => (
+                <div key={idx} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                  <div className="grid grid-cols-12 gap-2">
+                    <div className="col-span-4 space-y-1"><Label className="text-[10px]">Item Name</Label><Input value={item.name} onChange={e => updateLineItem(idx, "name", e.target.value)} /></div>
+                    <div className="col-span-2 space-y-1"><Label className="text-[10px]">Qty</Label><Input type="number" min={1} value={item.quantity} onChange={e => updateLineItem(idx, "quantity", parseInt(e.target.value) || 1)} /></div>
+                    <div className="col-span-2 space-y-1"><Label className="text-[10px]">Unit Price</Label><Input type="number" step="0.01" value={item.unitPrice} onChange={e => updateLineItem(idx, "unitPrice", e.target.value)} /></div>
+                    <div className="col-span-2 space-y-1"><Label className="text-[10px]">Unit</Label>
+                      <select className="h-9 w-full px-2 rounded-md border text-xs bg-background" value={item.unit} onChange={e => updateLineItem(idx, "unit", e.target.value)}>
+                        <option value="each">Each</option><option value="hour">Hour</option><option value="month">Month</option><option value="year">Year</option><option value="license">License</option><option value="user">User</option>
+                      </select>
+                    </div>
+                    <div className="col-span-1 space-y-1"><Label className="text-[10px]">Total</Label><p className="h-9 flex items-center text-sm font-medium">${((parseFloat(item.unitPrice || "0") * (item.quantity || 1))).toFixed(2)}</p></div>
+                    <div className="col-span-1 flex items-end">
+                      {form.lineItems.length > 1 && <Button variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeLineItem(idx)}><X className="w-3.5 h-3.5" /></Button>}
+                    </div>
+                  </div>
+                  <Input placeholder="Description (optional)" className="text-xs" value={item.description || ""} onChange={e => updateLineItem(idx, "description", e.target.value)} />
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={item.recurring} onChange={e => updateLineItem(idx, "recurring", e.target.checked)} className="w-3.5 h-3.5" />Recurring
+                    {item.recurring && (
+                      <select className="h-7 px-2 rounded border text-xs bg-background ml-2" value={item.recurringInterval || ""} onChange={e => updateLineItem(idx, "recurringInterval", e.target.value)}>
+                        <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annually">Annually</option>
+                      </select>
+                    )}
+                  </label>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <input type="checkbox" id="faq-active" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} className="w-4 h-4" />
-              <Label htmlFor="faq-active">Active</Label>
+
+            <div className="border-t pt-3 grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Discount</Label>
+                <div className="flex gap-1">
+                  <Input type="number" step="0.01" value={form.discount} onChange={e => setForm((p: any) => ({ ...p, discount: e.target.value }))} className="flex-1" />
+                  <select className="h-9 px-2 rounded-md border text-xs bg-background" value={form.discountType} onChange={e => setForm((p: any) => ({ ...p, discountType: e.target.value }))}>
+                    <option value="fixed">$</option><option value="percent">%</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1"><Label className="text-xs">Tax Rate (%)</Label><Input type="number" step="0.01" value={form.tax} onChange={e => setForm((p: any) => ({ ...p, tax: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-xs">Subtotal</Label><p className="h-9 flex items-center text-lg font-bold">${subtotal.toFixed(2)}</p></div>
             </div>
+
+            <div className="space-y-1"><Label className="text-xs">Terms & Conditions</Label><Textarea value={form.terms} onChange={e => setForm((p: any) => ({ ...p, terms: e.target.value }))} className="min-h-[80px]" /></div>
+            <div className="space-y-1"><Label className="text-xs">Internal Notes</Label><Textarea value={form.notes} onChange={e => setForm((p: any) => ({ ...p, notes: e.target.value }))} className="min-h-[60px]" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave}>{editing ? "Update" : "Create"} Proposal</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -979,106 +1017,170 @@ function FaqTab({ faqs, fetchFaqs, token }: { faqs: any[], fetchFaqs: () => void
   );
 }
 
-// Read-only tables
+function TicketsTab({ tickets, refresh, headers, exportCSV }: { tickets: any[]; refresh: () => void; headers: () => any; exportCSV: () => void }) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    if (!search) return tickets;
+    const s = search.toLowerCase();
+    return tickets.filter(t => t.subject.toLowerCase().includes(s));
+  }, [tickets, search]);
 
-function ContactsTab({ contacts }: { contacts: any[] }) {
+  const updateStatus = async (id: number, status: string) => {
+    try {
+      await fetch(`/api/admin/tickets/${id}/status`, { method: "PUT", headers: headers(), body: JSON.stringify({ status }) });
+      toast({ title: `Status updated` }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete?")) return;
+    try {
+      await fetch(`/api/admin/tickets/${id}`, { method: "DELETE", headers: headers() });
+      toast({ title: "Deleted" }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
   return (
-    <Card>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted text-muted-foreground text-xs uppercase">
-            <tr>
-              <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3">Name</th>
-              <th className="px-6 py-3">Email</th>
-              <th className="px-6 py-3">Service</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contacts.map((item) => (
-              <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(item.createdAt).toLocaleDateString()}</td>
-                <td className="px-6 py-4 font-medium">{item.name}</td>
-                <td className="px-6 py-4">{item.email}</td>
-                <td className="px-6 py-4">{item.service}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {contacts.length === 0 && <div className="p-8 text-center text-muted-foreground">No contacts found.</div>}
+    <div className="space-y-4">
+      <div className="flex justify-between gap-4">
+        <SearchBar value={search} onChange={setSearch} />
+        <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" />Export CSV</Button>
       </div>
-    </Card>
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted text-muted-foreground text-xs uppercase">
+              <tr>
+                <th className="px-5 py-3 text-left">ID</th>
+                <th className="px-5 py-3 text-left">Subject</th>
+                <th className="px-5 py-3 text-left">Priority</th>
+                <th className="px-5 py-3 text-left">Category</th>
+                <th className="px-5 py-3 text-left">Status</th>
+                <th className="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(t => (
+                <tr key={t.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-5 py-3 text-muted-foreground">#{t.id}</td>
+                  <td className="px-5 py-3 font-medium">{t.subject}</td>
+                  <td className="px-5 py-3">
+                    <Badge variant={t.priority === "critical" ? "destructive" : t.priority === "high" ? "default" : "secondary"}>{t.priority}</Badge>
+                  </td>
+                  <td className="px-5 py-3">{t.category}</td>
+                  <td className="px-5 py-3">
+                    <select className="h-7 px-2 rounded border text-xs bg-background" value={t.status}
+                      onChange={e => updateStatus(t.id, e.target.value)}>
+                      <option value="open">Open</option><option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option><option value="closed">Closed</option>
+                    </select>
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(t.id)}><Trash2 className="w-4 h-4" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No tickets found.</div>}
+        </div>
+      </Card>
+    </div>
   );
 }
 
-function QuotesTab({ quotes }: { quotes: any[] }) {
+function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; refresh: () => void; headers: () => any; currentUserId?: number }) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    if (!search) return users;
+    const s = search.toLowerCase();
+    return users.filter(u => u.name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s));
+  }, [users, search]);
+
+  const updateRole = async (id: number, role: string) => {
+    try {
+      await fetch(`/api/admin/users/${id}/role`, { method: "PUT", headers: headers(), body: JSON.stringify({ role }) });
+      toast({ title: `Role updated to ${role}` }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (id === currentUserId) { toast({ title: "Cannot delete your own account", variant: "destructive" }); return; }
+    if (!confirm("Delete this user?")) return;
+    try {
+      await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: headers() });
+      toast({ title: "Deleted" }); refresh();
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
   return (
-    <Card>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted text-muted-foreground text-xs uppercase">
-            <tr>
-              <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3">Company</th>
-              <th className="px-6 py-3">Budget</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quotes.map((item) => (
-              <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(item.createdAt).toLocaleDateString()}</td>
-                <td className="px-6 py-4 font-medium">{item.company}</td>
-                <td className="px-6 py-4">{item.budget}</td>
-                <td className="px-6 py-4">
-                  <Badge variant={item.status === 'new' ? 'default' : 'secondary'}>{item.status}</Badge>
-                </td>
+    <div className="space-y-4">
+      <SearchBar value={search} onChange={setSearch} />
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted text-muted-foreground text-xs uppercase">
+              <tr>
+                <th className="px-5 py-3 text-left">Name</th>
+                <th className="px-5 py-3 text-left">Email</th>
+                <th className="px-5 py-3 text-left">Company</th>
+                <th className="px-5 py-3 text-left">Role</th>
+                <th className="px-5 py-3 text-left">Joined</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {quotes.length === 0 && <div className="p-8 text-center text-muted-foreground">No quotes found.</div>}
-      </div>
-    </Card>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-5 py-3 font-medium">{u.name}</td>
+                  <td className="px-5 py-3">{u.email}</td>
+                  <td className="px-5 py-3">{u.company}</td>
+                  <td className="px-5 py-3">
+                    <select className="h-7 px-2 rounded border text-xs bg-background" value={u.role}
+                      onChange={e => updateRole(u.id, e.target.value)} disabled={u.id === currentUserId}>
+                      <option value="client">Client</option><option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td className="px-5 py-3 text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-right">
+                    {u.id !== currentUserId && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(u.id)}><Trash2 className="w-4 h-4" /></Button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No users found.</div>}
+        </div>
+      </Card>
+    </div>
   );
 }
 
-function TicketsTab({ tickets }: { tickets: any[] }) {
+function ActivityTab({ activities }: { activities: any[] }) {
+  const actionColors: Record<string, string> = { create: "text-emerald-600", update: "text-blue-600", delete: "text-red-600" };
   return (
     <Card>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted text-muted-foreground text-xs uppercase">
-            <tr>
-              <th className="px-6 py-3">ID</th>
-              <th className="px-6 py-3">Subject</th>
-              <th className="px-6 py-3">Priority</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tickets.map((item) => (
-              <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                <td className="px-6 py-4 text-muted-foreground">#{item.id}</td>
-                <td className="px-6 py-4 font-medium">{item.subject}</td>
-                <td className="px-6 py-4">
-                  <Badge variant={
-                    item.priority === 'critical' ? 'destructive' :
-                    item.priority === 'high' ? 'default' :
-                    'secondary'
-                  }>
-                    {item.priority}
-                  </Badge>
-                </td>
-                <td className="px-6 py-4">
-                  <Badge variant="outline">{item.status}</Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {tickets.length === 0 && <div className="p-8 text-center text-muted-foreground">No tickets found.</div>}
-      </div>
+      <CardContent className="p-0">
+        <div className="divide-y">
+          {activities.map((a: any) => (
+            <div key={a.id} className="px-5 py-3 flex items-center gap-3">
+              <div className={`w-2 h-2 rounded-full ${a.action === "create" ? "bg-emerald-500" : a.action === "delete" ? "bg-red-500" : "bg-blue-500"}`} />
+              <div className="flex-1">
+                <p className="text-sm">
+                  <span className={`font-medium ${actionColors[a.action] || ""}`}>{a.action}</span>
+                  {" "}<span className="text-muted-foreground">{a.entity}</span>
+                  {a.entityId && <span className="text-muted-foreground"> #{a.entityId}</span>}
+                </p>
+                {a.details && <p className="text-xs text-muted-foreground">{a.details}</p>}
+              </div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(a.createdAt).toLocaleString()}</span>
+            </div>
+          ))}
+          {activities.length === 0 && <div className="p-8 text-center text-muted-foreground">No activity logged yet.</div>}
+        </div>
+      </CardContent>
     </Card>
   );
 }

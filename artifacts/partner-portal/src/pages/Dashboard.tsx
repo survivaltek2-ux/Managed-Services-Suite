@@ -1,11 +1,12 @@
+import { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useDeals } from "@/hooks/use-deals";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Target, TrendingUp, Handshake, ChevronRight, Award } from "lucide-react";
+import { Target, TrendingUp, Handshake, ChevronRight, Award, DollarSign, Headphones, FileText } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const MOCK_CHART_DATA = [
@@ -16,6 +17,14 @@ const MOCK_CHART_DATA = [
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: deals = [] } = useDeals();
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/partner/dashboard", { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setStats(data?.stats || null))
+      .catch(() => {});
+  }, []);
 
   if (!user) return null;
 
@@ -38,13 +47,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard title="Total YTD Revenue" value={formatCurrency(user.ytdRevenue)} icon={TrendingUp} trend="+14% from last year" />
         <MetricCard title="Active Deals" value={activeDealsCount.toString()} icon={Target} trend={`${deals.length} total historical`} />
-        <MetricCard title="Total Deal Count" value={user.totalDeals.toString()} icon={Handshake} />
+        <MetricCard title="Commissions Earned" value={stats ? formatCurrency(stats.pendingCommissions + stats.paidCommissions) : "$0"} icon={DollarSign} trend={stats ? `$${stats.pendingCommissions.toFixed(0)} pending` : undefined} />
+        <MetricCard title="Open Tickets" value={stats?.openTickets?.toString() || "0"} icon={Headphones} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-8 mb-8">
         <div className="lg:col-span-2">
           <Card className="p-6 h-full flex flex-col rounded-2xl shadow-sm border-border/50">
             <div className="mb-6">
@@ -101,7 +111,32 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <QuickLink href="/commissions" icon={DollarSign} title="Commissions" desc="Track earnings & payments" color="text-emerald-500" bg="bg-emerald-500/10" />
+        <QuickLink href="/support" icon={Headphones} title="Support Tickets" desc="Get help from our team" color="text-blue-500" bg="bg-blue-500/10" />
+        <QuickLink href="/mdf" icon={FileText} title="MDF Requests" desc="Co-marketing fund requests" color="text-violet-500" bg="bg-violet-500/10" />
+      </div>
     </PortalLayout>
+  );
+}
+
+function QuickLink({ href, icon: Icon, title, desc, color, bg }: { href: string; icon: any; title: string; desc: string; color: string; bg: string }) {
+  return (
+    <Link href={href}>
+      <Card className="p-5 rounded-2xl shadow-sm border-border/50 hover:shadow-md transition-all cursor-pointer group">
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-xl ${bg}`}>
+            <Icon className={`w-5 h-5 ${color}`} />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{title}</p>
+            <p className="text-xs text-muted-foreground">{desc}</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+      </Card>
+    </Link>
   );
 }
 

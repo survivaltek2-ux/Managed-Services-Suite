@@ -124,12 +124,79 @@ export const partnerAnnouncementsTable = pgTable("partner_announcements", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const commissionStatusEnum = pgEnum("commission_status", ["pending", "approved", "paid", "disputed"]);
+export const mdfStatusEnum = pgEnum("mdf_status", ["draft", "submitted", "approved", "rejected", "completed", "expired"]);
+export const partnerTicketStatusEnum = pgEnum("partner_ticket_status", ["open", "in_progress", "waiting", "resolved", "closed"]);
+export const partnerTicketPriorityEnum = pgEnum("partner_ticket_priority", ["low", "medium", "high", "urgent"]);
+
+export const partnerCommissionsTable = pgTable("partner_commissions", {
+  id: serial("id").primaryKey(),
+  partnerId: integer("partner_id").notNull().references(() => partnersTable.id),
+  dealId: integer("deal_id").references(() => partnerDealsTable.id),
+  type: text("type").notNull().default("deal"),
+  description: text("description").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  rate: decimal("rate", { precision: 5, scale: 2 }),
+  status: commissionStatusEnum("status").notNull().default("pending"),
+  paidAt: timestamp("paid_at"),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const partnerSupportTicketsTable = pgTable("partner_support_tickets", {
+  id: serial("id").primaryKey(),
+  partnerId: integer("partner_id").notNull().references(() => partnersTable.id),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull().default("general"),
+  priority: partnerTicketPriorityEnum("priority").notNull().default("medium"),
+  status: partnerTicketStatusEnum("status").notNull().default("open"),
+  assignedTo: text("assigned_to"),
+  resolution: text("resolution"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const partnerTicketMessagesTable = pgTable("partner_ticket_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull().references(() => partnerSupportTicketsTable.id),
+  senderType: text("sender_type").notNull().default("partner"),
+  senderName: text("sender_name").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const partnerMdfRequestsTable = pgTable("partner_mdf_requests", {
+  id: serial("id").primaryKey(),
+  partnerId: integer("partner_id").notNull().references(() => partnersTable.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  activityType: text("activity_type").notNull(),
+  requestedAmount: decimal("requested_amount", { precision: 12, scale: 2 }).notNull(),
+  approvedAmount: decimal("approved_amount", { precision: 12, scale: 2 }),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  expectedLeads: integer("expected_leads"),
+  status: mdfStatusEnum("status").notNull().default("draft"),
+  proofOfExecution: text("proof_of_execution"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertPartnerSchema = createInsertSchema(partnersTable).omit({ id: true, createdAt: true, updatedAt: true, tier: true, status: true, totalDeals: true, totalRevenue: true, ytdRevenue: true, approvedAt: true });
 export const insertDealSchema = createInsertSchema(partnerDealsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
 export const insertLeadSchema = createInsertSchema(partnerLeadsTable).omit({ id: true, createdAt: true, assignedAt: true, partnerId: true });
 export const insertResourceSchema = createInsertSchema(partnerResourcesTable).omit({ id: true, createdAt: true, downloadCount: true });
 export const insertCertSchema = createInsertSchema(partnerCertificationsTable).omit({ id: true, createdAt: true });
 export const insertAnnouncementSchema = createInsertSchema(partnerAnnouncementsTable).omit({ id: true, createdAt: true });
+
+export const insertCommissionSchema = createInsertSchema(partnerCommissionsTable).omit({ id: true, createdAt: true });
+export const insertSupportTicketSchema = createInsertSchema(partnerSupportTicketsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTicketMessageSchema = createInsertSchema(partnerTicketMessagesTable).omit({ id: true, createdAt: true });
+export const insertMdfRequestSchema = createInsertSchema(partnerMdfRequestsTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type Partner = typeof partnersTable.$inferSelect;
 export type PartnerDeal = typeof partnerDealsTable.$inferSelect;
@@ -138,3 +205,7 @@ export type PartnerResource = typeof partnerResourcesTable.$inferSelect;
 export type PartnerCertification = typeof partnerCertificationsTable.$inferSelect;
 export type PartnerCertProgress = typeof partnerCertProgressTable.$inferSelect;
 export type PartnerAnnouncement = typeof partnerAnnouncementsTable.$inferSelect;
+export type PartnerCommission = typeof partnerCommissionsTable.$inferSelect;
+export type PartnerSupportTicket = typeof partnerSupportTicketsTable.$inferSelect;
+export type PartnerTicketMessage = typeof partnerTicketMessagesTable.$inferSelect;
+export type PartnerMdfRequest = typeof partnerMdfRequestsTable.$inferSelect;

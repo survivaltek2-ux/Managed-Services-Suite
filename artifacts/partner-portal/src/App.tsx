@@ -14,6 +14,9 @@ import Resources from "./pages/Resources";
 import Training from "./pages/Training";
 import Announcements from "./pages/Announcements";
 import Profile from "./pages/Profile";
+import Commissions from "./pages/Commissions";
+import SupportTickets from "./pages/SupportTickets";
+import MdfRequests from "./pages/MdfRequests";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -50,6 +53,9 @@ function Router() {
       <Route path="/resources"><ProtectedRoute component={Resources} /></Route>
       <Route path="/training"><ProtectedRoute component={Training} /></Route>
       <Route path="/announcements"><ProtectedRoute component={Announcements} /></Route>
+      <Route path="/commissions"><ProtectedRoute component={Commissions} /></Route>
+      <Route path="/support"><ProtectedRoute component={SupportTickets} /></Route>
+      <Route path="/mdf"><ProtectedRoute component={MdfRequests} /></Route>
       <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
 
       <Route component={NotFound} />

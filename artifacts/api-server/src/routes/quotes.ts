@@ -1,7 +1,26 @@
 import { Router, type IRouter } from "express";
-import { db, quotesTable } from "@workspace/db";
+import { Response } from "express";
+import { db, quotesTable, quoteProposalsTable, quoteLineItemsTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
+
+function requireAdmin(req: AuthRequest, res: Response, next: Function) {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Admin access required" });
+    return;
+  }
+  next();
+}
+
+function generateProposalNumber(): string {
+  const now = new Date();
+  const y = now.getFullYear().toString().slice(-2);
+  const m = (now.getMonth() + 1).toString().padStart(2, "0");
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `SS-${y}${m}-${rand}`;
+}
 
 router.post("/quotes", async (req, res) => {
   try {
@@ -12,10 +31,8 @@ router.post("/quotes", async (req, res) => {
     }
 
     const [quote] = await db.insert(quotesTable).values({
-      name,
-      email,
-      phone: phone || null,
-      company,
+      name, email,
+      phone: phone || null, company,
       companySize: companySize || null,
       services: JSON.stringify(services),
       budget: budget || null,
@@ -23,13 +40,250 @@ router.post("/quotes", async (req, res) => {
       details: details || null,
     }).returning();
 
-    res.status(201).json({
-      ...quote,
-      services: JSON.parse(quote.services),
-    });
+    res.status(201).json({ ...quote, services: JSON.parse(quote.services) });
   } catch (err) {
     console.error("Quote error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to submit quote request" });
+  }
+});
+
+// ─── Proposal Management (Admin) ────────────────────────────────────────────
+
+router.get("/admin/proposals", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const proposals = await db.select().from(quoteProposalsTable).orderBy(desc(quoteProposalsTable.createdAt));
+    const withItems = await Promise.all(proposals.map(async (p) => {
+      const items = await db.select().from(quoteLineItemsTable)
+        .where(eq(quoteLineItemsTable.proposalId, p.id))
+        .orderBy(quoteLineItemsTable.sortOrder);
+      return { ...p, lineItems: items };
+    }));
+    res.json(withItems);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load proposals" });
+  }
+});
+
+router.get("/admin/proposals/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [proposal] = await db.select().from(quoteProposalsTable).where(eq(quoteProposalsTable.id, id)).limit(1);
+    if (!proposal) { res.status(404).json({ error: "not_found" }); return; }
+    const items = await db.select().from(quoteLineItemsTable)
+      .where(eq(quoteLineItemsTable.proposalId, id))
+      .orderBy(quoteLineItemsTable.sortOrder);
+    res.json({ ...proposal, lineItems: items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load proposal" });
+  }
+});
+
+router.post("/admin/proposals", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { quoteId, clientName, clientEmail, clientCompany, clientPhone, title, summary, lineItems, discount, discountType, tax, validUntil, terms, notes } = req.body;
+    if (!clientName || !clientEmail || !clientCompany || !title) {
+      res.status(400).json({ error: "validation_error", message: "clientName, clientEmail, clientCompany, and title are required" });
+      return;
+    }
+
+    const proposalNumber = generateProposalNumber();
+    const subtotal = (lineItems || []).reduce((sum: number, item: any) => sum + (parseFloat(item.unitPrice) * (item.quantity || 1)), 0);
+    const discountVal = parseFloat(discount || "0");
+    const discountAmount = discountType === "percent" ? subtotal * (discountVal / 100) : discountVal;
+    const taxVal = parseFloat(tax || "0");
+    const taxAmount = (subtotal - discountAmount) * (taxVal / 100);
+    const total = subtotal - discountAmount + taxAmount;
+
+    const [proposal] = await db.insert(quoteProposalsTable).values({
+      quoteId: quoteId || null,
+      proposalNumber,
+      clientName, clientEmail, clientCompany,
+      clientPhone: clientPhone || null,
+      title, summary: summary || null,
+      subtotal: subtotal.toFixed(2),
+      discount: discountAmount.toFixed(2),
+      discountType: discountType || "fixed",
+      tax: taxAmount.toFixed(2),
+      total: total.toFixed(2),
+      validUntil: validUntil ? new Date(validUntil) : new Date(Date.now() + 30 * 86400000),
+      terms: terms || null, notes: notes || null,
+    }).returning();
+
+    if (lineItems && lineItems.length > 0) {
+      for (let i = 0; i < lineItems.length; i++) {
+        const item = lineItems[i];
+        await db.insert(quoteLineItemsTable).values({
+          proposalId: proposal.id,
+          name: item.name,
+          description: item.description || null,
+          category: item.category || "service",
+          quantity: item.quantity || 1,
+          unitPrice: parseFloat(item.unitPrice).toFixed(2),
+          unit: item.unit || "each",
+          recurring: item.recurring || false,
+          recurringInterval: item.recurringInterval || null,
+          total: (parseFloat(item.unitPrice) * (item.quantity || 1)).toFixed(2),
+          sortOrder: i,
+        });
+      }
+    }
+
+    const items = await db.select().from(quoteLineItemsTable)
+      .where(eq(quoteLineItemsTable.proposalId, proposal.id))
+      .orderBy(quoteLineItemsTable.sortOrder);
+
+    res.status(201).json({ ...proposal, lineItems: items });
+  } catch (err) {
+    console.error("Create proposal error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to create proposal" });
+  }
+});
+
+router.put("/admin/proposals/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { clientName, clientEmail, clientCompany, clientPhone, title, summary, lineItems, discount, discountType, tax, validUntil, terms, notes, status } = req.body;
+
+    const subtotal = (lineItems || []).reduce((sum: number, item: any) => sum + (parseFloat(item.unitPrice) * (item.quantity || 1)), 0);
+    const discountVal = parseFloat(discount || "0");
+    const discountAmount = discountType === "percent" ? subtotal * (discountVal / 100) : discountVal;
+    const taxVal = parseFloat(tax || "0");
+    const taxAmount = (subtotal - discountAmount) * (taxVal / 100);
+    const total = subtotal - discountAmount + taxAmount;
+
+    const updates: any = {
+      clientName, clientEmail, clientCompany,
+      clientPhone: clientPhone || null,
+      title, summary: summary || null,
+      subtotal: subtotal.toFixed(2),
+      discount: discountAmount.toFixed(2),
+      discountType: discountType || "fixed",
+      tax: taxAmount.toFixed(2),
+      total: total.toFixed(2),
+      validUntil: validUntil ? new Date(validUntil) : undefined,
+      terms: terms || null, notes: notes || null,
+      updatedAt: new Date(),
+    };
+    if (status) {
+      updates.status = status;
+      if (status === "sent") updates.sentAt = new Date();
+    }
+
+    const [proposal] = await db.update(quoteProposalsTable).set(updates).where(eq(quoteProposalsTable.id, id)).returning();
+    if (!proposal) { res.status(404).json({ error: "not_found" }); return; }
+
+    if (lineItems) {
+      await db.delete(quoteLineItemsTable).where(eq(quoteLineItemsTable.proposalId, id));
+      for (let i = 0; i < lineItems.length; i++) {
+        const item = lineItems[i];
+        await db.insert(quoteLineItemsTable).values({
+          proposalId: id,
+          name: item.name,
+          description: item.description || null,
+          category: item.category || "service",
+          quantity: item.quantity || 1,
+          unitPrice: parseFloat(item.unitPrice).toFixed(2),
+          unit: item.unit || "each",
+          recurring: item.recurring || false,
+          recurringInterval: item.recurringInterval || null,
+          total: (parseFloat(item.unitPrice) * (item.quantity || 1)).toFixed(2),
+          sortOrder: i,
+        });
+      }
+    }
+
+    const items = await db.select().from(quoteLineItemsTable)
+      .where(eq(quoteLineItemsTable.proposalId, id))
+      .orderBy(quoteLineItemsTable.sortOrder);
+
+    res.json({ ...proposal, lineItems: items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update proposal" });
+  }
+});
+
+router.put("/admin/proposals/:id/send", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [proposal] = await db.update(quoteProposalsTable).set({
+      status: "sent", sentAt: new Date(), updatedAt: new Date(),
+    }).where(eq(quoteProposalsTable.id, id)).returning();
+    if (!proposal) { res.status(404).json({ error: "not_found" }); return; }
+    res.json(proposal);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to send proposal" });
+  }
+});
+
+router.delete("/admin/proposals/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(quoteLineItemsTable).where(eq(quoteLineItemsTable.proposalId, id));
+    await db.delete(quoteProposalsTable).where(eq(quoteProposalsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete proposal" });
+  }
+});
+
+// ─── Public Proposal View ──────────────────────────────────────────────────
+
+router.get("/proposals/:number", async (req, res) => {
+  try {
+    const [proposal] = await db.select().from(quoteProposalsTable)
+      .where(eq(quoteProposalsTable.proposalNumber, req.params.number as string))
+      .limit(1);
+    if (!proposal) { res.status(404).json({ error: "not_found", message: "Proposal not found" }); return; }
+
+    if (!proposal.viewedAt && proposal.status === "sent") {
+      await db.update(quoteProposalsTable).set({ viewedAt: new Date(), status: "viewed" }).where(eq(quoteProposalsTable.id, proposal.id));
+      proposal.viewedAt = new Date();
+      (proposal as any).status = "viewed";
+    }
+
+    const items = await db.select().from(quoteLineItemsTable)
+      .where(eq(quoteLineItemsTable.proposalId, proposal.id))
+      .orderBy(quoteLineItemsTable.sortOrder);
+
+    res.json({ ...proposal, lineItems: items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load proposal" });
+  }
+});
+
+router.post("/proposals/:number/respond", async (req, res) => {
+  try {
+    const { action, signature } = req.body;
+    if (!["accepted", "rejected"].includes(action)) {
+      res.status(400).json({ error: "validation_error", message: "action must be 'accepted' or 'rejected'" });
+      return;
+    }
+    const [proposal] = await db.select().from(quoteProposalsTable)
+      .where(eq(quoteProposalsTable.proposalNumber, req.params.number as string))
+      .limit(1);
+    if (!proposal) { res.status(404).json({ error: "not_found" }); return; }
+    if (["accepted", "rejected", "expired"].includes(proposal.status)) {
+      res.status(400).json({ error: "invalid_state", message: "This proposal has already been responded to" });
+      return;
+    }
+
+    const [updated] = await db.update(quoteProposalsTable).set({
+      status: action,
+      respondedAt: new Date(),
+      clientSignature: action === "accepted" ? (signature || "Accepted") : null,
+      updatedAt: new Date(),
+    }).where(eq(quoteProposalsTable.id, proposal.id)).returning();
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to respond to proposal" });
   }
 });
 

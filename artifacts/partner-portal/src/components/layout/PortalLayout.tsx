@@ -12,7 +12,10 @@ import {
   Building2,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  DollarSign,
+  Headphones,
+  TrendingUp
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/Button";
@@ -23,8 +26,11 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/deals", label: "Deal Registration", icon: Handshake },
   { href: "/leads", label: "My Leads", icon: Target },
+  { href: "/commissions", label: "Commissions", icon: DollarSign },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/training", label: "Training & Certs", icon: Award },
+  { href: "/support", label: "Support Tickets", icon: Headphones },
+  { href: "/mdf", label: "MDF Requests", icon: TrendingUp },
   { href: "/announcements", label: "Announcements", icon: Bell },
   { href: "/profile", label: "My Profile", icon: User },
 ];

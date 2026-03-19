@@ -13,6 +13,9 @@ import Contact from "./pages/Contact";
 import Quote from "./pages/Quote";
 import Portal from "./pages/Portal";
 import Admin from "./pages/Admin";
+import ProposalView from "./pages/ProposalView";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,9 @@ function PublicRouter() {
         <Route path="/contact" component={Contact} />
         <Route path="/quote" component={Quote} />
         <Route path="/portal" component={Portal} />
+        <Route path="/blog" component={Blog} />
+        <Route path="/blog/:slug" component={BlogPost} />
+        <Route path="/proposal/:number" component={ProposalView} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
