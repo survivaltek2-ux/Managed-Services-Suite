@@ -2,7 +2,7 @@
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-const EMAIL = "admin@siebertservices.com";
+const EMAIL = "admin@siebertrservices.com";
 
 async function updateAdmin() {
   try {

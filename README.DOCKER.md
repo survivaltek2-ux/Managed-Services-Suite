@@ -46,7 +46,7 @@ Once running (wait ~30 seconds for database setup):
 | Health Check | http://localhost:8080/api/healthz |
 
 ### Admin Credentials
-- **Email**: `admin@siebertservices.com`
+- **Email**: `admin@siebertrservices.com`
 - **Password**: `SiebertAdmin2024!`
 
 ---

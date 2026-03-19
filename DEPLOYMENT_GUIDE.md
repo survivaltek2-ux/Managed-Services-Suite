@@ -84,7 +84,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
-SMTP_FROM=noreply@siebertservices.com
+SMTP_FROM=noreply@siebertrservices.com
 ```
 
 ---
@@ -212,7 +212,7 @@ Access in browser:
 - **Admin panel**: https://your-domain.com/admin
 
 **Admin credentials** (change these immediately after first login!):
-- Email: `admin@siebertservices.com`
+- Email: `admin@siebertrservices.com`
 - Password: `SiebertAdmin2024!`
 
 ---
@@ -241,7 +241,7 @@ docker compose exec postgres pg_dump -U siebert siebert | gzip > /backups/sieber
 ### Change Admin Password
 1. Log in at https://your-domain.com/admin
 2. Navigate to Settings → Change Password
-3. Update `admin@siebertservices.com` password
+3. Update `admin@siebertrservices.com` password
 
 ### Configure Email (Optional)
 If you have SMTP configured in `.env`, test it:

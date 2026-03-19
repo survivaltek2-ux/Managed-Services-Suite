@@ -55,8 +55,8 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold text-navy text-lg">Email Us</h3>
-                  <p className="text-muted-foreground mt-1">support@siebertservices.com</p>
-                  <p className="text-muted-foreground">sales@siebertservices.com</p>
+                  <p className="text-muted-foreground mt-1">support@siebertrservices.com</p>
+                  <p className="text-muted-foreground">sales@siebertrservices.com</p>
                 </div>
               </CardContent>
             </Card>

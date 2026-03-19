@@ -9,9 +9,9 @@ const SMTP_HOST = process.env.SMTP_HOST || "smtp.sendgrid.net";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
-const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL || "notifications@siebertservices.com";
+const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL || "notifications@siebertrservices.com";
 const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME || "Siebert Services";
-const NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL || "sales@siebertservices.com";
+const NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL || "sales@siebertrservices.com";
 
 let transporter: nodemailer.Transporter | null = null;
 

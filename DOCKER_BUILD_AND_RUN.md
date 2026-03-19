@@ -202,7 +202,7 @@ Once running:
 - **Health check**: http://localhost:8080/api/healthz
 
 ### Admin Credentials
-- Email: `admin@siebertservices.com`
+- Email: `admin@siebertrservices.com`
 - Password: `SiebertAdmin2024!`
 
 ---

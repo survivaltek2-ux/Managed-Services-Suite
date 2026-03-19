@@ -267,7 +267,7 @@ docker stats
 1. **Access the applications**
    - Main site: http://localhost:8080
    - Partner portal: http://localhost:8080/partners
-   - Admin: http://localhost:8080/admin (user: admin@siebertservices.com / pass: SiebertAdmin2024!)
+   - Admin: http://localhost:8080/admin (user: admin@siebertrservices.com / pass: SiebertAdmin2024!)
 
 2. **View deployment guide**
    - See `DOCKER_DEPLOYMENT.md` for cloud deployment options

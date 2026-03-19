@@ -2,7 +2,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@siebertservices.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@siebertrservices.com";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "SiebertAdmin2024!";
 const ADMIN_NAME = "Siebert Admin";
 const ADMIN_COMPANY = "Siebert Services";
