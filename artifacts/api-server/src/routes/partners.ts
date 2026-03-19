@@ -5,6 +5,7 @@ import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourc
 import { eq, and, desc, sql, count, sum } from "drizzle-orm";
 import { requirePartnerAuth, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
+import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -180,9 +181,17 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
       expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
       notes: notes || null,
     }).returning();
-    await db.update(partnersTable)
-      .set({ totalDeals: (await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1))[0].totalDeals + 1 })
-      .where(eq(partnersTable.id, req.partnerId!));
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (partner) {
+      await db.update(partnersTable)
+        .set({ totalDeals: partner.totalDeals + 1 })
+        .where(eq(partnersTable.id, req.partnerId!));
+      sendDealSubmittedNotification(deal, {
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }).catch(err => console.error("[Email] Deal notification error:", err));
+    }
     res.status(201).json({ ...deal, products: JSON.parse(deal.products) });
   } catch (err) {
     console.error(err);
@@ -432,6 +441,15 @@ router.post("/partner/tickets", requirePartnerAuth, async (req: PartnerRequest, 
       category: category || "general",
       priority: priority || "medium",
     }).returning();
+
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (partner) {
+      sendTicketSubmittedNotification(
+        { subject, description, priority: priority || "medium", category: category || "general" },
+        { companyName: partner.companyName, contactName: partner.contactName, email: partner.email },
+      ).catch(err => console.error("[Email] Ticket notification error:", err));
+    }
+
     res.status(201).json(ticket);
   } catch (err) {
     console.error(err);

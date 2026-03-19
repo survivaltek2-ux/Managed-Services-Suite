@@ -81,6 +81,7 @@ Backend for both websites.
 - `src/routes/cms.ts` — Blog CRUD, user management, dashboard stats, CSV export, activity log, status updates
 - `src/routes/quotes.ts` — Proposals CRUD with line items, public view, accept/reject workflow
 - `src/routes/partners.ts` — Partner auth, deals, leads, commissions, support tickets, MDF requests, dashboard, admin management (auto-commission on deal close, admin commission CRUD with requireAdmin)
+- `src/lib/email.ts` — Nodemailer email service with HTML-escaped templates, graceful degradation when SMTP unconfigured
 - `src/middlewares/auth.ts` — `requireAuth` (any logged-in user) + `requireAdmin` (admin role check)
 - `src/routes/tickets.ts` — Client support tickets
 - `src/routes/chat.ts` — Live chat messages
@@ -89,6 +90,12 @@ Backend for both websites.
 - Admin: `siebert_token` (localStorage) — JWT with userId + role
 - Partner: `partner_token` (localStorage) — JWT with partnerId
 - Admin credentials: `admin@siebertservices.com` / `SiebertAdmin2024!`
+
+**Email Notifications:**
+- Uses Nodemailer with SMTP (env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `NOTIFICATION_EMAIL`)
+- Sends on: partner deal submission (admin + partner), partner ticket submission (admin + partner)
+- Gracefully degrades to console logging when SMTP not configured
+- All template interpolations HTML-escaped to prevent injection
 
 ## Structure
 
