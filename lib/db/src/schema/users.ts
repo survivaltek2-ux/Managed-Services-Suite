@@ -12,6 +12,8 @@ export const usersTable = pgTable("users", {
   company: text("company").notNull(),
   phone: text("phone"),
   role: userRoleEnum("role").notNull().default("client"),
+  ssoProvider: text("sso_provider"),
+  ssoId: text("sso_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLogin, useRegister, useListTickets, useCreateTicket, TicketInputPriority, TicketInputCategory } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, Input, Button, Label, Textarea, Badge } from "@/components/ui";
@@ -6,16 +6,67 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Lock, LogOut, TicketIcon, PlusCircle, AlertCircle } from "lucide-react";
 
+function MicrosoftIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  );
+}
+
 export default function Portal() {
   const { isAuthenticated, token, user, login, logout } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [showNewTicket, setShowNewTicket] = useState(false);
+  const [ssoError, setSsoError] = useState("");
+  const [ssoLoading, setSsoLoading] = useState(false);
 
   // Forms
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ssoToken = params.get("sso_token");
+    const ssoErr = params.get("sso_error");
+
+    if (ssoToken) {
+      setSsoLoading(true);
+      fetch("/api/auth/me", { headers: { Authorization: `Bearer ${ssoToken}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(userData => {
+          if (userData) {
+            login(ssoToken, userData);
+          }
+          window.history.replaceState({}, "", window.location.pathname);
+          setSsoLoading(false);
+        })
+        .catch(() => setSsoLoading(false));
+      return;
+    }
+
+    if (ssoErr) {
+      const messages: Record<string, string> = {
+        access_denied: "Microsoft sign-in was cancelled.",
+        token_failed: "Could not complete Microsoft sign-in. Please try again.",
+        profile_failed: "Could not retrieve your Microsoft profile.",
+        server_error: "An error occurred during sign-in. Please try again.",
+        no_email: "Could not retrieve your email from Microsoft.",
+      };
+      setSsoError(messages[ssoErr] || "Sign-in failed. Please try again.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [login]);
+
+  const handleMicrosoftSSO = () => {
+    setSsoLoading(true);
+    window.location.href = "/api/auth/sso/microsoft?type=client";
+  };
 
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketDesc, setTicketDesc] = useState("");
@@ -99,39 +150,70 @@ export default function Portal() {
             </p>
           </CardHeader>
           <CardContent className="pt-6">
-            <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
-              {isRegistering && (
-                <>
+            {ssoError && (
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-xl mb-4 border border-destructive/20 text-center font-medium">
+                {ssoError}
+              </div>
+            )}
+            {ssoLoading ? (
+              <div className="flex flex-col items-center py-8 gap-3">
+                <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+                <p className="text-sm text-muted-foreground">Completing sign-in...</p>
+              </div>
+            ) : (
+              <>
+                {!isRegistering && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleMicrosoftSSO}
+                      className="w-full flex items-center justify-center gap-3 h-12 px-4 mb-5 border border-border rounded-xl bg-white hover:bg-gray-50 transition-colors font-semibold text-sm text-foreground shadow-sm"
+                    >
+                      <MicrosoftIcon />
+                      Sign in with Microsoft
+                    </button>
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="flex-1 border-t border-border" />
+                      <span className="text-xs text-muted-foreground font-medium">or sign in with email</span>
+                      <div className="flex-1 border-t border-border" />
+                    </div>
+                  </>
+                )}
+                <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
+                  {isRegistering && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Full Name</Label>
+                        <Input required value={name} onChange={e => setName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Company Name</Label>
+                        <Input required value={company} onChange={e => setCompany(e.target.value)} />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-2">
-                    <Label>Full Name</Label>
-                    <Input required value={name} onChange={e => setName(e.target.value)} />
+                    <Label>Email</Label>
+                    <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Company Name</Label>
-                    <Input required value={company} onChange={e => setCompany(e.target.value)} />
+                    <Label>Password</Label>
+                    <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} />
                   </div>
-                </>
-              )}
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} />
-              </div>
-              <Button type="submit" className="w-full mt-6 h-12 text-base shadow-primary/20 shadow-lg" disabled={loginMutation.isPending || registerMutation.isPending}>
-                {isRegistering ? "Register Account" : "Sign In"}
-              </Button>
-            </form>
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">
-                {isRegistering ? "Already have an account?" : "Need portal access?"}
-              </span>{" "}
-              <button onClick={() => setIsRegistering(!isRegistering)} className="text-primary font-bold hover:underline">
-                {isRegistering ? "Sign In" : "Register"}
-              </button>
-            </div>
+                  <Button type="submit" className="w-full mt-6 h-12 text-base shadow-primary/20 shadow-lg" disabled={loginMutation.isPending || registerMutation.isPending}>
+                    {isRegistering ? "Register Account" : "Sign In"}
+                  </Button>
+                </form>
+                <div className="mt-6 text-center text-sm">
+                  <span className="text-muted-foreground">
+                    {isRegistering ? "Already have an account?" : "Need portal access?"}
+                  </span>{" "}
+                  <button onClick={() => setIsRegistering(!isRegistering)} className="text-primary font-bold hover:underline">
+                    {isRegistering ? "Sign In" : "Register"}
+                  </button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

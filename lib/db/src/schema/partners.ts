@@ -34,6 +34,8 @@ export const partnersTable = pgTable("partners", {
   totalDeals: integer("total_deals").notNull().default(0),
   totalRevenue: decimal("total_revenue", { precision: 12, scale: 2 }).notNull().default("0"),
   ytdRevenue: decimal("ytd_revenue", { precision: 12, scale: 2 }).notNull().default("0"),
+  ssoProvider: text("sso_provider"),
+  ssoId: text("sso_id"),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
