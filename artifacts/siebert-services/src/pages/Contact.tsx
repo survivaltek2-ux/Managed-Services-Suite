@@ -42,7 +42,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold text-navy text-lg">Call Us</h3>
-                  <p className="text-muted-foreground mt-1">1-800-SIEBERT</p>
+                  <p className="text-muted-foreground mt-1">866-484-9180</p>
                   <p className="text-sm text-primary font-semibold mt-1">24/7 Support Available</p>
                 </div>
               </CardContent>
