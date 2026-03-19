@@ -41,7 +41,7 @@ router.post("/tickets", requireAuth, async (req: AuthRequest, res: Response) => 
 
 router.get("/tickets/:id", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const [ticket] = await db.select().from(ticketsTable)
       .where(eq(ticketsTable.id, id))
       .limit(1);

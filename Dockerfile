@@ -16,8 +16,8 @@ COPY artifacts/partner-portal ./artifacts/partner-portal
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build everything
-RUN pnpm run build
+# Build everything (exclude mockup-sandbox which is dev-only)
+RUN PORT=8081 BASE_PATH="/" pnpm --filter='!@workspace/mockup-sandbox' run build
 
 # Production runtime image
 FROM node:24-alpine

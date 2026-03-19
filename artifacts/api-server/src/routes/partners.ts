@@ -136,7 +136,7 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
 
 router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { title, customerName, customerEmail, description, products, estimatedValue, actualValue, stage, status, expectedCloseDate, notes } = req.body;
     const [deal] = await db.update(partnerDealsTable).set({
       title: title || undefined, customerName: customerName || undefined,
@@ -171,7 +171,7 @@ router.get("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, res
 
 router.put("/partner/leads/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { status, notes } = req.body;
     const [lead] = await db.update(partnerLeadsTable).set({
       status: status || undefined, notes: notes || null,
@@ -201,7 +201,7 @@ router.get("/partner/resources", requirePartnerAuth, async (req: PartnerRequest,
 
 router.post("/partner/resources/:id/download", requirePartnerAuth, async (_req, res: Response) => {
   try {
-    const id = parseInt(_req.params.id);
+    const id = parseInt(_req.params.id as string);
     await db.update(partnerResourcesTable)
       .set({ downloadCount: (await db.select({ downloadCount: partnerResourcesTable.downloadCount }).from(partnerResourcesTable).where(eq(partnerResourcesTable.id, id)).limit(1))[0].downloadCount + 1 })
       .where(eq(partnerResourcesTable.id, id));
@@ -231,7 +231,7 @@ router.get("/partner/certifications", requirePartnerAuth, async (req: PartnerReq
 
 router.post("/partner/certifications/:id/progress", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const certId = parseInt(req.params.id);
+    const certId = parseInt(req.params.id as string);
     const { status, progressPct } = req.body;
     const existing = await db.select().from(partnerCertProgressTable)
       .where(and(eq(partnerCertProgressTable.partnerId, req.partnerId!), eq(partnerCertProgressTable.certificationId, certId)))

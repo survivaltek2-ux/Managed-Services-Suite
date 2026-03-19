@@ -30,7 +30,10 @@ export default function Portal() {
   });
 
   const { data: tickets, refetch: refetchTickets } = useListTickets({
-    query: { enabled: isAuthenticated },
+    query: { 
+      queryKey: ["tickets"],
+      enabled: isAuthenticated 
+    },
     request: { headers: { Authorization: `Bearer ${token}` } }
   });
 

@@ -124,7 +124,7 @@ router.post("/admin/cms/services", requireAuth, requireAdmin, async (req: AuthRe
 
 router.put("/admin/cms/services/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { title, description, icon, category, features, sortOrder, active } = req.body;
     const [service] = await db.update(servicesTable).set({
       title, description,
@@ -145,7 +145,7 @@ router.put("/admin/cms/services/:id", requireAuth, requireAdmin, async (req: Aut
 
 router.delete("/admin/cms/services/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     await db.delete(servicesTable).where(eq(servicesTable.id, id));
     res.json({ success: true });
   } catch (err) {
@@ -181,7 +181,7 @@ router.post("/admin/cms/testimonials", requireAuth, requireAdmin, async (req: Au
 
 router.put("/admin/cms/testimonials/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { name, company, role, content, rating, active, sortOrder } = req.body;
     const [item] = await db.update(testimonialsTable).set({
       name, company, role: role || null, content,
@@ -197,7 +197,7 @@ router.put("/admin/cms/testimonials/:id", requireAuth, requireAdmin, async (req:
 
 router.delete("/admin/cms/testimonials/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     await db.delete(testimonialsTable).where(eq(testimonialsTable.id, id));
     res.json({ success: true });
   } catch (err) {
@@ -233,7 +233,7 @@ router.post("/admin/cms/team", requireAuth, requireAdmin, async (req: AuthReques
 
 router.put("/admin/cms/team/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { name, role, bio, imageUrl, sortOrder, active } = req.body;
     const [member] = await db.update(teamMembersTable).set({
       name, role, bio: bio || null, imageUrl: imageUrl || null,
@@ -249,7 +249,7 @@ router.put("/admin/cms/team/:id", requireAuth, requireAdmin, async (req: AuthReq
 
 router.delete("/admin/cms/team/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     await db.delete(teamMembersTable).where(eq(teamMembersTable.id, id));
     res.json({ success: true });
   } catch (err) {
@@ -285,7 +285,7 @@ router.post("/admin/cms/faq", requireAuth, requireAdmin, async (req: AuthRequest
 
 router.put("/admin/cms/faq/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { question, answer, category, sortOrder, active } = req.body;
     const [item] = await db.update(faqItemsTable).set({
       question, answer, category: category || "general",
@@ -301,7 +301,7 @@ router.put("/admin/cms/faq/:id", requireAuth, requireAdmin, async (req: AuthRequ
 
 router.delete("/admin/cms/faq/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     await db.delete(faqItemsTable).where(eq(faqItemsTable.id, id));
     res.json({ success: true });
   } catch (err) {

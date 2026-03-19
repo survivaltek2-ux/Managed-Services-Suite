@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { generateSessionId } from "@/lib/utils";
+import { generateSessionId, cn } from "@/lib/utils";
 import { useGetChatMessages, useSendChatMessage } from "@workspace/api-client-react";
 import { MessageSquare, X, Send, User, Bot, Loader2 } from "lucide-react";
 import { Button, Input, Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui";
@@ -37,6 +37,7 @@ export function ChatWidget() {
     { sessionId },
     { 
       query: { 
+        queryKey: ["chat", sessionId],
         enabled: isOpen && !!sessionId,
         refetchInterval: 3000 // Poll every 3s
       } 
