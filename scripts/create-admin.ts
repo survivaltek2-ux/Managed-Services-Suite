@@ -4,7 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const ADMIN_EMAIL = "admin@siebertrservices.com";
-const ADMIN_PASSWORD = "SiebertAdmin2024!";
+const ADMIN_PASSWORD = "Errnmgxczs1!";
 const ADMIN_NAME = "Administrator";
 const ADMIN_COMPANY = "Siebert Services";
 

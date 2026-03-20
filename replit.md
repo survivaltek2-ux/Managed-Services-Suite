@@ -89,7 +89,7 @@ Backend for both websites.
 **Auth:**
 - Admin: `siebert_token` (localStorage) — JWT with userId + role
 - Partner: `partner_token` (localStorage) — JWT with partnerId
-- Admin credentials: `admin@siebertrservices.com` / `SiebertAdmin2024!`
+- Admin credentials: `admin@siebertrservices.com` / `Errnmgxczs1!`
 
 **Email Notifications:**
 - Uses Nodemailer with SMTP (env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `NOTIFICATION_EMAIL`)

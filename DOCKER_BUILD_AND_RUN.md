@@ -203,7 +203,7 @@ Once running:
 
 ### Admin Credentials
 - Email: `admin@siebertrservices.com`
-- Password: `SiebertAdmin2024!`
+- Password: `Errnmgxczs1!`
 
 ---
 

@@ -213,7 +213,7 @@ Access in browser:
 
 **Admin credentials** (change these immediately after first login!):
 - Email: `admin@siebertrservices.com`
-- Password: `SiebertAdmin2024!`
+- Password: `Errnmgxczs1!`
 
 ---
 

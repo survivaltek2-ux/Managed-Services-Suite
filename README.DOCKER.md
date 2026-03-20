@@ -47,7 +47,7 @@ Once running (wait ~30 seconds for database setup):
 
 ### Admin Credentials
 - **Email**: `admin@siebertrservices.com`
-- **Password**: `SiebertAdmin2024!`
+- **Password**: `Errnmgxczs1!`
 
 ---
 

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@siebertrservices.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "SiebertAdmin2024!";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Errnmgxczs1!";
 const ADMIN_NAME = "Siebert Admin";
 const ADMIN_COMPANY = "Siebert Services";
 
