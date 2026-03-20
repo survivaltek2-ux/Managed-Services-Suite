@@ -31,6 +31,9 @@ fi
 echo "🗄️  Setting up database schema..."
 cd "$SCRIPT_DIR" && pnpm --filter @workspace/db run push --force || true
 
+echo "🔐 Ensuring admin user exists..."
+cd "$SCRIPT_DIR" && npx tsx scripts/src/create-admin.ts || true
+
 echo "✨ Starting API server..."
 if [ -f "$SCRIPT_DIR/api-dist/index.cjs" ]; then
   exec node "$SCRIPT_DIR/api-dist/index.cjs"
