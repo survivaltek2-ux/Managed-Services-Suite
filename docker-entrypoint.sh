@@ -34,6 +34,16 @@ cd "$SCRIPT_DIR" && pnpm --filter @workspace/db run push --force || true
 echo "🔐 Ensuring admin user exists..."
 cd "$SCRIPT_DIR" && npx tsx scripts/src/create-admin.ts || true
 
+echo "🌱 Checking if production data needs to be seeded..."
+CONTACT_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM contacts;" 2>/dev/null || echo "0")
+if [ "$CONTACT_COUNT" -eq 0 ]; then
+  echo "📥 Restoring seed data to production..."
+  psql "$DATABASE_URL" -f "$SCRIPT_DIR/migrations/dev-data-dump.sql" > /dev/null 2>&1 || true
+  echo "✅ Seed data restored"
+else
+  echo "✓ Production data already exists, skipping seed"
+fi
+
 echo "✨ Starting API server..."
 if [ -f "$SCRIPT_DIR/api-dist/index.cjs" ]; then
   exec node "$SCRIPT_DIR/api-dist/index.cjs"
