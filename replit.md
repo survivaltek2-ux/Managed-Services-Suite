@@ -36,7 +36,7 @@ Full-featured MSP/Reseller marketing + client portal website for **Siebert Repai
 - `/admin` — Full CMS admin panel (13 tabs)
 
 **Features:**
-- Live chat widget (bottom-right, session-based)
+- AI chat assistant (bottom-right, powered by GPT-5.2 via OpenAI AI integration, streaming SSE, conversation history persisted to DB)
 - Client authentication (register/login/JWT)
 - Support ticket system (create, list, view)
 - Contact form submission
