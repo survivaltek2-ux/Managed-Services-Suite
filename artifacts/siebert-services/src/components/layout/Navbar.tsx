@@ -2,14 +2,16 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { useState, useEffect } from "react";
-import { Menu, X, PhoneCall, ChevronRight } from "lucide-react";
+import { Menu, X, PhoneCall, ChevronRight, LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useAuth as useReplitAuth } from "@workspace/replit-auth-web";
 
 export function Navbar() {
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+  const { user: replitUser, isLoading: replitAuthLoading, login: replitLogin, logout: replitLogout } = useReplitAuth();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -70,6 +72,27 @@ export function Navbar() {
               <PhoneCall className="w-4 h-4 text-primary" />
               <span>1-800-SIEBERT</span>
             </div>
+            {!replitAuthLoading && (
+              replitUser ? (
+                <Button
+                  variant={isScrolled ? "outline" : "ghost"}
+                  className={cn("gap-1.5", !isScrolled && "text-white hover:bg-white/10")}
+                  onClick={replitLogout}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log Out
+                </Button>
+              ) : (
+                <Button
+                  variant={isScrolled ? "outline" : "ghost"}
+                  className={cn("gap-1.5", !isScrolled && "text-white hover:bg-white/10")}
+                  onClick={replitLogin}
+                >
+                  <LogIn className="w-4 h-4" />
+                  Log In
+                </Button>
+              )
+            )}
             <Link href="/portal">
               <Button variant={isScrolled ? "outline" : "ghost"} className={cn(!isScrolled && "text-white hover:bg-white/10")}>
                 {isAuthenticated ? "Dashboard" : "Client Portal"}
@@ -109,6 +132,19 @@ export function Navbar() {
           ))}
           <hr className="my-2" />
           <div className="flex flex-col gap-3 px-4">
+            {!replitAuthLoading && (
+              replitUser ? (
+                <Button variant="outline" className="w-full justify-center gap-1.5" onClick={() => { setMobileMenuOpen(false); replitLogout(); }}>
+                  <LogOut className="w-4 h-4" />
+                  Log Out
+                </Button>
+              ) : (
+                <Button variant="outline" className="w-full justify-center gap-1.5" onClick={() => { setMobileMenuOpen(false); replitLogin(); }}>
+                  <LogIn className="w-4 h-4" />
+                  Log In
+                </Button>
+              )
+            )}
             <Link href="/portal" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="outline" className="w-full justify-center">
                 {isAuthenticated ? "Dashboard" : "Client Portal"}
