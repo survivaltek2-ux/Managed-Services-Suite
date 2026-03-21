@@ -1,6 +1,5 @@
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
-import { ChatWidget } from "../ChatWidget";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
@@ -19,7 +18,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <Footer />
-      <ChatWidget />
     </div>
   );
 }
