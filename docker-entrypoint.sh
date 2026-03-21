@@ -31,6 +31,12 @@ fi
 echo "🗄️  Setting up database schema..."
 cd "$SCRIPT_DIR" && pnpm --filter @workspace/db run push --force || true
 
+echo "🔧 Applying any missing column migrations..."
+psql "$DATABASE_URL" -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS replit_user_id text;" || true
+psql "$DATABASE_URL" -c "CREATE UNIQUE INDEX IF NOT EXISTS users_replit_user_id_unique ON users(replit_user_id) WHERE replit_user_id IS NOT NULL;" || true
+psql "$DATABASE_URL" -c "ALTER TABLE partners ADD COLUMN IF NOT EXISTS replit_user_id text;" || true
+psql "$DATABASE_URL" -c "CREATE UNIQUE INDEX IF NOT EXISTS partners_replit_user_id_unique ON partners(replit_user_id) WHERE replit_user_id IS NOT NULL;" || true
+
 echo "🔐 Ensuring admin user exists..."
 cd "$SCRIPT_DIR" && npx tsx scripts/src/create-admin.ts || true
 

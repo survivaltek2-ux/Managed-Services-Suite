@@ -40,12 +40,12 @@ export default function Login() {
 
     if (ssoError) {
       const messages: Record<string, string> = {
-        access_denied: "Microsoft sign-in was cancelled.",
-        token_failed: "Could not complete Microsoft sign-in. Please try again.",
-        profile_failed: "Could not retrieve your Microsoft profile.",
-        no_account: "No partner account found for your Microsoft email. Please register first.",
+        access_denied: "Sign-in was cancelled.",
+        token_failed: "Could not complete sign-in. Please try again.",
+        profile_failed: "Could not retrieve your profile.",
+        no_account: "No partner account found for your email. Please contact your account manager.",
         server_error: "An error occurred during sign-in. Please try again.",
-        no_email: "Could not retrieve your email from Microsoft.",
+        no_email: "Could not retrieve your email.",
       };
       setError(messages[ssoError] || "Sign-in failed. Please try again.");
       window.history.replaceState({}, "", window.location.pathname);
@@ -67,6 +67,11 @@ export default function Login() {
     window.location.href = "/api/auth/sso/microsoft?type=partner";
   };
 
+  const handleReplitAuth = () => {
+    setSsoLoading(true);
+    window.location.href = "/api/auth/replit?type=partner";
+  };
+
   return (
     <PublicLayout>
       <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-900">
@@ -85,15 +90,29 @@ export default function Login() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={handleMicrosoftSSO}
-            disabled={ssoLoading || isLoggingIn}
-            className="w-full flex items-center justify-center gap-3 h-12 px-4 mb-6 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-          >
-            <MicrosoftIcon />
-            {ssoLoading ? "Signing in..." : "Sign in with Microsoft"}
-          </button>
+          <div className="flex flex-col gap-3 mb-6">
+            <button
+              type="button"
+              onClick={handleMicrosoftSSO}
+              disabled={ssoLoading || isLoggingIn}
+              className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+            >
+              <MicrosoftIcon />
+              {ssoLoading ? "Signing in..." : "Sign in with Microsoft"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleReplitAuth}
+              disabled={ssoLoading || isLoggingIn}
+              className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16zm-1-11h2v2h-2V9zm0 4h2v6h-2v-6z" fill="currentColor"/>
+              </svg>
+              {ssoLoading ? "Signing in..." : "Continue"}
+            </button>
+          </div>
 
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 border-t border-border" />

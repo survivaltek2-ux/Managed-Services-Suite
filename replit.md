@@ -90,6 +90,9 @@ Backend for both websites.
 - Admin: `siebert_token` (localStorage) — JWT with userId + role
 - Partner: `partner_token` (localStorage) — JWT with partnerId
 - Admin credentials: `admin@siebertrservices.com` / `Errnmgxczs1!`
+- **Auth options**: Email/password, Microsoft SSO (`/api/auth/sso/microsoft?type=partner|client`), Replit OIDC (`/api/auth/replit?type=partner|client`)
+- **Replit Auth**: PKCE OIDC flow via `openid-client`. Partner login links by email (must have existing account). Client login auto-creates accounts. Both issue JWT redirected via `?sso_token=`.
+- **DB columns**: `users.replit_user_id`, `partners.replit_user_id` for account linking
 
 **Email Notifications:**
 - Uses Nodemailer with SMTP (env vars: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, `NOTIFICATION_EMAIL`)
