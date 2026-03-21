@@ -16,6 +16,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 - **Auth**: bcryptjs + jsonwebtoken (JWT, 7-day expiry)
+- **Portability**: No Replit-specific dependencies — runs on any Node.js host (Render, Railway, Fly.io, VPS, etc.)
 
 ## Artifacts
 

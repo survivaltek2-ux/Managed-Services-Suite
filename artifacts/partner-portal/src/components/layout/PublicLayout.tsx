@@ -1,12 +1,9 @@
 import React from "react";
 import { Link } from "wouter";
-import { Building2, LogIn, LogOut } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useAuth } from "@workspace/replit-auth-web";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, login, logout } = useAuth();
-
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
@@ -20,19 +17,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
           <nav className="flex items-center gap-4">
-            {!isLoading && (
-              user ? (
-                <Button size="sm" variant="ghost" className="gap-1.5" onClick={logout}>
-                  <LogOut className="w-4 h-4" />
-                  Log Out
-                </Button>
-              ) : (
-                <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-foreground" onClick={login}>
-                  <LogIn className="w-4 h-4" />
-                  Log In
-                </Button>
-              )
-            )}
             <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Partner Login
             </Link>

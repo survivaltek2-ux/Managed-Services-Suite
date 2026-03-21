@@ -1,8 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
-import replitAuthRouter from "./replitAuth";
-import replitSsoRouter from "./replit-auth";
 import ssoRouter from "./sso";
 import contactRouter from "./contact";
 import quotesRouter from "./quotes";
@@ -16,8 +14,6 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
-router.use(replitAuthRouter);
-router.use(replitSsoRouter);
 router.use(ssoRouter);
 router.use(contactRouter);
 router.use(quotesRouter);
