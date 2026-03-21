@@ -25,10 +25,6 @@ expertMode = true
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
-[nix]
-channel = "stable-25_05"
-packages = ["docker", "docker-compose"]
-
 [userenv]
 
 [userenv.shared]

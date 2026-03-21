@@ -1,331 +1,218 @@
 # Deployment Guide for Siebert Services
 
-This guide walks you through deploying the entire Siebert Services platform to a production server.
+This project can be deployed directly on a Linux server without Docker. The production setup is:
 
-## What's Included
+- PostgreSQL running on the host or a managed provider
+- Node.js running the bundled API with `systemd`
+- The API serving the built frontend assets for `/`, `/admin`, `/portal`, and `/partners`
+- Nginx in front for HTTPS and reverse proxying
 
-The deployment package contains:
-- **API Server** — Express.js backend (port 8080)
-- **Siebert Services Site** — Marketing/company website (served from `/`)
-- **Partner Portal** — Reseller management dashboard (served from `/partners`)
-- **PostgreSQL Database** — All data storage
-- **Admin Panel** — Admin management interface (served from `/admin`)
+## Fast Path
 
-All components are containerized with Docker for easy deployment.
+On Ubuntu or Debian, the easiest path is:
 
----
+```bash
+git clone https://github.com/your-org/managed-services-suite.git /opt/siebert-services
+cd /opt/siebert-services
+cp .env.example .env
+nano .env
+DOMAIN=your-domain.com sh ./scripts/deploy-linux.sh
+```
+
+That script will:
+
+- install Node.js, pnpm, Nginx, and PostgreSQL if needed
+- install workspace dependencies
+- build the frontend and API bundles
+- run `db:push`
+- create or update the admin user
+- install and start a `systemd` service
+- install and enable an Nginx site that proxies to the Node app
+
+Optional:
+
+```bash
+DOMAIN=your-domain.com ENABLE_CERTBOT=true sh ./scripts/deploy-linux.sh
+```
+
+That also attempts to issue an HTTPS certificate with Certbot.
 
 ## Prerequisites
 
-**On your target server**, you need:
-- Docker & Docker Compose installed
-- Ubuntu 20.04+ (or other Linux distro with Docker support)
-- At least 2GB RAM, 10GB disk space
-- Ports 80, 443, 5433 available (HTTP, HTTPS, optional Postgres external access)
-- Domain name (for SSL/HTTPS)
+The script currently assumes:
 
-**Install Docker:**
-```bash
-# Ubuntu/Debian
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-```
+- Ubuntu or Debian with `apt-get`
+- the repo has already been cloned onto the server
+- `.env` has been filled with production values
+- DNS for `DOMAIN` points at the server if using HTTPS
 
----
-
-## Step 1: Copy Files to Server
-
-Copy the entire project directory to your server:
+## Step 1: Copy the Project
 
 ```bash
-scp -r /path/to/Managed-Services-Suite user@your-server:/opt/siebert-services
+sudo mkdir -p /opt/siebert-services
+sudo chown "$USER":"$USER" /opt/siebert-services
+git clone https://github.com/your-org/managed-services-suite.git /opt/siebert-services
+cd /opt/siebert-services
 ```
 
-Or clone if using Git:
-```bash
-ssh user@your-server
-cd /opt
-git clone https://github.com/your-repo/managed-services-suite.git siebert-services
-cd siebert-services
-```
-
----
-
-## Step 2: Configure Environment Variables
-
-Copy the example `.env` file and customize it:
+## Step 2: Configure the Environment
 
 ```bash
 cp .env.example .env
-nano .env  # Edit with your values
+nano .env
 ```
 
-**Required variables:**
+Set at least:
 
-```bash
-# Database (change password!)
-DATABASE_URL=postgresql://siebert:YOUR_SECURE_PASSWORD@postgres:5432/siebert
-
-# Security (generate a new secret!)
-JWT_SECRET=$(openssl rand -hex 32)
-
-# Production flag
+```env
+DATABASE_URL=postgresql://siebert:YOUR_PASSWORD@localhost:5432/siebert_services
+JWT_SECRET=replace-with-a-long-random-secret
 NODE_ENV=production
-
-# Port (keep as 8080, nginx will handle port 80/443)
 PORT=8080
+AI_INTEGRATIONS_OPENAI_API_KEY=sk-...
 ```
 
-**Optional (for email features):**
-```bash
-SMTP_HOST=smtp.gmail.com
+Optional but recommended:
+
+```env
+SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-SMTP_FROM=noreply@siebertrservices.com
+SMTP_USER=your-user
+SMTP_PASS=your-password
+SMTP_FROM_EMAIL=notifications@siebertrservices.com
+SMTP_FROM_NAME=Siebert Services
+NOTIFICATION_EMAIL=sales@siebertrservices.com
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_TENANT_ID=common
+MICROSOFT_REDIRECT_URI=https://your-domain.com/api/auth/sso/microsoft/callback
 ```
 
----
+## Step 3: Create the Database
 
-## Step 3: Adjust Docker Configuration
+If Postgres is local:
 
-**Edit `docker-compose.yml`** for production:
-
-```yaml
-services:
-  postgres:
-    # ... existing config ...
-    ports:
-      - "5433:5432"  # Keep internal only if external DB access not needed
-    environment:
-      POSTGRES_PASSWORD: YOUR_SECURE_PASSWORD  # Match .env
-
-  app:
-    # ... existing config ...
-    environment:
-      DATABASE_URL: postgresql://siebert:YOUR_SECURE_PASSWORD@postgres:5432/siebert
-      NODE_ENV: production
-      JWT_SECRET: ${JWT_SECRET}
-    restart: unless-stopped  # Auto-restart on failure
-    # Add SSL/reverse proxy config (see Step 4)
-```
-
----
-
-## Step 4: Set Up Reverse Proxy (Nginx) for HTTPS
-
-Install nginx:
 ```bash
-sudo apt-get update && sudo apt-get install -y nginx certbot python3-certbot-nginx
+sudo -u postgres psql
 ```
 
-**Create nginx config** at `/etc/nginx/sites-available/siebert`:
+Then:
+
+```sql
+CREATE USER siebert WITH PASSWORD 'YOUR_PASSWORD';
+CREATE DATABASE siebert_services OWNER siebert;
+\q
+```
+
+## Step 4: Install, Build, and Prepare the Service
+
+```bash
+pnpm install --frozen-lockfile
+pnpm run build:deploy
+pnpm run db:push
+pnpm run setup:admin
+```
+
+The production entry point is:
+
+```bash
+node --env-file=.env ./artifacts/api-server/dist/index.cjs
+```
+
+You can test it directly:
+
+```bash
+pnpm start
+curl http://127.0.0.1:8080/api/healthz
+```
+
+## Step 5: Install the Systemd Service and Nginx
+
+Automatic:
+
+```bash
+DOMAIN=your-domain.com sh ./scripts/deploy-linux.sh
+```
+
+Manual:
+
+```bash
+pnpm run deploy:bootstrap
+sudo cp siebert-services.service /etc/systemd/system/siebert-services.service
+sudo cp siebert-services.nginx /etc/nginx/sites-available/siebert-services
+sudo ln -sfn /etc/nginx/sites-available/siebert-services /etc/nginx/sites-enabled/siebert-services
+sudo systemctl daemon-reload
+sudo nginx -t
+sudo systemctl enable --now siebert-services
+sudo systemctl reload nginx
+```
+
+Useful commands:
+
+```bash
+sudo journalctl -u siebert-services -f
+sudo systemctl restart siebert-services
+sudo systemctl stop siebert-services
+```
+
+## Step 6: Example Nginx Config
+
+The deployment script writes a file equivalent to:
 
 ```nginx
-upstream siebert_app {
-    server localhost:8080;
-}
-
 server {
     listen 80;
     server_name your-domain.com www.your-domain.com;
-    
-    # Redirect HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
 
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com www.your-domain.com;
-    
-    # SSL certificates (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    
-    # Proxy requests to Docker container
     location / {
-        proxy_pass http://siebert_app;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 60s;
     }
 }
 ```
 
-Enable the site:
-```bash
-sudo ln -s /etc/nginx/sites-available/siebert /etc/nginx/sites-enabled/
-sudo nginx -t  # Test config
-sudo systemctl restart nginx
-```
-
-**Get SSL certificate:**
-```bash
-sudo certbot certonly --nginx -d your-domain.com -d www.your-domain.com
-```
-
-Certbot will auto-renew certificates (runs daily).
-
----
-
-## Step 5: Start the Application
+Enable it:
 
 ```bash
-cd /opt/siebert-services
-
-# Start containers
-docker compose up -d
-
-# Verify services are running
-docker compose ps
-docker compose logs -f app  # Watch startup logs
+sudo ln -s /etc/nginx/sites-available/siebert-services /etc/nginx/sites-enabled/siebert-services
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
-Expected output:
-```
-app-1      | 🚀 Siebert Services - Starting up...
-app-1      | 📦 Waiting for database...
-app-1      | ✅ Database is ready!
-app-1      | 🗄️  Setting up database schema...
-app-1      | ✨ Starting API server...
-app-1      | Server listening on port 8080
-```
-
----
-
-## Step 6: Verify Everything Works
-
-Test the app:
-```bash
-curl https://your-domain.com/api/healthz  # Should return 200 OK
-```
-
-Access in browser:
-- **Main site**: https://your-domain.com
-- **Partner portal**: https://your-domain.com/partners
-- **Admin panel**: https://your-domain.com/admin
-
-**Admin credentials** (change these immediately after first login!):
-- Email: `admin@siebertrservices.com`
-- Password: `Errnmgxczs1!`
-
----
-
-## Step 7: Backup Strategy
-
-**Backup the database regularly:**
+Then add HTTPS with Certbot if desired:
 
 ```bash
-# Manual backup
-docker compose exec postgres pg_dump -U siebert siebert > backup_$(date +%Y%m%d).sql
-
-# Automated daily backups (add to crontab)
-0 2 * * * cd /opt/siebert-services && docker compose exec -T postgres pg_dump -U siebert siebert > /backups/siebert_$(date +\%Y\%m\%d).sql
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 ```
 
-**Backup volumes:**
-```bash
-docker compose exec postgres pg_dump -U siebert siebert | gzip > /backups/siebert_$(date +%Y%m%d).sql.gz
-```
+## Updating the App
 
----
-
-## Step 8: Post-Deployment
-
-### Change Admin Password
-1. Log in at https://your-domain.com/admin
-2. Navigate to Settings → Change Password
-3. Update `admin@siebertrservices.com` password
-
-### Configure Email (Optional)
-If you have SMTP configured in `.env`, test it:
-1. Go to Partner Resources or Announcements
-2. Create an entry and check that emails are sent
-
-### Monitor Health
-```bash
-# Check app status
-docker compose ps
-
-# View logs
-docker compose logs -f app
-
-# Check disk usage
-df -h
-
-# Monitor container stats
-docker stats
-```
-
----
-
-## Troubleshooting
-
-**Database won't connect:**
-```bash
-docker compose logs postgres
-docker compose exec postgres psql -U siebert -d siebert -c "SELECT 1;"
-```
-
-**Port 8080 in use:**
-```bash
-lsof -i :8080
-docker compose restart
-```
-
-**SSL certificate renewal failed:**
-```bash
-sudo certbot renew --dry-run
-sudo systemctl restart nginx
-```
-
-**Container keeps restarting:**
-```bash
-docker compose logs app  # Check the error
-docker compose up --build  # Rebuild image
-```
-
----
-
-## Maintenance
-
-**Update the app** (after code changes):
 ```bash
 cd /opt/siebert-services
-git pull  # or manually update files
-docker compose down
-docker compose build --no-cache
-docker compose up -d
+git pull
+pnpm install --frozen-lockfile
+pnpm run build:deploy
+pnpm run db:push
+sudo systemctl restart siebert-services
 ```
 
-**Monitor logs regularly:**
-```bash
-docker compose logs --tail 100 app
-```
+## Verification
 
-**Keep backups safe:**
-- Copy backups to a different server/cloud storage
-- Test restore procedures monthly
-- Keep 30+ days of backups
+Check these URLs after deployment:
 
----
+- `https://your-domain.com/`
+- `https://your-domain.com/admin`
+- `https://your-domain.com/portal`
+- `https://your-domain.com/partners`
+- `https://your-domain.com/api/healthz`
 
-## Summary
+## Notes
 
-You now have:
-- ✅ Full Siebert Services platform running in Docker
-- ✅ PostgreSQL database with persistent storage
-- ✅ HTTPS/SSL with automatic renewal
-- ✅ Admin panel for management
-- ✅ Partner portal for resellers
-- ✅ Marketing website
-
-The entire stack runs on a single server. For high-availability deployments, see the advanced guide.
-
-**Questions?** Check the Docker logs: `docker compose logs -f`
+- The main site bundle serves `/`, `/admin`, and `/portal`.
+- The partner portal bundle serves `/partners`.
+- The API and frontend are same-origin in production, so no separate frontend host is required.
