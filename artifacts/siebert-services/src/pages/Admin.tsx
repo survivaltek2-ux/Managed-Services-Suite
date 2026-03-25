@@ -97,6 +97,7 @@ export default function Admin() {
         body: JSON.stringify({ email, password }),
       });
       const d = await res.json();
+      console.log("Login response:", { status: res.status, ok: res.ok, data: d });
       if (res.ok) {
         if (d.user.role === "admin") {
           login(d.token, d.user);
@@ -105,9 +106,11 @@ export default function Admin() {
           setLoginError(`Access denied. Your role is '${d.user.role}', admin required.`);
         }
       } else {
+        console.error("Login failed:", d);
         setLoginError(d.message || "Invalid credentials");
       }
     } catch (err: any) {
+      console.error("Login exception:", err);
       setLoginError(err?.message || "Login failed");
     } finally {
       setIsLoggingIn(false);
