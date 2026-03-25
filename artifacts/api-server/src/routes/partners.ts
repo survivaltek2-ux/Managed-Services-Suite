@@ -570,6 +570,113 @@ router.get("/admin/partners", requireAuth, async (_req, res) => {
   }
 });
 
+router.post("/admin/partners", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { companyName, contactName, email, password, phone, website, address, city, state, zip, country, businessType, yearsInBusiness, employeeCount, annualRevenue, specializations, tier, status } = req.body;
+    if (!companyName || !contactName || !email || !password) {
+      res.status(400).json({ error: "validation_error", message: "companyName, contactName, email, and password are required" });
+      return;
+    }
+    const existing = await db.select({ id: partnersTable.id }).from(partnersTable).where(eq(partnersTable.email, email)).limit(1);
+    if (existing.length > 0) {
+      res.status(400).json({ error: "conflict", message: "A partner with this email already exists" });
+      return;
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [partner] = await db.insert(partnersTable).values({
+      companyName, contactName, email, password: hashedPassword,
+      phone: phone || null, website: website || null,
+      address: address || null, city: city || null, state: state || null, zip: zip || null,
+      country: country || "US", businessType: businessType || null,
+      yearsInBusiness: yearsInBusiness || null, employeeCount: employeeCount || null,
+      annualRevenue: annualRevenue || null,
+      specializations: JSON.stringify(Array.isArray(specializations) ? specializations : []),
+      tier: tier || "registered",
+      status: status || "approved",
+      approvedAt: (status === "approved" || !status) ? new Date() : null,
+    }).returning();
+    res.status(201).json(sanitizePartner(partner));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create partner" });
+  }
+});
+
+router.get("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
+    if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
+    const deals = await db.select().from(partnerDealsTable).where(eq(partnerDealsTable.partnerId, id)).orderBy(desc(partnerDealsTable.createdAt));
+    res.json({ ...sanitizePartner(partner), deals });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load partner" });
+  }
+});
+
+router.put("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { companyName, contactName, email, phone, website, address, city, state, zip, country, businessType, yearsInBusiness, employeeCount, annualRevenue, specializations, tier, status } = req.body;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (companyName !== undefined) updates.companyName = companyName;
+    if (contactName !== undefined) updates.contactName = contactName;
+    if (email !== undefined) updates.email = email;
+    if (phone !== undefined) updates.phone = phone || null;
+    if (website !== undefined) updates.website = website || null;
+    if (address !== undefined) updates.address = address || null;
+    if (city !== undefined) updates.city = city || null;
+    if (state !== undefined) updates.state = state || null;
+    if (zip !== undefined) updates.zip = zip || null;
+    if (country !== undefined) updates.country = country || "US";
+    if (businessType !== undefined) updates.businessType = businessType || null;
+    if (yearsInBusiness !== undefined) updates.yearsInBusiness = yearsInBusiness || null;
+    if (employeeCount !== undefined) updates.employeeCount = employeeCount || null;
+    if (annualRevenue !== undefined) updates.annualRevenue = annualRevenue || null;
+    if (specializations !== undefined) updates.specializations = JSON.stringify(Array.isArray(specializations) ? specializations : []);
+    if (tier !== undefined) updates.tier = tier;
+    if (status !== undefined) {
+      updates.status = status;
+      if (status === "approved") updates.approvedAt = new Date();
+    }
+    const [partner] = await db.update(partnersTable).set(updates).where(eq(partnersTable.id, id)).returning();
+    if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
+    res.json(sanitizePartner(partner));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update partner" });
+  }
+});
+
+router.post("/admin/partners/:id/reset-password", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { password } = req.body;
+    if (!password || password.length < 8) {
+      res.status(400).json({ error: "validation_error", message: "Password must be at least 8 characters" });
+      return;
+    }
+    const hashed = await bcrypt.hash(password, 10);
+    await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to reset password" });
+  }
+});
+
+router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(partnersTable).where(eq(partnersTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete partner" });
+  }
+});
+
 router.put("/admin/partners/:id/approve", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
