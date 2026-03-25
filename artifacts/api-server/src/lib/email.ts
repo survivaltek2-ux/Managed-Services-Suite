@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import Mailgun from "mailgun.js";
+import FormData from "form-data";
 import { db, siteSettingsTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 
@@ -7,9 +9,15 @@ function esc(str: string | null | undefined): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-const SMTP_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from_email", "smtp_from_name", "notification_email"];
+const EMAIL_KEYS = [
+  "mailgun_api_key", "mailgun_domain",
+  "smtp_host", "smtp_port", "smtp_user", "smtp_pass",
+  "smtp_from_email", "smtp_from_name", "notification_email",
+];
 
-interface SmtpConfig {
+interface EmailConfig {
+  mailgunApiKey: string;
+  mailgunDomain: string;
   host: string;
   port: number;
   user: string;
@@ -19,16 +27,18 @@ interface SmtpConfig {
   notificationEmail: string;
 }
 
-let _configCache: SmtpConfig | null = null;
+let _configCache: EmailConfig | null = null;
 let _configCacheAt = 0;
 const CONFIG_TTL_MS = 30_000;
 
-async function loadSmtpConfig(): Promise<SmtpConfig> {
+async function loadEmailConfig(): Promise<EmailConfig> {
   const now = Date.now();
   if (_configCache && now - _configCacheAt < CONFIG_TTL_MS) return _configCache;
 
-  const envDefaults: SmtpConfig = {
-    host: process.env.SMTP_HOST || "smtp.office365.com",
+  const envDefaults: EmailConfig = {
+    mailgunApiKey: process.env.MAILGUN_API_KEY || "",
+    mailgunDomain: process.env.MAILGUN_DOMAIN || "",
+    host: process.env.SMTP_HOST || "smtp.mailgun.org",
     port: parseInt(process.env.SMTP_PORT || "587"),
     user: process.env.SMTP_USER || "",
     pass: process.env.SMTP_PASS || "",
@@ -38,11 +48,13 @@ async function loadSmtpConfig(): Promise<SmtpConfig> {
   };
 
   try {
-    const rows = await db.select().from(siteSettingsTable).where(inArray(siteSettingsTable.key, SMTP_KEYS));
+    const rows = await db.select().from(siteSettingsTable).where(inArray(siteSettingsTable.key, EMAIL_KEYS));
     const map: Record<string, string> = {};
     for (const r of rows) map[r.key] = r.value;
 
     _configCache = {
+      mailgunApiKey: map["mailgun_api_key"] || envDefaults.mailgunApiKey,
+      mailgunDomain: map["mailgun_domain"] || envDefaults.mailgunDomain,
       host: map["smtp_host"] || envDefaults.host,
       port: parseInt(map["smtp_port"] || String(envDefaults.port)),
       user: map["smtp_user"] || envDefaults.user,
@@ -64,28 +76,44 @@ export function invalidateSmtpCache() {
   _configCacheAt = 0;
 }
 
-async function getTransporter(): Promise<{ transport: nodemailer.Transporter; cfg: SmtpConfig } | null> {
-  const cfg = await loadSmtpConfig();
-  if (!cfg.user || !cfg.pass) return null;
+async function sendViaMailgun(cfg: EmailConfig, to: string, subject: string, html: string): Promise<void> {
+  const mg = new Mailgun(FormData);
+  const client = mg.client({ username: "api", key: cfg.mailgunApiKey });
+  const fromAddress = cfg.fromEmail || `noreply@${cfg.mailgunDomain}`;
+  const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
+  await client.messages.create(cfg.mailgunDomain, {
+    from: fromDisplay,
+    to: [to],
+    subject,
+    html,
+  });
+}
+
+async function sendViaSmtp(cfg: EmailConfig, to: string, subject: string, html: string): Promise<void> {
   const transport = nodemailer.createTransport({
     host: cfg.host,
     port: cfg.port,
     secure: cfg.port === 465,
     auth: { user: cfg.user, pass: cfg.pass },
   });
-  return { transport, cfg };
+  const fromAddress = cfg.fromEmail || cfg.user;
+  const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
+  await transport.sendMail({ from: fromDisplay, to, subject, html });
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  const result = await getTransporter();
-  if (!result) {
-    console.log(`[Email] SMTP not configured — skipped email to ${to.split("@")[1]}: "${subject}"`);
-    return false;
-  }
-  const { transport, cfg } = result;
+  const cfg = await loadEmailConfig();
   try {
-    await transport.sendMail({ from: `"${cfg.fromName}" <${cfg.fromEmail}>`, to, subject, html });
-    console.log(`[Email] Sent to ${to}: "${subject}"`);
+    if (cfg.mailgunApiKey && cfg.mailgunDomain) {
+      await sendViaMailgun(cfg, to, subject, html);
+      console.log(`[Email/Mailgun] Sent to ${to}: "${subject}"`);
+    } else if (cfg.user && cfg.pass) {
+      await sendViaSmtp(cfg, to, subject, html);
+      console.log(`[Email/SMTP] Sent to ${to}: "${subject}"`);
+    } else {
+      console.log(`[Email] Not configured — skipped email to ${to.split("@")[1]}: "${subject}"`);
+      return false;
+    }
     return true;
   } catch (err) {
     console.error(`[Email] Failed to send to ${to}:`, err);
@@ -93,20 +121,54 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   }
 }
 
-export async function testSmtpConnection(): Promise<{ ok: boolean; error?: string }> {
-  const result = await getTransporter();
-  if (!result) return { ok: false, error: "SMTP credentials not configured." };
-  try {
-    await result.transport.verify();
-    return { ok: true };
-  } catch (err: any) {
-    return { ok: false, error: err?.message || "Connection failed" };
+export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: string; error?: string }> {
+  const cfg = await loadEmailConfig();
+  if (cfg.mailgunApiKey && cfg.mailgunDomain) {
+    try {
+      const mg = new Mailgun(FormData);
+      const client = mg.client({ username: "api", key: cfg.mailgunApiKey });
+      await client.domains.get(cfg.mailgunDomain);
+      return { ok: true, provider: "mailgun" };
+    } catch (err: any) {
+      const msg = err?.details || err?.message || "Mailgun API error";
+      return { ok: false, provider: "mailgun", error: msg };
+    }
   }
+  if (cfg.user && cfg.pass) {
+    try {
+      const transport = nodemailer.createTransport({
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.port === 465,
+        auth: { user: cfg.user, pass: cfg.pass },
+      });
+      await transport.verify();
+      return { ok: true, provider: "smtp" };
+    } catch (err: any) {
+      return { ok: false, provider: "smtp", error: err?.message || "Connection failed" };
+    }
+  }
+  return { ok: false, error: "No email provider configured. Add a Mailgun API key or SMTP credentials." };
 }
 
-export async function getSmtpSettings(): Promise<{ host: string; port: number; user: string; passSet: boolean; fromEmail: string; fromName: string; notificationEmail: string }> {
-  const cfg = await loadSmtpConfig();
+export async function getSmtpSettings(): Promise<{
+  mailgunApiKeySet: boolean;
+  mailgunDomain: string;
+  host: string;
+  port: number;
+  user: string;
+  passSet: boolean;
+  fromEmail: string;
+  fromName: string;
+  notificationEmail: string;
+  activeProvider: "mailgun" | "smtp" | "none";
+}> {
+  const cfg = await loadEmailConfig();
+  const activeProvider = cfg.mailgunApiKey && cfg.mailgunDomain ? "mailgun"
+    : cfg.user && cfg.pass ? "smtp" : "none";
   return {
+    mailgunApiKeySet: !!cfg.mailgunApiKey,
+    mailgunDomain: cfg.mailgunDomain,
     host: cfg.host,
     port: cfg.port,
     user: cfg.user,
@@ -114,6 +176,7 @@ export async function getSmtpSettings(): Promise<{ host: string; port: number; u
     fromEmail: cfg.fromEmail,
     fromName: cfg.fromName,
     notificationEmail: cfg.notificationEmail,
+    activeProvider,
   };
 }
 

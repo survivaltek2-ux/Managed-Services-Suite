@@ -169,14 +169,20 @@ router.get("/admin/smtp", requireAuth, requireAdmin, async (_req: AuthRequest, r
   }
 });
 
-const SMTP_DB_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from_email", "smtp_from_name", "notification_email"];
+const EMAIL_DB_KEYS = [
+  "mailgun_api_key", "mailgun_domain",
+  "smtp_host", "smtp_port", "smtp_user", "smtp_pass",
+  "smtp_from_email", "smtp_from_name", "notification_email",
+];
+const MASKED_PLACEHOLDER = "••••••••";
+const MASKED_KEYS = new Set(["smtp_pass", "mailgun_api_key"]);
 
 router.put("/admin/smtp", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const body: Record<string, string> = req.body;
-    for (const key of SMTP_DB_KEYS) {
+    for (const key of EMAIL_DB_KEYS) {
       if (!(key in body)) continue;
-      if (key === "smtp_pass" && body[key] === "••••••••") continue;
+      if (MASKED_KEYS.has(key) && body[key] === MASKED_PLACEHOLDER) continue;
       const value = String(body[key]);
       const existing = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, key)).limit(1);
       if (existing.length > 0) {
@@ -186,11 +192,11 @@ router.put("/admin/smtp", requireAuth, requireAdmin, async (req: AuthRequest, re
       }
     }
     invalidateSmtpCache();
-    await logActivity(req.userId, "update", "smtp_settings", undefined, "Updated SMTP configuration");
+    await logActivity(req.userId, "update", "smtp_settings", undefined, "Updated email configuration");
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "server_error", message: "Failed to save SMTP settings" });
+    res.status(500).json({ error: "server_error", message: "Failed to save email settings" });
   }
 });
 
