@@ -65,6 +65,7 @@ export default function Admin() {
       const endpoints: Record<string, string> = {
         dashboard: "/api/admin/dashboard/stats",
         settings: "/api/admin/cms/settings",
+        smtp: "/api/admin/smtp",
         services: "/api/admin/cms/services",
         testimonials: "/api/admin/cms/testimonials",
         team: "/api/admin/cms/team",
@@ -78,10 +79,22 @@ export default function Admin() {
         users: "/api/admin/users",
         activity: "/api/admin/activity",
       };
-      const res = await fetch(endpoints[tab], { headers: headers() });
-      if (res.ok) {
-        const result = await res.json();
-        setData(prev => ({ ...prev, [tab]: result }));
+      if (tab === "settings") {
+        const [cmsRes, smtpRes] = await Promise.all([
+          fetch(endpoints["settings"], { headers: headers() }),
+          fetch(endpoints["smtp"], { headers: headers() }),
+        ]);
+        const [cmsData, smtpData] = await Promise.all([
+          cmsRes.ok ? cmsRes.json() : null,
+          smtpRes.ok ? smtpRes.json() : null,
+        ]);
+        setData(prev => ({ ...prev, ...(cmsData ? { settings: cmsData } : {}), ...(smtpData ? { smtp: smtpData } : {}) }));
+      } else {
+        const res = await fetch(endpoints[tab], { headers: headers() });
+        if (res.ok) {
+          const result = await res.json();
+          setData(prev => ({ ...prev, [tab]: result }));
+        }
       }
     } catch (error) {
       console.error(`Error fetching ${tab}:`, error);
@@ -309,7 +322,7 @@ export default function Admin() {
           ) : (
             <div className="animate-fade-in">
               {activeTab === "dashboard" && <DashboardTab stats={data.dashboard} />}
-              {activeTab === "settings" && <SettingsTab data={data.settings} refresh={() => fetchData("settings")} headers={headers} />}
+              {activeTab === "settings" && <SettingsTab data={data.settings} smtp={data.smtp} refresh={() => fetchData("settings")} headers={headers} />}
               {activeTab === "services" && <CrudTab items={data.services || []} refresh={() => fetchData("services")} headers={headers} entity="services" fields={[
                 { key: "title", label: "Title", type: "text", required: true },
                 { key: "description", label: "Description", type: "textarea", required: true },
@@ -437,10 +450,13 @@ function DashboardTab({ stats }: { stats: any }) {
   );
 }
 
-function SettingsTab({ data, refresh, headers }: { data: any; refresh: () => void; headers: () => any }) {
+function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; refresh: () => void; headers: () => any }) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [smtpForm, setSmtpForm] = useState({ smtp_host: "", smtp_port: "587", smtp_user: "", smtp_pass: "", smtp_from_email: "", smtp_from_name: "", notification_email: "" });
+  const [smtpSaving, setSmtpSaving] = useState(false);
+  const [smtpTesting, setSmtpTesting] = useState(false);
 
   useEffect(() => {
     if (Array.isArray(data)) {
@@ -452,39 +468,130 @@ function SettingsTab({ data, refresh, headers }: { data: any; refresh: () => voi
     }
   }, [data]);
 
+  useEffect(() => {
+    if (smtp && typeof smtp === "object") {
+      setSmtpForm({
+        smtp_host: smtp.host || "",
+        smtp_port: String(smtp.port || "587"),
+        smtp_user: smtp.user || "",
+        smtp_pass: smtp.passSet ? "••••••••" : "",
+        smtp_from_email: smtp.fromEmail || "",
+        smtp_from_name: smtp.fromName || "",
+        notification_email: smtp.notificationEmail || "",
+      });
+    }
+  }, [smtp]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const res = await fetch("/api/admin/cms/settings", {
         method: "PUT", headers: headers(), body: JSON.stringify(formData),
       });
-      if (res.ok) { toast({ title: "Settings saved" }); refresh(); }
+      if (res.ok) { toast({ title: "Site settings saved" }); refresh(); }
       else toast({ title: "Failed to save", variant: "destructive" });
     } catch { toast({ title: "Error", variant: "destructive" }); }
     finally { setSaving(false); }
   };
 
+  const handleSmtpSave = async () => {
+    setSmtpSaving(true);
+    try {
+      const res = await fetch("/api/admin/smtp", {
+        method: "PUT", headers: headers(), body: JSON.stringify(smtpForm),
+      });
+      if (res.ok) { toast({ title: "Email settings saved" }); refresh(); }
+      else toast({ title: "Failed to save email settings", variant: "destructive" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+    finally { setSmtpSaving(false); }
+  };
+
+  const handleSmtpTest = async () => {
+    setSmtpTesting(true);
+    try {
+      const res = await fetch("/api/admin/smtp/test", { method: "POST", headers: headers() });
+      const d = await res.json();
+      if (d.ok) toast({ title: "Connection successful", description: "SMTP is working correctly." });
+      else toast({ title: "Connection failed", description: d.error || "Check your SMTP settings.", variant: "destructive" });
+    } catch { toast({ title: "Test failed", variant: "destructive" }); }
+    finally { setSmtpTesting(false); }
+  };
+
   const textareas = ["hero_description", "about_story", "zoom_partner_description"];
+
   return (
-    <Card>
-      <CardContent className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(formData).map(([key, value]) => (
-            <div key={key} className={textareas.includes(key) ? "md:col-span-2 space-y-1" : "space-y-1"}>
-              <Label className="text-xs capitalize">{key.replace(/_/g, " ")}</Label>
-              {textareas.includes(key)
-                ? <Textarea value={value} onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))} className="min-h-[80px]" />
-                : <Input value={value} onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))} />}
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Settings className="w-4 h-4" /> Email / SMTP Configuration</CardTitle>
+          <p className="text-xs text-muted-foreground">Configure the outbound email server used for notifications and login codes.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs">SMTP Host</Label>
+              <Input value={smtpForm.smtp_host} onChange={e => setSmtpForm(p => ({ ...p, smtp_host: e.target.value }))} placeholder="smtp.office365.com" />
             </div>
-          ))}
-        </div>
-        <div className="flex justify-end pt-4 border-t">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Settings
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <div className="space-y-1">
+              <Label className="text-xs">SMTP Port</Label>
+              <Input value={smtpForm.smtp_port} onChange={e => setSmtpForm(p => ({ ...p, smtp_port: e.target.value }))} placeholder="587" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Username (Email)</Label>
+              <Input value={smtpForm.smtp_user} onChange={e => setSmtpForm(p => ({ ...p, smtp_user: e.target.value }))} placeholder="you@yourdomain.com" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Password</Label>
+              <Input type="password" value={smtpForm.smtp_pass} onChange={e => setSmtpForm(p => ({ ...p, smtp_pass: e.target.value }))} placeholder={smtp?.passSet ? "Leave blank to keep current" : "Enter password"} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">From Email</Label>
+              <Input value={smtpForm.smtp_from_email} onChange={e => setSmtpForm(p => ({ ...p, smtp_from_email: e.target.value }))} placeholder="notifications@siebertrservices.com" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">From Name</Label>
+              <Input value={smtpForm.smtp_from_name} onChange={e => setSmtpForm(p => ({ ...p, smtp_from_name: e.target.value }))} placeholder="Siebert Services" />
+            </div>
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs">Admin Notification Email</Label>
+              <Input value={smtpForm.notification_email} onChange={e => setSmtpForm(p => ({ ...p, notification_email: e.target.value }))} placeholder="sales@siebertrservices.com" />
+              <p className="text-xs text-muted-foreground">Contact forms, quotes, and deal registrations are sent here.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-2 border-t">
+            <Button onClick={handleSmtpSave} disabled={smtpSaving}>
+              {smtpSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Email Settings
+            </Button>
+            <Button variant="outline" onClick={handleSmtpTest} disabled={smtpTesting}>
+              {smtpTesting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}Test Connection
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Settings className="w-4 h-4" /> Site Content</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(formData).map(([key, value]) => (
+              <div key={key} className={textareas.includes(key) ? "md:col-span-2 space-y-1" : "space-y-1"}>
+                <Label className="text-xs capitalize">{key.replace(/_/g, " ")}</Label>
+                {textareas.includes(key)
+                  ? <Textarea value={value} onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))} className="min-h-[80px]" />
+                  : <Input value={value} onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))} />}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end pt-4 border-t">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Site Settings
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

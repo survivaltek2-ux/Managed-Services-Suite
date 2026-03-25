@@ -1,54 +1,120 @@
 import nodemailer from "nodemailer";
+import { db, siteSettingsTable } from "@workspace/db";
+import { inArray } from "drizzle-orm";
 
 function esc(str: string | null | undefined): string {
   if (!str) return "";
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.sendgrid.net";
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
-const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL || "notifications@siebertrservices.com";
-const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME || "Siebert Services";
-const NOTIFICATION_EMAIL = process.env.NOTIFICATION_EMAIL || "sales@siebertrservices.com";
+const SMTP_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from_email", "smtp_from_name", "notification_email"];
 
-let transporter: nodemailer.Transporter | null = null;
+interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  fromEmail: string;
+  fromName: string;
+  notificationEmail: string;
+}
 
-function getTransporter() {
-  if (!SMTP_USER || !SMTP_PASS) {
-    return null;
+let _configCache: SmtpConfig | null = null;
+let _configCacheAt = 0;
+const CONFIG_TTL_MS = 30_000;
+
+async function loadSmtpConfig(): Promise<SmtpConfig> {
+  const now = Date.now();
+  if (_configCache && now - _configCacheAt < CONFIG_TTL_MS) return _configCache;
+
+  const envDefaults: SmtpConfig = {
+    host: process.env.SMTP_HOST || "smtp.office365.com",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || "",
+    fromEmail: process.env.SMTP_FROM_EMAIL || "notifications@siebertrservices.com",
+    fromName: process.env.SMTP_FROM_NAME || "Siebert Services",
+    notificationEmail: process.env.NOTIFICATION_EMAIL || "sales@siebertrservices.com",
+  };
+
+  try {
+    const rows = await db.select().from(siteSettingsTable).where(inArray(siteSettingsTable.key, SMTP_KEYS));
+    const map: Record<string, string> = {};
+    for (const r of rows) map[r.key] = r.value;
+
+    _configCache = {
+      host: map["smtp_host"] || envDefaults.host,
+      port: parseInt(map["smtp_port"] || String(envDefaults.port)),
+      user: map["smtp_user"] || envDefaults.user,
+      pass: map["smtp_pass"] || envDefaults.pass,
+      fromEmail: map["smtp_from_email"] || envDefaults.fromEmail,
+      fromName: map["smtp_from_name"] || envDefaults.fromName,
+      notificationEmail: map["notification_email"] || envDefaults.notificationEmail,
+    };
+  } catch {
+    _configCache = envDefaults;
   }
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
-  }
-  return transporter;
+
+  _configCacheAt = now;
+  return _configCache!;
+}
+
+export function invalidateSmtpCache() {
+  _configCache = null;
+  _configCacheAt = 0;
+}
+
+async function getTransporter(): Promise<{ transport: nodemailer.Transporter; cfg: SmtpConfig } | null> {
+  const cfg = await loadSmtpConfig();
+  if (!cfg.user || !cfg.pass) return null;
+  const transport = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.port === 465,
+    auth: { user: cfg.user, pass: cfg.pass },
+  });
+  return { transport, cfg };
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  const transport = getTransporter();
-  if (!transport) {
+  const result = await getTransporter();
+  if (!result) {
     console.log(`[Email] SMTP not configured — skipped email to ${to.split("@")[1]}: "${subject}"`);
     return false;
   }
+  const { transport, cfg } = result;
   try {
-    await transport.sendMail({
-      from: `"${SMTP_FROM_NAME}" <${SMTP_FROM_EMAIL}>`,
-      to,
-      subject,
-      html,
-    });
+    await transport.sendMail({ from: `"${cfg.fromName}" <${cfg.fromEmail}>`, to, subject, html });
     console.log(`[Email] Sent to ${to}: "${subject}"`);
     return true;
   } catch (err) {
     console.error(`[Email] Failed to send to ${to}:`, err);
     return false;
   }
+}
+
+export async function testSmtpConnection(): Promise<{ ok: boolean; error?: string }> {
+  const result = await getTransporter();
+  if (!result) return { ok: false, error: "SMTP credentials not configured." };
+  try {
+    await result.transport.verify();
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Connection failed" };
+  }
+}
+
+export async function getSmtpSettings(): Promise<{ host: string; port: number; user: string; passSet: boolean; fromEmail: string; fromName: string; notificationEmail: string }> {
+  const cfg = await loadSmtpConfig();
+  return {
+    host: cfg.host,
+    port: cfg.port,
+    user: cfg.user,
+    passSet: !!cfg.pass,
+    fromEmail: cfg.fromEmail,
+    fromName: cfg.fromName,
+    notificationEmail: cfg.notificationEmail,
+  };
 }
 
 export async function sendDealSubmittedNotification(deal: {
@@ -63,6 +129,7 @@ export async function sendDealSubmittedNotification(deal: {
   contactName: string;
   email: string;
 }) {
+  const cfg = await loadSmtpConfig();
   const products = (() => {
     try { return JSON.parse(deal.products).join(", "); } catch { return deal.products; }
   })();
@@ -114,7 +181,7 @@ export async function sendDealSubmittedNotification(deal: {
   `;
 
   await Promise.all([
-    sendEmail(NOTIFICATION_EMAIL, `New Deal Registration: ${esc(deal.title)} — ${esc(partner.companyName)}`, adminHtml),
+    sendEmail(cfg.notificationEmail, `New Deal Registration: ${esc(deal.title)} — ${esc(partner.companyName)}`, adminHtml),
     sendEmail(partner.email, `Deal Registration Confirmed: ${esc(deal.title)}`, partnerHtml),
   ]);
 }
@@ -129,6 +196,7 @@ export async function sendTicketSubmittedNotification(ticket: {
   contactName: string;
   email: string;
 }) {
+  const cfg = await loadSmtpConfig();
   const priorityColors: Record<string, string> = {
     urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
   };
@@ -176,7 +244,7 @@ export async function sendTicketSubmittedNotification(ticket: {
   `;
 
   await Promise.all([
-    sendEmail(NOTIFICATION_EMAIL, `New Support Ticket: ${esc(ticket.subject)} — ${esc(partner.companyName)}`, adminHtml),
+    sendEmail(cfg.notificationEmail, `New Support Ticket: ${esc(ticket.subject)} — ${esc(partner.companyName)}`, adminHtml),
     sendEmail(partner.email, `Support Ticket Received: ${ticket.subject}`, partnerHtml),
   ]);
 }
@@ -189,6 +257,7 @@ export async function sendContactFormNotification(contact: {
   service?: string | null;
   message: string;
 }) {
+  const cfg = await loadSmtpConfig();
   const adminHtml = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
@@ -229,7 +298,7 @@ export async function sendContactFormNotification(contact: {
   `;
 
   await Promise.all([
-    sendEmail(NOTIFICATION_EMAIL, `New Contact: ${esc(contact.name)}${contact.company ? ` — ${esc(contact.company)}` : ""}`, adminHtml),
+    sendEmail(cfg.notificationEmail, `New Contact: ${esc(contact.name)}${contact.company ? ` — ${esc(contact.company)}` : ""}`, adminHtml),
     sendEmail(contact.email, "Thank You for Contacting Siebert Services", confirmHtml),
   ]);
 }
@@ -245,6 +314,7 @@ export async function sendQuoteRequestNotification(quote: {
   timeline?: string | null;
   details?: string | null;
 }) {
+  const cfg = await loadSmtpConfig();
   const services = (() => {
     try { return JSON.parse(quote.services).join(", "); } catch { return quote.services; }
   })();
@@ -294,7 +364,7 @@ export async function sendQuoteRequestNotification(quote: {
   `;
 
   await Promise.all([
-    sendEmail(NOTIFICATION_EMAIL, `New Quote Request: ${esc(quote.name)} — ${esc(quote.company)}`, adminHtml),
+    sendEmail(cfg.notificationEmail, `New Quote Request: ${esc(quote.name)} — ${esc(quote.company)}`, adminHtml),
     sendEmail(quote.email, "Quote Request Received — Siebert Services", confirmHtml),
   ]);
 }
@@ -325,6 +395,7 @@ export async function sendClientTicketNotification(ticket: {
   priority: string;
   category: string;
 }, userEmail: string, userName?: string) {
+  const cfg = await loadSmtpConfig();
   const priorityColors: Record<string, string> = {
     urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
   };
@@ -370,7 +441,7 @@ export async function sendClientTicketNotification(ticket: {
   `;
 
   await Promise.all([
-    sendEmail(NOTIFICATION_EMAIL, `New Client Ticket: ${esc(ticket.subject)}`, adminHtml),
+    sendEmail(cfg.notificationEmail, `New Client Ticket: ${esc(ticket.subject)}`, adminHtml),
     sendEmail(userEmail, `Support Ticket Submitted: ${ticket.subject}`, confirmHtml),
   ]);
 }

@@ -3,6 +3,7 @@ import { Response } from "express";
 import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable } from "@workspace/db";
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
+import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -154,6 +155,52 @@ router.put("/admin/cms/settings", requireAuth, requireAdmin, async (req: AuthReq
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update settings" });
+  }
+});
+
+// SMTP Settings
+router.get("/admin/smtp", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const settings = await getSmtpSettings();
+    res.json(settings);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load SMTP settings" });
+  }
+});
+
+const SMTP_DB_KEYS = ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from_email", "smtp_from_name", "notification_email"];
+
+router.put("/admin/smtp", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const body: Record<string, string> = req.body;
+    for (const key of SMTP_DB_KEYS) {
+      if (!(key in body)) continue;
+      if (key === "smtp_pass" && body[key] === "••••••••") continue;
+      const value = String(body[key]);
+      const existing = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, key)).limit(1);
+      if (existing.length > 0) {
+        await db.update(siteSettingsTable).set({ value, updatedAt: new Date() }).where(eq(siteSettingsTable.key, key));
+      } else {
+        await db.insert(siteSettingsTable).values({ key, value });
+      }
+    }
+    invalidateSmtpCache();
+    await logActivity(req.userId, "update", "smtp_settings", undefined, "Updated SMTP configuration");
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to save SMTP settings" });
+  }
+});
+
+router.post("/admin/smtp/test", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const result = await testSmtpConnection();
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Unexpected error during test" });
   }
 });
 
