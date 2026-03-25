@@ -1,0 +1,8 @@
+{
+  "schema": "./lib/db/src/schema/index.ts",
+  "out": "./lib/db/migrations",
+  "driver": "pg",
+  "dbCredentials": {
+    "connectionString": "$DATABASE_URL"
+  }
+}
