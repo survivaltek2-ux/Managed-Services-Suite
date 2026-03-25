@@ -131,7 +131,11 @@ router.post("/auth/request-code", async (req, res) => {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await db.insert(loginCodesTable).values({ email, code, type, expiresAt });
-    await sendLoginCode(email, code, type as "user" | "partner");
+    const sent = await sendLoginCode(email, code, type as "user" | "partner");
+    if (!sent) {
+      res.status(503).json({ message: "Email could not be sent. The email service may not be configured yet. Please contact support or use password login." });
+      return;
+    }
 
     res.json({ sent: true });
   } catch (err) {

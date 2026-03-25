@@ -192,7 +192,7 @@ export async function sendDealSubmittedNotification(deal: {
   contactName: string;
   email: string;
 }) {
-  const cfg = await loadSmtpConfig();
+  const cfg = await loadEmailConfig();
   const products = (() => {
     try { return JSON.parse(deal.products).join(", "); } catch { return deal.products; }
   })();
@@ -259,7 +259,7 @@ export async function sendTicketSubmittedNotification(ticket: {
   contactName: string;
   email: string;
 }) {
-  const cfg = await loadSmtpConfig();
+  const cfg = await loadEmailConfig();
   const priorityColors: Record<string, string> = {
     urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
   };
@@ -320,7 +320,7 @@ export async function sendContactFormNotification(contact: {
   service?: string | null;
   message: string;
 }) {
-  const cfg = await loadSmtpConfig();
+  const cfg = await loadEmailConfig();
   const adminHtml = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
@@ -377,7 +377,7 @@ export async function sendQuoteRequestNotification(quote: {
   timeline?: string | null;
   details?: string | null;
 }) {
-  const cfg = await loadSmtpConfig();
+  const cfg = await loadEmailConfig();
   const services = (() => {
     try { return JSON.parse(quote.services).join(", "); } catch { return quote.services; }
   })();
@@ -458,7 +458,7 @@ export async function sendClientTicketNotification(ticket: {
   priority: string;
   category: string;
 }, userEmail: string, userName?: string) {
-  const cfg = await loadSmtpConfig();
+  const cfg = await loadEmailConfig();
   const priorityColors: Record<string, string> = {
     urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
   };
