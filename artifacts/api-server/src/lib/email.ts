@@ -299,6 +299,26 @@ export async function sendQuoteRequestNotification(quote: {
   ]);
 }
 
+export async function sendLoginCode(email: string, code: string, type: "user" | "partner") {
+  const portalName = type === "partner" ? "Partner Portal" : "Admin Portal";
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Your Login Code — Siebert Services</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Use the code below to sign in to the ${esc(portalName)}. It expires in <strong>10 minutes</strong>.</p>
+        <div style="background: #f4f6f9; border: 2px dashed #0176d3; border-radius: 8px; padding: 20px; text-align: center; margin: 0 0 20px;">
+          <span style="font-size: 36px; font-weight: 700; letter-spacing: 10px; color: #032d60;">${esc(code)}</span>
+        </div>
+        <p style="font-size: 13px; color: #706e6b; margin: 0;">If you didn't request this code, you can safely ignore this email.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services</p>
+      </div>
+    </div>
+  `;
+  return sendEmail(email, `${code} — Your Siebert Services Login Code`, html);
+}
+
 export async function sendClientTicketNotification(ticket: {
   subject: string;
   description: string;

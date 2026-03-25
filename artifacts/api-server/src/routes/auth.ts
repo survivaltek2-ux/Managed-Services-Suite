@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { loginCodesTable, partnersTable } from "@workspace/db/schema";
+import { eq, and, gt, isNull } from "drizzle-orm";
 import { generateToken, requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
+import { sendLoginCode } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -107,6 +109,90 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res: Response) => {
   } catch (err) {
     console.error("Get me error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to get user" });
+  }
+});
+
+router.post("/auth/request-code", async (req, res) => {
+  try {
+    const { email, type } = req.body;
+    if (!email || !type) {
+      res.status(400).json({ message: "email and type are required" });
+      return;
+    }
+
+    const table = type === "partner" ? partnersTable : usersTable;
+    const [account] = await db.select().from(table as typeof usersTable).where(eq((table as typeof usersTable).email, email)).limit(1);
+    if (!account) {
+      res.json({ sent: true });
+      return;
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await db.insert(loginCodesTable).values({ email, code, type, expiresAt });
+    await sendLoginCode(email, code, type as "user" | "partner");
+
+    res.json({ sent: true });
+  } catch (err) {
+    console.error("request-code error:", err);
+    res.status(500).json({ message: "Failed to send code" });
+  }
+});
+
+router.post("/auth/verify-code", async (req, res) => {
+  try {
+    const { email, code, type } = req.body;
+    if (!email || !code || !type) {
+      res.status(400).json({ message: "email, code, and type are required" });
+      return;
+    }
+
+    const now = new Date();
+    const [record] = await db
+      .select()
+      .from(loginCodesTable)
+      .where(
+        and(
+          eq(loginCodesTable.email, email),
+          eq(loginCodesTable.code, code),
+          eq(loginCodesTable.type, type),
+          gt(loginCodesTable.expiresAt, now),
+          isNull(loginCodesTable.usedAt),
+        )
+      )
+      .limit(1);
+
+    if (!record) {
+      res.status(401).json({ message: "Invalid or expired code" });
+      return;
+    }
+
+    await db.update(loginCodesTable).set({ usedAt: now }).where(eq(loginCodesTable.id, record.id));
+
+    const table = type === "partner" ? partnersTable : usersTable;
+    const [account] = await db.select().from(table as typeof usersTable).where(eq((table as typeof usersTable).email, email)).limit(1);
+    if (!account) {
+      res.status(401).json({ message: "Account not found" });
+      return;
+    }
+
+    const token = generateToken(account.id, (account as any).role ?? "partner");
+    res.json({
+      token,
+      user: {
+        id: account.id,
+        name: (account as any).name ?? (account as any).contactName,
+        email: account.email,
+        company: (account as any).company ?? (account as any).companyName,
+        phone: account.phone ?? null,
+        role: (account as any).role ?? "partner",
+        createdAt: account.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("verify-code error:", err);
+    res.status(500).json({ message: "Failed to verify code" });
   }
 });
 

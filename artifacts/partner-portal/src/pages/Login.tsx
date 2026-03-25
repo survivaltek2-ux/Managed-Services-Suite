@@ -4,7 +4,7 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/use-auth";
-import { Building2, ArrowRight } from "lucide-react";
+import { Building2, ArrowRight, Mail, KeyRound } from "lucide-react";
 
 function MicrosoftIcon() {
   return (
@@ -24,6 +24,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [ssoLoading, setSsoLoading] = useState(false);
+  const [mode, setMode] = useState<"password" | "code">("password");
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeLoading, setCodeLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,7 +56,7 @@ export default function Login() {
     }
   }, [setLocation]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     try {
@@ -62,14 +66,63 @@ export default function Login() {
     }
   };
 
+  const handleRequestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) { setError("Please enter your email address."); return; }
+    setError("");
+    setCodeLoading(true);
+    try {
+      const res = await fetch("/api/auth/request-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, type: "partner" }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setCodeSent(true);
+      } else {
+        setError(d.message || "Failed to send code.");
+      }
+    } catch {
+      setError("Failed to send code. Please try again.");
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setCodeLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, type: "partner" }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        login({ token: d.token, user: d.user } as any);
+      } else {
+        setError(d.message || "Invalid or expired code.");
+      }
+    } catch {
+      setError("Failed to verify code. Please try again.");
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
   const handleMicrosoftSSO = () => {
     setSsoLoading(true);
     window.location.href = "/api/auth/sso/microsoft?type=partner";
   };
 
-  const handleReplitAuth = () => {
-    setSsoLoading(true);
-    window.location.href = "/api/auth/replit?type=partner";
+  const switchMode = (m: "password" | "code") => {
+    setMode(m);
+    setError("");
+    setCodeSent(false);
+    setCode("");
   };
 
   return (
@@ -82,74 +135,129 @@ export default function Login() {
             </div>
           </div>
           <h2 className="text-2xl font-display font-bold text-center text-foreground mb-2">Partner Login</h2>
-          <p className="text-center text-muted-foreground mb-8">Welcome back to the portal.</p>
+          <p className="text-center text-muted-foreground mb-6">Welcome back to the portal.</p>
+
+          <div className="flex rounded-xl border border-border overflow-hidden mb-6">
+            <button
+              type="button"
+              onClick={() => switchMode("password")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${mode === "password" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
+            >
+              <KeyRound className="w-4 h-4" /> Password
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("code")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${mode === "code" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
+            >
+              <Mail className="w-4 h-4" /> Email Code
+            </button>
+          </div>
 
           {error && (
-            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-xl mb-6 border border-destructive/20 text-center font-medium">
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-xl mb-4 border border-destructive/20 text-center font-medium">
               {error}
             </div>
           )}
 
-          <div className="flex flex-col gap-3 mb-6">
-            <button
-              type="button"
-              onClick={handleMicrosoftSSO}
-              disabled={ssoLoading || isLoggingIn}
-              className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-            >
-              <MicrosoftIcon />
-              {ssoLoading ? "Signing in..." : "Sign in with Microsoft"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleReplitAuth}
-              disabled={ssoLoading || isLoggingIn}
-              className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16zm-1-11h2v2h-2V9zm0 4h2v6h-2v-6z" fill="currentColor"/>
-              </svg>
-              {ssoLoading ? "Signing in..." : "Continue"}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 border-t border-border" />
-            <span className="text-xs text-muted-foreground font-medium">or sign in with email</span>
-            <div className="flex-1 border-t border-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground ml-1">Work Email</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@company.com"
-                className="bg-slate-50 dark:bg-slate-950"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-semibold text-foreground">Password</label>
-                <a href="#" className="text-xs text-primary hover:underline font-medium">Forgot password?</a>
+          {mode === "password" ? (
+            <>
+              <div className="flex flex-col gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={handleMicrosoftSSO}
+                  disabled={ssoLoading || isLoggingIn}
+                  className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <MicrosoftIcon />
+                  {ssoLoading ? "Signing in..." : "Sign in with Microsoft"}
+                </button>
               </div>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="bg-slate-50 dark:bg-slate-950"
-              />
-            </div>
-            <Button type="submit" className="w-full h-12 text-base rounded-xl" disabled={isLoggingIn || ssoLoading}>
-              {isLoggingIn ? "Signing in..." : "Sign In"} <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </form>
+
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex-1 border-t border-border" />
+                <span className="text-xs text-muted-foreground font-medium">or sign in with email</span>
+                <div className="flex-1 border-t border-border" />
+              </div>
+
+              <form onSubmit={handlePasswordSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground ml-1">Work Email</label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="you@company.com"
+                    className="bg-slate-50 dark:bg-slate-950"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-sm font-semibold text-foreground">Password</label>
+                  </div>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="bg-slate-50 dark:bg-slate-950"
+                  />
+                </div>
+                <Button type="submit" className="w-full h-12 text-base rounded-xl" disabled={isLoggingIn || ssoLoading}>
+                  {isLoggingIn ? "Signing in..." : "Sign In"} <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </form>
+            </>
+          ) : !codeSent ? (
+            <form onSubmit={handleRequestCode} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground ml-1">Work Email</label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@company.com"
+                  className="bg-slate-50 dark:bg-slate-950"
+                />
+              </div>
+              <Button type="submit" className="w-full h-12 text-base rounded-xl" disabled={codeLoading}>
+                <Mail className="mr-2 w-4 h-4" />
+                {codeLoading ? "Sending..." : "Send Login Code"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyCode} className="space-y-5">
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+                <p className="text-sm text-muted-foreground">We sent a 6-digit code to</p>
+                <p className="font-semibold text-foreground mt-1">{email}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground ml-1">Enter Code</label>
+                <Input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                  placeholder="000000"
+                  maxLength={6}
+                  className="bg-slate-50 dark:bg-slate-950 text-center text-2xl tracking-widest font-bold"
+                />
+              </div>
+              <Button type="submit" className="w-full h-12 text-base rounded-xl" disabled={codeLoading || code.length !== 6}>
+                {codeLoading ? "Verifying..." : "Verify & Sign In"} <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setCodeSent(false); setCode(""); setError(""); }}
+                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Didn't receive it? Send again
+              </button>
+            </form>
+          )}
 
           <p className="text-center text-sm text-muted-foreground mt-8">
             Not a partner yet? <Link href="/register" className="text-primary font-semibold hover:underline">Apply here</Link>

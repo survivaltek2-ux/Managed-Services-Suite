@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Settings, Briefcase, MessageSquare, Users, HelpCircle,
   Inbox, FileText, Ticket as TicketIcon, LogOut, Loader2, Plus, Edit2,
   Trash2, Save, Search, Download, Activity, PenTool, Eye, Send, Check,
-  X, ChevronDown, BarChart3, Clock, DollarSign, AlertCircle
+  X, ChevronDown, BarChart3, Clock, DollarSign, AlertCircle, Mail, KeyRound
 } from "lucide-react";
 import {
   Button, Input, Textarea, Label, Card, CardHeader, CardTitle, CardContent, Badge,
@@ -40,6 +40,10 @@ export default function Admin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [loginMode, setLoginMode] = useState<"password" | "code">("password");
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeLoading, setCodeLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Record<string, any>>({});
@@ -135,6 +139,43 @@ export default function Admin() {
     }
   };
 
+  const handleRequestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) { setLoginError("Please enter your email address."); return; }
+    setLoginError("");
+    setCodeLoading(true);
+    try {
+      const res = await fetch("/api/auth/request-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, type: "user" }),
+      });
+      const d = await res.json();
+      if (res.ok) setCodeSent(true);
+      else setLoginError(d.message || "Failed to send code.");
+    } catch { setLoginError("Failed to send code."); }
+    finally { setCodeLoading(false); }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setCodeLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, type: "user" }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        if (d.user.role === "admin") { login(d.token, d.user); toast({ title: "Logged in as Admin" }); }
+        else setLoginError(`Access denied. Role '${d.user.role}' is not admin.`);
+      } else setLoginError(d.message || "Invalid or expired code.");
+    } catch { setLoginError("Failed to verify code."); }
+    finally { setCodeLoading(false); }
+  };
+
   if (!isAuthenticated || !isAdmin) {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
@@ -146,21 +187,59 @@ export default function Admin() {
             <CardTitle>Admin Access</CardTitle>
             <p className="text-sm text-muted-foreground mt-2">Sign in with your administrator account</p>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">{loginError}</div>}
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" />
-              </div>
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Sign In
-              </Button>
-            </form>
+          <CardContent className="space-y-4">
+            <div className="flex rounded-lg border overflow-hidden">
+              <button type="button" onClick={() => { setLoginMode("password"); setLoginError(""); setCodeSent(false); setCode(""); }} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold transition-colors ${loginMode === "password" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}>
+                <KeyRound className="w-3.5 h-3.5" /> Password
+              </button>
+              <button type="button" onClick={() => { setLoginMode("code"); setLoginError(""); setCodeSent(false); setCode(""); }} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold transition-colors ${loginMode === "code" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}>
+                <Mail className="w-3.5 h-3.5" /> Email Code
+              </button>
+            </div>
+
+            {loginError && <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">{loginError}</div>}
+
+            {loginMode === "password" ? (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                  {isLoggingIn && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Sign In
+                </Button>
+              </form>
+            ) : !codeSent ? (
+              <form onSubmit={handleRequestCode} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" />
+                </div>
+                <Button type="submit" className="w-full" disabled={codeLoading}>
+                  <Mail className="w-4 h-4 mr-2" />{codeLoading ? "Sending..." : "Send Login Code"}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-center text-sm">
+                  <p className="text-muted-foreground">Code sent to <strong>{email}</strong></p>
+                </div>
+                <div className="space-y-2">
+                  <Label>6-Digit Code</Label>
+                  <Input type="text" required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" maxLength={6} className="text-center text-xl tracking-widest font-bold" />
+                </div>
+                <Button type="submit" className="w-full" disabled={codeLoading || code.length !== 6}>
+                  {codeLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Verify & Sign In
+                </Button>
+                <button type="button" onClick={() => { setCodeSent(false); setCode(""); setLoginError(""); }} className="w-full text-sm text-muted-foreground hover:text-foreground">
+                  Didn't receive it? Send again
+                </button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>
