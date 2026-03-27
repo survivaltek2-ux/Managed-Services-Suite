@@ -9,16 +9,6 @@ import {
   FileText, ClipboardList, ExternalLink, Clock, CheckCircle2, XCircle, Eye, Send
 } from "lucide-react";
 
-function MicrosoftIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-    </svg>
-  );
-}
 
 const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -117,15 +107,6 @@ export default function Portal() {
     finally { setQuotesLoading(false); }
   };
 
-  const handleMicrosoftSSO = () => {
-    setSsoLoading(true);
-    window.location.href = getApiUrl("/auth/sso/microsoft?type=client");
-  };
-
-  const handleReplitAuth = () => {
-    setSsoLoading(true);
-    window.location.href = getApiUrl("/auth/replit?type=client");
-  };
 
   const { toast } = useToast();
   const loginMutation = useLogin();
@@ -219,35 +200,6 @@ export default function Portal() {
               </div>
             ) : (
               <>
-                {!isRegistering && (
-                  <>
-                    <div className="flex flex-col gap-3 mb-5">
-                      <button
-                        type="button"
-                        onClick={handleMicrosoftSSO}
-                        className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white hover:bg-gray-50 transition-colors font-semibold text-sm text-foreground shadow-sm"
-                      >
-                        <MicrosoftIcon />
-                        Sign in with Microsoft
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleReplitAuth}
-                        className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white hover:bg-gray-50 transition-colors font-semibold text-sm text-foreground shadow-sm"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16zm-1-11h2v2h-2V9zm0 4h2v6h-2v-6z" fill="currentColor"/>
-                        </svg>
-                        Continue
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="flex-1 border-t border-border" />
-                      <span className="text-xs text-muted-foreground font-medium">or sign in with email</span>
-                      <div className="flex-1 border-t border-border" />
-                    </div>
-                  </>
-                )}
                 <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
                   {isRegistering && (
                     <>
