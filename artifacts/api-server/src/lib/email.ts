@@ -104,12 +104,12 @@ async function sendViaSmtp(cfg: EmailConfig, to: string, subject: string, html: 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
   try {
-    if (cfg.mailgunApiKey && cfg.mailgunDomain) {
-      await sendViaMailgun(cfg, to, subject, html);
-      console.log(`[Email/Mailgun] Sent to ${to}: "${subject}"`);
-    } else if (cfg.user && cfg.pass) {
+    if (cfg.user && cfg.pass) {
       await sendViaSmtp(cfg, to, subject, html);
       console.log(`[Email/SMTP] Sent to ${to}: "${subject}"`);
+    } else if (cfg.mailgunApiKey && cfg.mailgunDomain) {
+      await sendViaMailgun(cfg, to, subject, html);
+      console.log(`[Email/Mailgun] Sent to ${to}: "${subject}"`);
     } else {
       console.log(`[Email] Not configured — skipped email to ${to.split("@")[1]}: "${subject}"`);
       return false;
