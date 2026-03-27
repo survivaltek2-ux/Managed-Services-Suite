@@ -37,9 +37,8 @@ Please read this policy carefully. If you disagree with its terms, please discon
   {
     title: "SMS Messaging & Mobile Phone Numbers",
     highlight: true,
-    content: `Siebert Services does not share, sell, or rent your mobile phone number or any personal information collected through SMS messaging with third parties for their marketing purposes. Your mobile number will only be used to send you the SMS messages you have opted in to receive.
-
-By opting in to SMS communications from Siebert Services, you consent to receive text messages related to your account, service updates, support notifications, and other information you have requested. Standard message and data rates may apply. You may opt out at any time by replying STOP to any message or by contacting us directly.`,
+    phrase: "Siebert Services does not share, sell, or rent your mobile phone number or any personal information collected through SMS messaging with third parties for their marketing purposes. Your mobile number will only be used to send you the SMS messages you have opted in to receive.",
+    content: `By opting in to SMS communications from Siebert Services, you consent to receive text messages related to your account, service updates, support notifications, and other information you have requested. Standard message and data rates may apply. You may opt out at any time by replying STOP to any message or by contacting us directly.`,
   },
   {
     title: "How We Use Your Information",
@@ -163,13 +162,20 @@ export default function Privacy() {
             >
               {section.highlight ? (
                 <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-8">
-                  <h2 className="text-xl font-display font-bold text-navy mb-4 flex items-center gap-2">
+                  <h2 className="text-xl font-display font-bold text-navy mb-5 flex items-center gap-2">
                     <Shield className="w-5 h-5 text-primary shrink-0" />
                     {section.title}
                   </h2>
-                  <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                    {section.content}
-                  </p>
+                  {section.phrase && (
+                    <p className="text-navy font-semibold text-base leading-relaxed mb-4">
+                      {section.phrase}
+                    </p>
+                  )}
+                  {section.content && (
+                    <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {section.content}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div>
