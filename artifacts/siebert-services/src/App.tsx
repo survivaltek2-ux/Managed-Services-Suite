@@ -16,6 +16,7 @@ import Admin from "./pages/Admin";
 import ProposalView from "./pages/ProposalView";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function PublicRouter() {
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/proposal/:number" component={ProposalView} />
+        <Route path="/privacy" component={Privacy} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

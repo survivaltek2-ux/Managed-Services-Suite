@@ -89,7 +89,7 @@ export function Footer() {
             © {new Date().getFullYear()} Siebert Repair Services LLC DBA Siebert Services. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm text-white/50">
-            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
             <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
           </div>
         </div>
