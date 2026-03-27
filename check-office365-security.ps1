@@ -6,9 +6,9 @@ param(
     [string]$UserEmail = "richard.siebert@siebertrservices.com"
 )
 
-Write-Host "=" * 60
-Write-Host "Office 365 Security Settings Checker"
-Write-Host "=" * 60
+Write-Host "============================================================" -ForegroundColor White
+Write-Host "Office 365 Security Settings Checker" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor White
 Write-Host ""
 
 # Check if Exchange Online module is installed
@@ -22,9 +22,10 @@ if (-not $module) {
 Write-Host "1. Connecting to Exchange Online..." -ForegroundColor Cyan
 try {
     Connect-ExchangeOnline -UserPrincipalName $UserEmail -WarningAction SilentlyContinue
-    Write-Host "   ✓ Connected" -ForegroundColor Green
-} catch {
-    Write-Host "   ✗ Failed to connect: $_" -ForegroundColor Red
+    Write-Host "   [OK] Connected" -ForegroundColor Green
+}
+catch {
+    Write-Host "   [ERROR] Failed to connect: $_" -ForegroundColor Red
     exit 1
 }
 
@@ -36,9 +37,10 @@ Write-Host ""
 Write-Host "   SMTP Authentication (Org-wide):"
 $smtpAuth = Get-TransportConfig | Select-Object -ExpandProperty SmtpClientAuthenticationDisabled
 if ($smtpAuth -eq $false) {
-    Write-Host "      ✓ ENABLED" -ForegroundColor Green
-} else {
-    Write-Host "      ✗ DISABLED" -ForegroundColor Red
+    Write-Host "      [OK] ENABLED" -ForegroundColor Green
+}
+else {
+    Write-Host "      [BLOCKED] DISABLED" -ForegroundColor Red
 }
 
 # Check Modern Authentication
@@ -46,14 +48,15 @@ Write-Host ""
 Write-Host "   Modern Authentication (Org-wide):"
 $modernAuth = Get-OrganizationConfig | Select-Object -ExpandProperty OAuth2ClientProfileEnabled
 if ($modernAuth -eq $true) {
-    Write-Host "      ✓ ENABLED" -ForegroundColor Green
-} else {
-    Write-Host "      ✗ DISABLED" -ForegroundColor Red
+    Write-Host "      [OK] ENABLED" -ForegroundColor Green
+}
+else {
+    Write-Host "      [BLOCKED] DISABLED" -ForegroundColor Red
 }
 
-# Check Require Multi-Factor Authentication
+# Check Conditional Access (if available)
 Write-Host ""
-Write-Host "   Conditional Access & MFA Policies:"
+Write-Host "   Conditional Access and MFA Policies:"
 try {
     $policies = Get-ConditionalAccessPolicy -ErrorAction SilentlyContinue
     if ($policies) {
@@ -61,10 +64,12 @@ try {
         $policies | ForEach-Object {
             Write-Host "         - $($_.DisplayName)"
         }
-    } else {
+    }
+    else {
         Write-Host "      No Conditional Access policies found" -ForegroundColor Gray
     }
-} catch {
+}
+catch {
     Write-Host "      (Requires Azure AD PowerShell)" -ForegroundColor Gray
 }
 
@@ -81,55 +86,50 @@ if ($mailbox) {
     
     # Check if mailbox is active
     $user = Get-User -Identity $UserEmail
-    Write-Host "      Active: $($user.RecipientTypeDetails)" -ForegroundColor Gray
-} else {
-    Write-Host "   ✗ Mailbox not found" -ForegroundColor Red
+    Write-Host "      Type: $($user.RecipientTypeDetails)" -ForegroundColor Gray
+}
+else {
+    Write-Host "   [ERROR] Mailbox not found" -ForegroundColor Red
 }
 
 # Check SMTP Client Settings for user
 Write-Host ""
-Write-Host "   SMTP Client Auth (User-level):"
+Write-Host "   Client Access (User-level):"
 $clientSettings = Get-CASMailbox -Identity $UserEmail -ErrorAction SilentlyContinue
 if ($clientSettings) {
     Write-Host "      OWA Enabled: $($clientSettings.OWAEnabled)" -ForegroundColor Gray
     Write-Host "      POP Enabled: $($clientSettings.POPEnabled)" -ForegroundColor Gray
     Write-Host "      IMAP Enabled: $($clientSettings.IMAPEnabled)" -ForegroundColor Gray
-    Write-Host "      SMTP Auth: $($clientSettings.SmtpClientAuthenticationDisabled)" -ForegroundColor Gray
-} else {
+}
+else {
     Write-Host "      Could not retrieve CAS settings" -ForegroundColor Yellow
 }
 
-# Check for app passwords/registered devices
-Write-Host ""
-Write-Host "4. Checking Authentication Methods..." -ForegroundColor Cyan
-Write-Host ""
-Write-Host "   (Requires Azure AD PowerShell to check app passwords & devices)"
-Write-Host "   Run: Connect-MgGraph"
-Write-Host "   Then: Get-MgUserAuthenticationMethod -UserId $UserEmail"
-
 # Check mailbox permissions
 Write-Host ""
-Write-Host "5. Mailbox Delegation & Permissions:" -ForegroundColor Cyan
+Write-Host "4. Mailbox Delegation and Permissions:" -ForegroundColor Cyan
 Write-Host ""
 $permissions = Get-MailboxPermission -Identity $UserEmail | Where-Object { $_.User -notlike "SELF" -and $_.IsInherited -eq $false }
 if ($permissions) {
-    Write-Host "   Found delegated access:" -ForegroundColor Yellow
+    Write-Host "   [ATTENTION] Found delegated access:" -ForegroundColor Yellow
     $permissions | ForEach-Object {
         Write-Host "      - $($_.User): $($_.AccessRights)" -ForegroundColor Gray
     }
-} else {
-    Write-Host "   ✓ No unexpected permissions" -ForegroundColor Green
+}
+else {
+    Write-Host "   [OK] No unexpected permissions" -ForegroundColor Green
 }
 
 # Check forwarding rules
 Write-Host ""
-Write-Host "6. Email Forwarding & Rules:" -ForegroundColor Cyan
+Write-Host "5. Email Forwarding and Rules:" -ForegroundColor Cyan
 Write-Host ""
 $forwarding = Get-Mailbox -Identity $UserEmail | Select-Object -ExpandProperty ForwardingAddress
 if ($forwarding) {
-    Write-Host "   ✗ Forwarding Address Set: $forwarding" -ForegroundColor Yellow
-} else {
-    Write-Host "   ✓ No forwarding address" -ForegroundColor Green
+    Write-Host "   [ATTENTION] Forwarding Address Set: $forwarding" -ForegroundColor Yellow
+}
+else {
+    Write-Host "   [OK] No forwarding address" -ForegroundColor Green
 }
 
 $rules = Get-InboxRule -Mailbox $UserEmail -ErrorAction SilentlyContinue
@@ -143,14 +143,14 @@ if ($rules) {
 }
 
 Write-Host ""
-Write-Host "=" * 60
+Write-Host "============================================================" -ForegroundColor White
 Write-Host "Security Check Complete" -ForegroundColor Green
-Write-Host "=" * 60
+Write-Host "============================================================" -ForegroundColor White
 Write-Host ""
-Write-Host "SUMMARY:"
-Write-Host "  • If SMTP Auth shows DISABLED, that's your issue with email sending"
-Write-Host "  • Contact Office 365 admin if you don't see ENABLED"
-Write-Host "  • Check Conditional Access policies if MFA is blocking SMTP"
+Write-Host "KEY FINDINGS:"
+Write-Host "  * If SMTP Auth shows [BLOCKED], that is why emails are failing"
+Write-Host "  * You need to enable SMTP Authentication in Office 365 admin"
+Write-Host "  * Check for Conditional Access policies blocking SMTP"
 Write-Host ""
 
 # Disconnect
