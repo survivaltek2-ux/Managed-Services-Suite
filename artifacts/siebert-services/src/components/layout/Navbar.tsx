@@ -1,15 +1,33 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
-import { useState, useEffect } from "react";
-import { Menu, X, PhoneCall, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Menu, X, PhoneCall, ChevronRight, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+
+const partnerLinks = [
+  { name: "Zoom", href: "/zoom" },
+  { name: "Extreme Networks", href: "/extreme-networks" },
+  { name: "HP", href: "/hp" },
+  { name: "Dell", href: "/dell" },
+  { name: "Juniper Networks", href: "/juniper-networks" },
+];
+
+const topNavLinks = [
+  { name: "Home", href: "/" },
+  { name: "Services", href: "/services" },
+  { name: "About", href: "/about" },
+  { name: "Contact", href: "/contact" },
+];
 
 export function Navbar() {
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [partnersOpen, setPartnersOpen] = useState(false);
+  const [mobilePartnersOpen, setMobilePartnersOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -17,13 +35,17 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Services", href: "/services" },
-    { name: "Zoom Partner", href: "/zoom" },
-    { name: "About", href: "/about" },
-    { name: "Contact", href: "/contact" },
-  ];
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setPartnersOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isPartnerActive = partnerLinks.some((l) => location === l.href);
 
   return (
     <header
@@ -46,14 +68,14 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
+            {topNavLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "text-sm font-semibold transition-colors hover:text-primary relative group",
+                  "text-sm font-semibold transition-colors hover:text-primary relative",
                   isScrolled ? "text-navy-light" : "text-white/90",
-                  location === link.href && (isScrolled ? "text-primary" : "text-primary")
+                  location === link.href && "text-primary"
                 )}
               >
                 {link.name}
@@ -62,6 +84,46 @@ export function Navbar() {
                 )}
               </Link>
             ))}
+
+            {/* Partners Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setPartnersOpen((o) => !o)}
+                className={cn(
+                  "flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary relative",
+                  isScrolled ? "text-navy-light" : "text-white/90",
+                  (isPartnerActive || partnersOpen) && "text-primary"
+                )}
+              >
+                Partners
+                <ChevronDown className={cn("w-4 h-4 transition-transform", partnersOpen && "rotate-180")} />
+                {isPartnerActive && (
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full" />
+                )}
+              </button>
+
+              {partnersOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-52 bg-white rounded-2xl shadow-xl border border-border py-2 z-50">
+                  <div className="px-3 pb-2 pt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Vendor Partners</p>
+                  </div>
+                  {partnerLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setPartnersOpen(false)}
+                      className={cn(
+                        "flex items-center justify-between px-4 py-2.5 text-sm font-semibold transition-colors mx-1 rounded-xl",
+                        location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+                      )}
+                    >
+                      {link.name}
+                      <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* Desktop CTA */}
@@ -92,8 +154,8 @@ export function Navbar() {
 
       {/* Mobile Nav */}
       {mobileMenuOpen && (
-        <div className="lg:hidden absolute top-full left-0 w-full bg-white border-b border-border shadow-xl py-4 px-4 flex flex-col gap-4 animate-fade-in">
-          {navLinks.map((link) => (
+        <div className="lg:hidden absolute top-full left-0 w-full bg-white border-b border-border shadow-xl py-4 px-4 flex flex-col gap-1 animate-fade-in">
+          {topNavLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -107,6 +169,37 @@ export function Navbar() {
               <ChevronRight className="w-4 h-4 opacity-50" />
             </Link>
           ))}
+
+          {/* Mobile Partners accordion */}
+          <button
+            onClick={() => setMobilePartnersOpen((o) => !o)}
+            className={cn(
+              "px-4 py-3 rounded-xl font-semibold flex items-center justify-between w-full text-left",
+              isPartnerActive ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+            )}
+          >
+            Partners
+            <ChevronDown className={cn("w-4 h-4 opacity-50 transition-transform", mobilePartnersOpen && "rotate-180")} />
+          </button>
+          {mobilePartnersOpen && (
+            <div className="pl-4 flex flex-col gap-1">
+              {partnerLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => { setMobileMenuOpen(false); setMobilePartnersOpen(false); }}
+                  className={cn(
+                    "px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between",
+                    location === link.href ? "bg-primary/10 text-primary" : "text-navy-light hover:bg-gray-50"
+                  )}
+                >
+                  {link.name}
+                  <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                </Link>
+              ))}
+            </div>
+          )}
+
           <hr className="my-2" />
           <div className="flex flex-col gap-3 px-4">
             <Link href="/portal" onClick={() => setMobileMenuOpen(false)}>
