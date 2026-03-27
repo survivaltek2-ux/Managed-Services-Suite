@@ -18,6 +18,9 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Privacy from "./pages/Privacy";
 import ExtremeNetworks from "./pages/ExtremeNetworks";
+import HP from "./pages/HP";
+import Dell from "./pages/Dell";
+import JuniperNetworks from "./pages/JuniperNetworks";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -38,6 +41,9 @@ function PublicRouter() {
         <Route path="/proposal/:number" component={ProposalView} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/extreme-networks" component={ExtremeNetworks} />
+        <Route path="/hp" component={HP} />
+        <Route path="/dell" component={Dell} />
+        <Route path="/juniper-networks" component={JuniperNetworks} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
