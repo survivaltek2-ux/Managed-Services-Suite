@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
-import { db, quotesTable, quoteProposalsTable, quoteLineItemsTable } from "@workspace/db";
+import { db, quotesTable, quoteProposalsTable, quoteLineItemsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { sendQuoteRequestNotification } from "../lib/email.js";
@@ -290,6 +290,31 @@ router.post("/proposals/:number/respond", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to respond to proposal" });
+  }
+});
+
+// ─── Customer: My Quotes & Proposals ────────────────────────────────────────
+
+router.get("/my/quotes", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (!user) { res.status(404).json({ error: "not_found" }); return; }
+
+    const quotes = await db.select().from(quotesTable)
+      .where(eq(quotesTable.email, user.email))
+      .orderBy(desc(quotesTable.createdAt));
+
+    const proposals = await db.select().from(quoteProposalsTable)
+      .where(eq(quoteProposalsTable.clientEmail, user.email))
+      .orderBy(desc(quoteProposalsTable.createdAt));
+
+    res.json({
+      quotes: quotes.map(q => ({ ...q, services: (() => { try { return JSON.parse(q.services); } catch { return [q.services]; } })() })),
+      proposals,
+    });
+  } catch (err) {
+    console.error("My quotes error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to load your quotes" });
   }
 });
 
