@@ -86,7 +86,7 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
       return;
     }
 
-    const { enabled, credentialRef, username, password, webhookSecret } = req.body;
+    const { enabled, credentialRef, username, password, mfaPhone, mfaCode, webhookSecret } = req.body;
 
     const existing = await db.select().from(tsdConfigsTable)
       .where(eq(tsdConfigsTable.provider, provider as TsdProvider)).limit(1);
@@ -102,6 +102,12 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
     if (password && password !== "" && !password.includes("****")) {
       updateData.password = encryptOrThrow(password);
     }
+    if (mfaPhone && mfaPhone !== "" && !mfaPhone.includes("****")) {
+      updateData.mfaPhone = encryptOrThrow(mfaPhone);
+    }
+    if (mfaCode !== undefined && mfaCode !== "" && !mfaCode.includes("****")) {
+      updateData.mfaCode = encryptOrThrow(mfaCode);
+    }
     if (webhookSecret !== undefined && webhookSecret !== "" && !webhookSecret.includes("****")) {
       updateData.webhookSecret = encryptOrThrow(webhookSecret);
     }
@@ -114,6 +120,8 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
         credentialRef: credentialRef && !credentialRef.includes("****") ? encryptOrThrow(credentialRef) : null,
         username: username && !username.includes("****") ? encryptOrThrow(username) : null,
         password: password && !password.includes("****") ? encryptOrThrow(password) : null,
+        mfaPhone: mfaPhone && !mfaPhone.includes("****") ? encryptOrThrow(mfaPhone) : null,
+        mfaCode: mfaCode && !mfaCode.includes("****") ? encryptOrThrow(mfaCode) : null,
         webhookSecret: webhookSecret && !webhookSecret.includes("****") ? encryptOrThrow(webhookSecret) : null,
       }).returning();
       savedConfig = created;
