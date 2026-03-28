@@ -12,6 +12,38 @@ const TENANT_ID = process.env.MICROSOFT_TENANT_ID || "common";
 const REDIRECT_URI = process.env.MICROSOFT_REDIRECT_URI || "";
 const JWT_SECRET = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
 
+interface MicrosoftTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope: string;
+  id_token?: string;
+}
+
+interface MicrosoftIdTokenClaims {
+  tid?: string;
+  oid?: string;
+  email?: string;
+  preferred_username?: string;
+}
+
+interface MicrosoftProfile {
+  id: string;
+  displayName?: string;
+  mail?: string;
+  userPrincipalName?: string;
+  companyName?: string;
+}
+
+function decodeIdTokenClaims(idToken: string): MicrosoftIdTokenClaims {
+  try {
+    const payload = idToken.split(".")[1];
+    return JSON.parse(Buffer.from(payload, "base64url").toString()) as MicrosoftIdTokenClaims;
+  } catch {
+    return {};
+  }
+}
+
 router.get("/auth/sso/microsoft", (req, res) => {
   if (!CLIENT_ID || !REDIRECT_URI) {
     res.status(503).json({ error: "sso_not_configured", message: "Microsoft SSO is not configured." });
@@ -69,7 +101,16 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
       return;
     }
 
-    const tokenData = await tokenRes.json();
+    const tokenData = (await tokenRes.json()) as MicrosoftTokenResponse;
+
+    if (TENANT_ID !== "common" && tokenData.id_token) {
+      const claims = decodeIdTokenClaims(tokenData.id_token);
+      if (claims.tid && claims.tid !== TENANT_ID) {
+        console.warn(`[SSO] Tenant mismatch: expected ${TENANT_ID}, got ${claims.tid}`);
+        res.redirect(`${loginPath}?sso_error=wrong_tenant`);
+        return;
+      }
+    }
 
     const profileRes = await fetch(
       "https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName,companyName",
@@ -81,10 +122,10 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
       return;
     }
 
-    const profile = await profileRes.json();
+    const profile = (await profileRes.json()) as MicrosoftProfile;
     const email = (profile.mail || profile.userPrincipalName || "").toLowerCase().trim();
     const name = profile.displayName || email;
-    const ssoId = profile.id as string;
+    const ssoId = profile.id;
 
     if (!email) {
       res.redirect(`${loginPath}?sso_error=no_email`);

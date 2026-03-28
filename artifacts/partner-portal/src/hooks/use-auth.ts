@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 
-// Helper to get headers with token
 export function getAuthHeaders() {
   const token = localStorage.getItem("partner_token");
   return {
@@ -31,11 +30,11 @@ export function useAuth() {
     queryFn: async () => {
       const token = localStorage.getItem("partner_token");
       if (!token) return null;
-      
+
       const res = await fetch("/api/partner/auth/me", {
         headers: getAuthHeaders(),
       });
-      
+
       if (!res.ok) {
         if (res.status === 401) {
           localStorage.removeItem("partner_token");
@@ -91,6 +90,12 @@ export function useAuth() {
     },
   });
 
+  const handleSsoToken = (token: string) => {
+    localStorage.setItem("partner_token", token);
+    queryClient.invalidateQueries({ queryKey: ["/api/partner/auth/me"] });
+    setLocation("/dashboard");
+  };
+
   const logout = () => {
     localStorage.removeItem("partner_token");
     queryClient.setQueryData(["/api/partner/auth/me"], null);
@@ -104,6 +109,7 @@ export function useAuth() {
     isLoggingIn: loginMutation.isPending,
     register: registerMutation.mutateAsync,
     isRegistering: registerMutation.isPending,
+    handleSsoToken,
     logout,
   };
 }

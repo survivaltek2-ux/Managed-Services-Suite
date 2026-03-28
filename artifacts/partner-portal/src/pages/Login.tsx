@@ -4,7 +4,7 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/hooks/use-auth";
-import { Building2, ArrowRight, Mail, KeyRound } from "lucide-react";
+import { Building2, ArrowRight, Mail, KeyRound, AlertCircle } from "lucide-react";
 
 function MicrosoftIcon() {
   return (
@@ -17,8 +17,18 @@ function MicrosoftIcon() {
   );
 }
 
+const SSO_ERROR_MESSAGES: Record<string, string> = {
+  access_denied: "Sign-in was cancelled. Please try again.",
+  token_failed: "Could not complete sign-in. Please try again.",
+  profile_failed: "Could not retrieve your Microsoft profile. Please try again.",
+  no_account: "No partner account found for your Microsoft email. Please contact your account manager to get access.",
+  wrong_tenant: "Your Microsoft account belongs to an unauthorized organization. Please sign in with your company account.",
+  server_error: "An error occurred during sign-in. Please try again.",
+  no_email: "Could not retrieve your email from Microsoft. Please try again.",
+};
+
 export default function Login() {
-  const { login, isLoggingIn } = useAuth();
+  const { login, isLoggingIn, handleSsoToken } = useAuth();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,26 +45,18 @@ export default function Login() {
     const ssoError = params.get("sso_error");
 
     if (ssoToken) {
-      setSsoLoading(true);
-      localStorage.setItem("partner_token", ssoToken);
       window.history.replaceState({}, "", window.location.pathname);
-      setLocation("/dashboard");
+      handleSsoToken(ssoToken);
       return;
     }
 
     if (ssoError) {
-      const messages: Record<string, string> = {
-        access_denied: "Sign-in was cancelled.",
-        token_failed: "Could not complete sign-in. Please try again.",
-        profile_failed: "Could not retrieve your profile.",
-        no_account: "No partner account found for your email. Please contact your account manager.",
-        server_error: "An error occurred during sign-in. Please try again.",
-        no_email: "Could not retrieve your email.",
-      };
-      setError(messages[ssoError] || "Sign-in failed. Please try again.");
+      const message = SSO_ERROR_MESSAGES[ssoError] ?? "Sign-in failed. Please try again.";
+      setError(message);
+      setMode("password");
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [setLocation]);
+  }, [handleSsoToken]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +116,7 @@ export default function Login() {
   };
 
   const handleMicrosoftSSO = () => {
+    setError("");
     setSsoLoading(true);
     window.location.href = "/api/auth/sso/microsoft?type=partner";
   };
@@ -155,8 +158,9 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-xl mb-4 border border-destructive/20 text-center font-medium">
-              {error}
+            <div className="flex items-start gap-2.5 bg-destructive/10 text-destructive text-sm p-3.5 rounded-xl mb-4 border border-destructive/20 font-medium">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -170,7 +174,7 @@ export default function Login() {
                   className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                 >
                   <MicrosoftIcon />
-                  {ssoLoading ? "Signing in..." : "Sign in with Microsoft"}
+                  {ssoLoading ? "Redirecting to Microsoft..." : "Sign in with Microsoft"}
                 </button>
               </div>
 
