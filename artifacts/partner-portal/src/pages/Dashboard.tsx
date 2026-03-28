@@ -163,7 +163,6 @@ export default function Dashboard() {
               <QuickAction href="/deals" icon={Handshake} label="Register New Deal" />
               <QuickAction href="/commissions" icon={DollarSign} label="View Commissions" />
               <QuickAction href="/support" icon={Headphones} label="Open Support Ticket" />
-              <QuickAction href="/mdf" icon={FileText} label="Request MDF Funds" />
               <QuickAction href="/resources" icon={Target} label="Browse Resources" />
               <QuickAction href="/training" icon={TrendingUp} label="Continue Training" />
             </div>

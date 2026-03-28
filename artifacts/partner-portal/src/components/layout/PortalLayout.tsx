@@ -34,7 +34,6 @@ const BASE_NAV_ITEMS = [
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/training", label: "Training", icon: Award },
   { href: "/support", label: "Support", icon: Headphones },
-  { href: "/mdf", label: "MDF", icon: TrendingUp },
   { href: "/announcements", label: "News", icon: Bell },
 ];
 

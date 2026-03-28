@@ -93,7 +93,7 @@ export default function PublicHome() {
             <TierCard 
               name="Platinum" 
               image="tier-platinum.png"
-              features={["Highest Margins", "Premium Lead Routing", "MDF Funds Eligibility", "Executive Sponsorship", "24/7 VIP Support"]} 
+              features={["Highest Margins", "Premium Lead Routing", "Executive Sponsorship", "24/7 VIP Support"]} 
             />
           </div>
         </div>

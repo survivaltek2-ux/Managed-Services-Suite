@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, partnerMdfRequestsTable, ticketsTable, ticketMessagesTable, usersTable } from "@workspace/db";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
@@ -530,60 +530,6 @@ router.post("/partner/tickets/:id/messages", requirePartnerAuth, async (req: Par
   }
 });
 
-// ─── MDF Requests ─────────────────────────────────────────────────────────────
-
-router.get("/partner/mdf", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
-  try {
-    const requests = await db.select().from(partnerMdfRequestsTable)
-      .where(eq(partnerMdfRequestsTable.partnerId, req.partnerId!))
-      .orderBy(desc(partnerMdfRequestsTable.createdAt));
-    res.json(requests);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "server_error", message: "Failed to load MDF requests" });
-  }
-});
-
-router.post("/partner/mdf", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
-  try {
-    const { title, description, activityType, requestedAmount, startDate, endDate, expectedLeads } = req.body;
-    if (!title || !description || !activityType || !requestedAmount) {
-      res.status(400).json({ error: "validation_error", message: "title, description, activityType, and requestedAmount are required" });
-      return;
-    }
-    const [request] = await db.insert(partnerMdfRequestsTable).values({
-      partnerId: req.partnerId!,
-      title, description, activityType,
-      requestedAmount: parseFloat(requestedAmount).toFixed(2),
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
-      expectedLeads: expectedLeads || null,
-      status: "submitted",
-    }).returning();
-    res.status(201).json(request);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "server_error", message: "Failed to create MDF request" });
-  }
-});
-
-router.put("/partner/mdf/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
-  try {
-    const id = parseInt(req.params.id as string);
-    const { proofOfExecution } = req.body;
-    const [request] = await db.update(partnerMdfRequestsTable).set({
-      proofOfExecution: proofOfExecution || null,
-      status: proofOfExecution ? "completed" : undefined,
-      updatedAt: new Date(),
-    }).where(and(eq(partnerMdfRequestsTable.id, id), eq(partnerMdfRequestsTable.partnerId, req.partnerId!))).returning();
-    if (!request) { res.status(404).json({ error: "not_found" }); return; }
-    res.json(request);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "server_error", message: "Failed to update MDF request" });
-  }
-});
-
 // ─── Admin Partner Management ─────────────────────────────────────────────────
 
 router.get("/admin/partners", requireAuth, async (_req, res) => {
@@ -950,22 +896,6 @@ router.post("/admin/partner/tickets/:id/messages", requireAuth, async (req, res)
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to send message" });
-  }
-});
-
-router.put("/admin/partner/mdf/:id", requireAuth, async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const { status, approvedAmount } = req.body;
-    const updates: any = { updatedAt: new Date() };
-    if (status) updates.status = status;
-    if (approvedAmount !== undefined) updates.approvedAmount = parseFloat(approvedAmount).toFixed(2);
-    if (status === "approved") updates.approvedAt = new Date();
-    const [request] = await db.update(partnerMdfRequestsTable).set(updates).where(eq(partnerMdfRequestsTable.id, id)).returning();
-    res.json(request);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "server_error", message: "Failed to update MDF request" });
   }
 });
 

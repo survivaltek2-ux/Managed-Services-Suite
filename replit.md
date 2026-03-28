@@ -71,7 +71,6 @@ Reseller/MSP partner portal at `/partners/` base path. Fully redesigned with Sal
 - `/resources` — Resource library with category filter tabs + search
 - `/training` — Training courses with progress bars, summary cards
 - `/support` — Support cases with create/view/message modals, priority/status badges
-- `/mdf` — MDF request management with KPI cards + create modal
 - `/announcements` — Company news with pinned/regular announcement cards
 - `/profile` — Company profile with business info, contact, account status sections
 
@@ -146,10 +145,9 @@ artifacts-monorepo/
 - `partner_certifications` — Available certifications
 - `partner_cert_progress` — Partner certification progress
 - `partner_announcements` — Company announcements
-- `partner_commissions` — Commission tracking (status enum: pending/approved/paid/disputed/rejected; auto-created at 10% when deals marked won)
+- `partner_commissions` — Commission tracking (status enum: pending/approved/paid/disputed/rejected; per-partner rate, notes, dispute workflow)
 - `partner_support_tickets` — Partner support tickets
 - `partner_ticket_messages` — Ticket conversation messages
-- `partner_mdf_requests` — Market Development Fund requests
 
 ## Root Scripts
 

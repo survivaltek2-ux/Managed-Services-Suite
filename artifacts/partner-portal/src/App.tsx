@@ -16,7 +16,6 @@ import Announcements from "./pages/Announcements";
 import Profile from "./pages/Profile";
 import Commissions from "./pages/Commissions";
 import SupportTickets from "./pages/SupportTickets";
-import MdfRequests from "./pages/MdfRequests";
 import ClientTickets from "./pages/ClientTickets";
 import Documents from "./pages/Documents";
 import NotFound from "./pages/not-found";
@@ -57,7 +56,6 @@ function Router() {
       <Route path="/announcements"><ProtectedRoute component={Announcements} /></Route>
       <Route path="/commissions"><ProtectedRoute component={Commissions} /></Route>
       <Route path="/support"><ProtectedRoute component={SupportTickets} /></Route>
-      <Route path="/mdf"><ProtectedRoute component={MdfRequests} /></Route>
       <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
       <Route path="/client-tickets"><ProtectedRoute component={ClientTickets} /></Route>
       <Route path="/documents"><ProtectedRoute component={Documents} /></Route>
