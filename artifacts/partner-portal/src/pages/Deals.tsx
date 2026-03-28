@@ -323,7 +323,7 @@ function VendorBadges({ vendorSelections }: { vendorSelections: VendorSelection[
   );
 }
 
-type ModalStep = "details" | "tsd-confirm";
+type WizardStep = "deal-info" | "vendors" | "products" | "review";
 
 function VendorSelector({
   selected,
@@ -678,10 +678,50 @@ function ProductSelector({ selected, onChange }: { selected: string[]; onChange:
   );
 }
 
+const WIZARD_STEPS: { id: WizardStep; label: string; description: string }[] = [
+  { id: "deal-info",  label: "Deal Info",           description: "Basic opportunity details" },
+  { id: "vendors",   label: "Vendors & Carriers",   description: "Who are you quoting?" },
+  { id: "products",  label: "Products & Services",  description: "What will they buy?" },
+  { id: "review",    label: "Review & Submit",      description: "Confirm and send" },
+];
+
+function WizardStepBar({ current }: { current: WizardStep }) {
+  const currentIdx = WIZARD_STEPS.findIndex(s => s.id === current);
+  return (
+    <div className="px-6 py-4 border-b border-[#e5e7eb] bg-white">
+      <div className="flex items-center gap-0">
+        {WIZARD_STEPS.map((step, idx) => {
+          const done   = idx < currentIdx;
+          const active = idx === currentIdx;
+          return (
+            <div key={step.id} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-1">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-all ${
+                  done   ? "bg-green-500 text-white" :
+                  active ? "bg-[#0176d3] text-white ring-4 ring-[#0176d3]/20" :
+                           "bg-[#f3f3f3] text-[#9aa0ae]"
+                }`}>
+                  {done ? <CheckCircle className="w-4 h-4" /> : idx + 1}
+                </div>
+                <div className={`text-[10px] font-semibold whitespace-nowrap ${active ? "text-[#0176d3]" : done ? "text-green-600" : "text-[#9aa0ae]"}`}>
+                  {step.label}
+                </div>
+              </div>
+              {idx < WIZARD_STEPS.length - 1 && (
+                <div className={`flex-1 h-0.5 mx-2 mb-5 transition-colors ${done ? "bg-green-400" : "bg-[#e5e7eb]"}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AddDealModal({ onClose }: { onClose: () => void }) {
   const { mutateAsync: createDeal, isPending } = useCreateDeal();
   const { mutateAsync: resolveTsdMatches, isPending: isResolving } = useResolveTsdMatches();
-  const [step, setStep] = useState<ModalStep>("details");
+  const [step, setStep] = useState<WizardStep>("deal-info");
   const [formData, setFormData] = useState({
     title: "", customerName: "", customerEmail: "", estimatedValue: "",
     products: [] as string[],
@@ -690,225 +730,297 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
   const [tsdMatches, setTsdMatches] = useState<TsdMatch[]>([]);
   const [selectedTsds, setSelectedTsds] = useState<string[]>([]);
 
-  const toggleTsd = (id: string) => {
-    setSelectedTsds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const currentIdx = WIZARD_STEPS.findIndex(s => s.id === step);
+
+  const goBack = () => setStep(WIZARD_STEPS[currentIdx - 1].id);
+
+  const handleDealInfoNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStep("vendors");
   };
 
-  const handleNext = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVendorsNext = () => setStep("products");
+
+  const handleProductsNext = async () => {
     const result = await resolveTsdMatches(formData.products);
     const matches = result.matches || [];
     setTsdMatches(matches);
-    if (matches.length === 1) {
-      setSelectedTsds([matches[0].id]);
-    } else if (matches.length > 1) {
-      setSelectedTsds([matches[0].id]);
-    } else {
-      setSelectedTsds([]);
-    }
-    setStep("tsd-confirm");
+    setSelectedTsds(matches.length > 0 ? [matches[0].id] : []);
+    setStep("review");
   };
 
   const handleSubmit = async () => {
     await createDeal({
       ...formData,
-      products: formData.products,
-      vendorSelections: formData.vendorSelections,
       estimatedValue: parseFloat(formData.estimatedValue) || 0,
       tsdTargets: selectedTsds,
     });
     onClose();
   };
 
+  const toggleTsd = (id: string) =>
+    setSelectedTsds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const ALL_TSDS: TsdMatch[] = [
+    { id: "avant",      label: "Avant" },
+    { id: "telarus",    label: "Telarus" },
+    { id: "intelisys",  label: "Intelisys" },
+  ];
+
   return (
     <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4"
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="deal-modal-title"
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      onKeyDown={e => e.key === "Escape" && onClose()}
     >
-      <div className="bg-white w-full max-w-xl rounded shadow-xl border border-[#d8dde6] flex flex-col max-h-[85vh]">
-        <div className="px-4 py-3 border-b border-[#d8dde6] flex justify-between items-center bg-[#fafaf9]">
-          <div className="flex items-center gap-2">
-            {step === "tsd-confirm" && (
-              <button onClick={() => setStep("details")} className="text-muted-foreground hover:text-foreground mr-1">
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <h2 id="deal-modal-title" className="text-base font-bold">
-              {step === "details" ? "New Deal Registration" : "Confirm TSD Routing"}
-            </h2>
+      <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl border border-[#e5e7eb] flex flex-col max-h-[90vh]">
+
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-[#e5e7eb] flex justify-between items-center">
+          <div>
+            <h2 id="deal-modal-title" className="text-lg font-bold text-foreground">New Deal Registration</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{WIZARD_STEPS[currentIdx].description}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <StepIndicator current={step} />
-            <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-[#f3f3f3]">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="p-4 overflow-y-auto flex-1">
-          {step === "details" ? (
-            <form id="deal-form" onSubmit={handleNext} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Opportunity Name *</label>
-                <input className="sf-input" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} required />
+        {/* Step progress bar */}
+        <WizardStepBar current={step} />
+
+        {/* Step content */}
+        <div className="p-6 overflow-y-auto flex-1">
+
+          {/* ── Step 1: Deal Info ── */}
+          {step === "deal-info" && (
+            <form id="wizard-form" onSubmit={handleDealInfoNext} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Opportunity Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  className="sf-input text-base"
+                  placeholder="e.g. Acme Corp — SD-WAN Refresh"
+                  value={formData.title}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  required
+                  autoFocus
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase">Customer Company *</label>
-                  <input className="sf-input" value={formData.customerName} onChange={e => setFormData({ ...formData, customerName: e.target.value })} required />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Customer Company <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    className="sf-input"
+                    placeholder="Company name"
+                    value={formData.customerName}
+                    onChange={e => setFormData({ ...formData, customerName: e.target.value })}
+                    required
+                  />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase">Customer Email</label>
-                  <input className="sf-input" type="email" value={formData.customerEmail} onChange={e => setFormData({ ...formData, customerEmail: e.target.value })} />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer Email</label>
+                  <input
+                    className="sf-input"
+                    type="email"
+                    placeholder="contact@company.com"
+                    value={formData.customerEmail}
+                    onChange={e => setFormData({ ...formData, customerEmail: e.target.value })}
+                  />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Estimated Value ($) *</label>
-                <input className="sf-input" type="number" min="0" step="0.01" value={formData.estimatedValue} onChange={e => setFormData({ ...formData, estimatedValue: e.target.value })} required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Vendors / Carriers
-                  {formData.vendorSelections.length > 0 && (
-                    <span className="ml-1 text-[#0176d3] normal-case font-normal">{formData.vendorSelections.length} selected</span>
-                  )}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Estimated Monthly Value ($) <span className="text-red-400">*</span>
                 </label>
-                <VendorSelector
-                  selected={formData.vendorSelections}
-                  onChange={vendorSelections => setFormData({ ...formData, vendorSelections })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Products &amp; Services of Interest
-                  {formData.products.length > 0 && (
-                    <span className="ml-2 text-[#0176d3] normal-case font-normal">{formData.products.length} selected</span>
-                  )}
-                </label>
-                <ProductSelector
-                  selected={formData.products}
-                  onChange={products => setFormData({ ...formData, products })}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <input
+                    className="sf-input pl-7"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.estimatedValue}
+                    onChange={e => setFormData({ ...formData, estimatedValue: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
             </form>
-          ) : (
-            <TsdConfirmStep
-              tsdMatches={tsdMatches}
-              selectedTsds={selectedTsds}
-              onToggle={toggleTsd}
-              products={formData.products}
-            />
           )}
-        </div>
 
-        <div className="px-4 py-3 border-t border-[#d8dde6] bg-[#fafaf9] flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="sf-btn sf-btn-neutral">Cancel</button>
-          {step === "details" ? (
-            <button type="submit" form="deal-form" disabled={isResolving} className="sf-btn sf-btn-primary">
-              {isResolving ? "Loading..." : "Next: TSD Routing"}
-              {!isResolving && <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
-          ) : (
-            <button onClick={handleSubmit} disabled={isPending} className="sf-btn sf-btn-primary">
-              {isPending ? "Saving..." : "Submit Deal"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StepIndicator({ current }: { current: ModalStep }) {
-  return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${current === "details" ? "bg-[#0176d3] text-white" : "bg-green-100 text-green-700"}`}>
-        {current === "details" ? "1" : <CheckCircle className="w-3 h-3" />}
-      </span>
-      <span className="w-4 h-px bg-border" />
-      <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${current === "tsd-confirm" ? "bg-[#0176d3] text-white" : "bg-[#f0f0f0] text-muted-foreground"}`}>
-        2
-      </span>
-    </div>
-  );
-}
-
-function TsdConfirmStep({
-  tsdMatches,
-  selectedTsds,
-  onToggle,
-  products,
-}: {
-  tsdMatches: TsdMatch[];
-  selectedTsds: string[];
-  onToggle: (id: string) => void;
-  products: string[];
-}) {
-  const ALL_TSDS: TsdMatch[] = [
-    { id: "avant", label: "Avant" },
-    { id: "telarus", label: "Telarus" },
-    { id: "intelisys", label: "Intelisys" },
-  ];
-
-  const isMatch = (id: string) => tsdMatches.some(m => m.id === id);
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-[#f0f7ff] border border-[#d0e7ff] rounded p-3">
-        <p className="text-sm font-semibold text-[#0176d3] mb-1">Matched TSDs for your products</p>
-        <p className="text-xs text-muted-foreground">
-          {products.length > 0
-            ? `Based on your selected products (${products.join(", ")}), the following distributors are recommended.`
-            : "Select TSD distributors to push this deal to."}
-        </p>
-        {tsdMatches.length === 1 && (
-          <p className="text-xs text-[#0176d3] mt-1 font-medium">One TSD matched — pre-selected below. You can override this.</p>
-        )}
-        {tsdMatches.length > 1 && (
-          <p className="text-xs text-[#0176d3] mt-1 font-medium">Multiple TSDs match — select one or more below.</p>
-        )}
-        {tsdMatches.length === 0 && (
-          <p className="text-xs text-yellow-700 mt-1 font-medium">No specific TSD mapping found — all options shown. You may skip or pick manually.</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-xs font-semibold text-muted-foreground uppercase">Select TSD(s) to push this deal to</label>
-        {ALL_TSDS.map(tsd => {
-          const matched = isMatch(tsd.id);
-          const selected = selectedTsds.includes(tsd.id);
-          return (
-            <label
-              key={tsd.id}
-              className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors ${selected ? "border-[#0176d3] bg-[#f0f7ff]" : "border-border hover:bg-[#f3f3f3]"}`}
-            >
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={() => onToggle(tsd.id)}
-                className="w-4 h-4 rounded text-[#0176d3] focus:ring-[#0176d3]"
+          {/* ── Step 2: Vendors ── */}
+          {step === "vendors" && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Select the carriers and vendors you're quoting for this opportunity. Then click their products to specify what you're selling.
+              </p>
+              <VendorSelector
+                selected={formData.vendorSelections}
+                onChange={vendorSelections => setFormData({ ...formData, vendorSelections })}
               />
-              <div className="flex-1">
-                <p className="font-medium text-sm">{tsd.label}</p>
-                {matched ? (
-                  <p className="text-xs text-[#0176d3]">Recommended — carries your selected products</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Not matched to your products</p>
-                )}
-              </div>
-              {matched && <span className="sf-badge sf-badge-info text-[10px]">Matched</span>}
-            </label>
-          );
-        })}
-      </div>
+            </div>
+          )}
 
-      {selectedTsds.length === 0 && (
-        <p className="text-xs text-muted-foreground italic">No TSDs selected — deal will save without a push. You can retry later from the deal detail view.</p>
-      )}
+          {/* ── Step 3: Products ── */}
+          {step === "products" && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Select the product categories and services this customer is interested in. These are used to route the deal to the right distributor.
+              </p>
+              <ProductSelector
+                selected={formData.products}
+                onChange={products => setFormData({ ...formData, products })}
+              />
+            </div>
+          )}
+
+          {/* ── Step 4: Review & Submit ── */}
+          {step === "review" && (
+            <div className="space-y-5">
+              {/* Deal summary card */}
+              <div className="rounded-lg border border-[#e5e7eb] overflow-hidden">
+                <div className="bg-[#f9fafb] px-4 py-2.5 border-b border-[#e5e7eb]">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Summary</p>
+                </div>
+                <div className="p-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Opportunity</p>
+                    <p className="font-semibold">{formData.title || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Customer</p>
+                    <p className="font-semibold">{formData.customerName || "—"}</p>
+                  </div>
+                  {formData.customerEmail && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Customer Email</p>
+                      <p className="font-medium">{formData.customerEmail}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Est. Monthly Value</p>
+                    <p className="font-semibold text-green-700">${parseFloat(formData.estimatedValue || "0").toLocaleString()}</p>
+                  </div>
+                  {formData.vendorSelections.length > 0 && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Vendors & Carriers</p>
+                      <div className="flex flex-wrap gap-1">
+                        {formData.vendorSelections.map(v => (
+                          <span key={v.vendorId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#f0f7ff] border border-[#bfdbfe] text-xs text-[#1d4ed8] rounded-full">
+                            <Building2 className="w-2.5 h-2.5" />
+                            {v.vendorName}
+                            {v.services.length > 0 && <span className="text-[#6b7280]"> · {v.services.slice(0,2).join(", ")}{v.services.length > 2 ? ` +${v.services.length - 2}` : ""}</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {formData.products.length > 0 && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Products & Services</p>
+                      <div className="flex flex-wrap gap-1">
+                        {formData.products.map(p => (
+                          <span key={p} className="px-2 py-0.5 bg-[#f3f3f3] border border-[#e5e7eb] text-xs rounded-full">{p}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* TSD routing */}
+              <div className="rounded-lg border border-[#e5e7eb] overflow-hidden">
+                <div className="bg-[#f9fafb] px-4 py-2.5 border-b border-[#e5e7eb]">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">TSD Distributor Routing</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {tsdMatches.length > 0
+                      ? `${tsdMatches.length} distributor${tsdMatches.length > 1 ? "s" : ""} matched to your products`
+                      : "Select distributors to push this deal to"}
+                  </p>
+                </div>
+                <div className="p-4 space-y-2">
+                  {ALL_TSDS.map(tsd => {
+                    const matched  = tsdMatches.some(m => m.id === tsd.id);
+                    const selected = selectedTsds.includes(tsd.id);
+                    return (
+                      <label
+                        key={tsd.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                          selected ? "border-[#0176d3] bg-[#f0f7ff]" : "border-[#e5e7eb] hover:bg-[#f9fafb]"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleTsd(tsd.id)}
+                          className="w-4 h-4 rounded text-[#0176d3] focus:ring-[#0176d3]"
+                        />
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">{tsd.label}</p>
+                          <p className={`text-xs ${matched ? "text-[#0176d3]" : "text-muted-foreground"}`}>
+                            {matched ? "Recommended — carries your selected products" : "Not matched to your products"}
+                          </p>
+                        </div>
+                        {matched && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3]/10 text-[#0176d3] text-[10px] font-semibold rounded-full">
+                            <CheckCircle className="w-2.5 h-2.5" /> Matched
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                  {selectedTsds.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic pt-1">No distributors selected — deal will be saved locally. You can route it later.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer navigation */}
+        <div className="px-6 py-4 border-t border-[#e5e7eb] bg-[#f9fafb] flex justify-between items-center">
+          <div>
+            {currentIdx > 0 && (
+              <button type="button" onClick={goBack} className="sf-btn sf-btn-neutral flex items-center gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">Step {currentIdx + 1} of {WIZARD_STEPS.length}</span>
+            <button type="button" onClick={onClose} className="sf-btn sf-btn-neutral">Cancel</button>
+            {step === "deal-info" && (
+              <button type="submit" form="wizard-form" className="sf-btn sf-btn-primary">
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {step === "vendors" && (
+              <button type="button" onClick={handleVendorsNext} className="sf-btn sf-btn-primary">
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {step === "products" && (
+              <button type="button" onClick={handleProductsNext} disabled={isResolving} className="sf-btn sf-btn-primary">
+                {isResolving ? "Loading..." : <><span>Next</span> <ChevronRight className="w-3.5 h-3.5" /></>}
+              </button>
+            )}
+            {step === "review" && (
+              <button type="button" onClick={handleSubmit} disabled={isPending} className="sf-btn sf-btn-primary">
+                {isPending ? "Submitting..." : "Submit Deal"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
