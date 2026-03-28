@@ -81,7 +81,7 @@ Backend for both websites.
 - `src/routes/auth.ts` — Client auth (register, login, me)
 - `src/routes/cms.ts` — Blog CRUD, user management, dashboard stats, CSV export, activity log, status updates
 - `src/routes/quotes.ts` — Proposals CRUD with line items, public view, accept/reject workflow
-- `src/routes/partners.ts` — Partner auth, deals, leads, commissions (per-partner rate, dispute flow, CSV export, notes), support tickets, MDF requests, dashboard, admin management
+- `src/routes/partners.ts` — Partner auth, deals, leads, commissions (per-partner rate, dispute flow, CSV export, notes), support tickets, dashboard, admin management, automatic tier promotion by revenue
 - `src/routes/documents.ts` — Document library: admin uploads/manages docs; partners can download shared + upload/delete their own; base64 storage, 10MB limit
 - `src/lib/email.ts` — Nodemailer email service with HTML-escaped templates, graceful degradation when SMTP unconfigured
 - `src/middlewares/auth.ts` — `requireAuth` (any logged-in user) + `requireAdmin` (admin role check)
@@ -146,6 +146,29 @@ artifacts-monorepo/
 - `partner_cert_progress` — Partner certification progress
 - `partner_announcements` — Company announcements
 - `partner_commissions` — Commission tracking (status enum: pending/approved/paid/disputed/rejected; per-partner rate, notes, dispute workflow)
+
+## Partner Tier Automation
+
+Partners are automatically promoted based on **YTD (Year-To-Date) Revenue**:
+- **Silver**: $100,000
+- **Gold**: $250,000
+- **Platinum**: $500,000
+
+**How it works:**
+1. When a deal is marked as "won", YTD revenue is updated
+2. Tier promotion logic runs automatically to check if threshold is crossed
+3. Partner tier updates silently; can be checked via admin endpoints
+4. Admin can manually trigger tier checks: `POST /api/admin/partners/promote/check`
+5. View thresholds: `GET /api/admin/tier-thresholds`
+6. Manual tier override: `PUT /api/admin/partners/:id/tier` (admin only)
+
+**Code:**
+- Helper function: `promotePartnerByRevenue(partnerId)` in `src/routes/partners.ts`
+- Called automatically after deal closure
+- No downtime or scheduled jobs needed
+
+## Database Schema (continued)
+
 - `partner_support_tickets` — Partner support tickets
 - `partner_ticket_messages` — Ticket conversation messages
 

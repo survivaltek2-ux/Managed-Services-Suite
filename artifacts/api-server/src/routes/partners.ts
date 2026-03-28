@@ -9,6 +9,46 @@ import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "
 
 const router: IRouter = Router();
 
+// ─── Tier Promotion (Revenue-based) ────────────────────────────────────────────
+const TIER_THRESHOLDS = {
+  silver: 100000,
+  gold: 250000,
+  platinum: 500000,
+};
+
+async function promotePartnerByRevenue(partnerId: number) {
+  try {
+    const [partner] = await db.select({
+      id: partnersTable.id,
+      tier: partnersTable.tier,
+      ytdRevenue: partnersTable.ytdRevenue,
+    }).from(partnersTable).where(eq(partnersTable.id, partnerId)).limit(1);
+    
+    if (!partner) return;
+    
+    const ytd = parseFloat(String(partner.ytdRevenue || 0));
+    let newTier = partner.tier;
+    
+    if (ytd >= TIER_THRESHOLDS.platinum && partner.tier !== "platinum") {
+      newTier = "platinum";
+    } else if (ytd >= TIER_THRESHOLDS.gold && !["gold", "platinum"].includes(partner.tier)) {
+      newTier = "gold";
+    } else if (ytd >= TIER_THRESHOLDS.silver && !["silver", "gold", "platinum"].includes(partner.tier)) {
+      newTier = "silver";
+    }
+    
+    if (newTier !== partner.tier) {
+      await db.update(partnersTable).set({
+        tier: newTier as any,
+        updatedAt: new Date(),
+      }).where(eq(partnersTable.id, partnerId));
+      console.log(`✓ Partner #${partnerId} promoted: ${partner.tier} → ${newTier} (YTD: $${ytd.toLocaleString()})`);
+    }
+  } catch (err) {
+    console.error("Error promoting partner:", err);
+  }
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 router.post("/partner/auth/register", async (req, res) => {
@@ -257,6 +297,11 @@ router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest,
     });
 
     if (!result) { res.status(404).json({ error: "not_found", message: "Deal not found" }); return; }
+    
+    if (status === "won" && !wasPreviouslyWon) {
+      await promotePartnerByRevenue(req.partnerId!);
+    }
+    
     res.json({ ...result, products: JSON.parse(result.products) });
   } catch (err) {
     console.error(err);
@@ -672,6 +717,31 @@ router.put("/admin/partners/:id/tier", requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update tier" });
   }
+});
+
+router.post("/admin/partners/promote/check", requireAuth, async (_req, res) => {
+  try {
+    const partners = await db.select({ id: partnersTable.id }).from(partnersTable);
+    let promotedCount = 0;
+    for (const p of partners) {
+      const [before] = await db.select({ tier: partnersTable.tier }).from(partnersTable).where(eq(partnersTable.id, p.id)).limit(1);
+      await promotePartnerByRevenue(p.id);
+      const [after] = await db.select({ tier: partnersTable.tier }).from(partnersTable).where(eq(partnersTable.id, p.id)).limit(1);
+      if (before.tier !== after.tier) promotedCount++;
+    }
+    res.json({ message: `Checked ${partners.length} partners, promoted ${promotedCount}`, thresholds: TIER_THRESHOLDS });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to check promotions" });
+  }
+});
+
+router.get("/admin/tier-thresholds", requireAuth, (_req, res) => {
+  res.json({
+    thresholds: TIER_THRESHOLDS,
+    tiers: ["registered", "silver", "gold", "platinum"],
+    description: "Partners are automatically promoted based on YTD revenue when deals are closed, or manually via /admin/partners/promote/check"
+  });
 });
 
 router.post("/admin/partner/leads", requireAuth, async (req, res) => {
