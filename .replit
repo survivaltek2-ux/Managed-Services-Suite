@@ -40,6 +40,7 @@ MICROSOFT_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/microsoft/ca
 ZOOM_ACCOUNT_ID = "YFSwbpmmSMihwB7OqE046g"
 ZOOM_CLIENT_SECRET = "CiP2K1ALU8vDyUUorSysyZMKEUvRmLtT"
 ZOOM_PHONE_NUMBER = "+1-845-908-0123"
+ZOOM_WEBHOOK_SECRET = "hKm8Lbt8R1qNWV4Xt6grcA"
 
 [nix]
 channel = "stable-25_05"
