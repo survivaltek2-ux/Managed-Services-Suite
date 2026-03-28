@@ -5,6 +5,7 @@ import { createTsdConnector, resolveCredentialRef } from "@workspace/integration
 import type { TsdProvider } from "@workspace/integrations-tsd";
 import { safeJsonStringify } from "@workspace/integrations-tsd";
 import { safeDecryptSecret, getSyncInterval } from "./tsdSecrets.js";
+import { refreshTelarusMfaBeforeSync } from "./zoomSms.js";
 
 const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
 
@@ -139,6 +140,10 @@ export async function syncLeadsFromTSDs(provider?: TsdProvider): Promise<void> {
   const configs = await getEnabledConfigs(provider);
 
   for (const cfg of configs) {
+    if (cfg.provider === "telarus") {
+      await refreshTelarusMfaBeforeSync();
+    }
+
     const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
     if (!credRef) continue;
 
@@ -219,6 +224,10 @@ export async function syncCommissionsFromTSDs(provider?: TsdProvider): Promise<v
   const configs = await getEnabledConfigs(provider);
 
   for (const cfg of configs) {
+    if (cfg.provider === "telarus") {
+      await refreshTelarusMfaBeforeSync();
+    }
+
     const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
     if (!credRef) continue;
 
