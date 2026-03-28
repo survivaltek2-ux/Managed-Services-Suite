@@ -58,12 +58,15 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   const cfg = await loadEmailConfig();
   const apiKey = process.env.BREVO_API_KEY;
   
+  console.log(`[Email] Starting email send to ${to}`);
+  
   if (!apiKey) {
     console.error(`[Email] Brevo API key not configured`);
     return false;
   }
 
   try {
+    console.log(`[Email] Config loaded - from: ${cfg.fromEmail}, fromName: ${cfg.fromName}`);
     const transport = nodemailer.createTransport({
       host: "smtp-relay.brevo.com",
       port: 587,
@@ -75,6 +78,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
     });
 
     const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${cfg.fromEmail}>` : cfg.fromEmail;
+    console.log(`[Email] Sending from: ${fromDisplay}`);
     
     await transport.sendMail({
       from: fromDisplay,
@@ -83,10 +87,10 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       html,
     });
 
-    console.log(`[Email] Sent to ${to}: "${subject}"`);
+    console.log(`[Email] ✓ Sent to ${to}: "${subject}"`);
     return true;
-  } catch (err) {
-    console.error(`[Email] Failed to send to ${to}:`, err);
+  } catch (err: any) {
+    console.error(`[Email] ✗ Failed to send to ${to}:`, err?.message || err);
     return false;
   }
 }
