@@ -11,7 +11,8 @@ const router: IRouter = Router();
 
 router.post("/auth/register", async (req, res) => {
   try {
-    const { name, email, password, company, phone } = req.body;
+    const { name, email: rawEmail, password, company, phone } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
     if (!name || !email || !password || !company) {
       res.status(400).json({ error: "validation_error", message: "name, email, password, and company are required" });
       return;
@@ -53,7 +54,8 @@ router.post("/auth/register", async (req, res) => {
 
 router.post("/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
     if (!email || !password) {
       res.status(400).json({ error: "validation_error", message: "email and password are required" });
       return;
@@ -114,7 +116,8 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res: Response) => {
 
 router.post("/auth/request-code", async (req, res) => {
   try {
-    const { email, type } = req.body;
+    const { email: rawEmail, type } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
     if (!email || !type) {
       res.status(400).json({ message: "email and type are required" });
       return;
@@ -146,7 +149,8 @@ router.post("/auth/request-code", async (req, res) => {
 
 router.post("/auth/verify-code", async (req, res) => {
   try {
-    const { email, code, type } = req.body;
+    const { email: rawEmail, code, type } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
     if (!email || !code || !type) {
       res.status(400).json({ message: "email, code, and type are required" });
       return;

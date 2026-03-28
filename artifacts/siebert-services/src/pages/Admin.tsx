@@ -114,7 +114,7 @@ export default function Admin() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const d = await res.json();
       console.log("Login response:", { status: res.status, ok: res.ok, data: d });
@@ -164,7 +164,7 @@ export default function Admin() {
       const res = await fetch("/api/auth/request-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, type: "user" }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), type: "user" }),
       });
       const d = await res.json();
       if (res.ok) setCodeSent(true);
@@ -181,7 +181,7 @@ export default function Admin() {
       const res = await fetch("/api/auth/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, type: "user" }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code, type: "user" }),
       });
       const d = await res.json();
       if (res.ok) {

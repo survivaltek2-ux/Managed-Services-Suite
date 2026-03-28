@@ -60,7 +60,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      await login({ email, password });
+      await login({ email: email.trim().toLowerCase(), password });
     } catch (err: any) {
       setError(err.message || "Failed to login. Check credentials.");
     }
@@ -75,7 +75,7 @@ export default function Login() {
       const res = await fetch("/api/auth/request-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, type: "partner" }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), type: "partner" }),
       });
       const d = await res.json();
       if (res.ok) {
@@ -98,7 +98,7 @@ export default function Login() {
       const res = await fetch("/api/auth/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, type: "partner" }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code, type: "partner" }),
       });
       const d = await res.json();
       if (res.ok) {
