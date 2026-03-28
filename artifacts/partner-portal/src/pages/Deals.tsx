@@ -334,18 +334,39 @@ function VendorSelector({
 }) {
   const { data: vendors = [], isLoading } = useVendors();
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
 
+  // Get all unique categories from vendors
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    vendors.forEach(v => {
+      v.products.forEach(p => cats.add(p.category));
+    });
+    return Array.from(cats).sort();
+  }, [vendors]);
+
   const filtered = useMemo(() => {
+    let result = vendors;
+    
+    // Filter by category if selected
+    if (selectedCategory) {
+      result = result.filter(v => v.products.some(p => p.category === selectedCategory));
+    }
+    
+    // Then filter by search
     const q = search.toLowerCase().trim();
-    if (!q) return vendors;
-    return vendors.filter(v =>
-      v.name.toLowerCase().includes(q) ||
-      (v.industry || "").toLowerCase().includes(q) ||
-      (v.accountType || "").toLowerCase().includes(q) ||
-      v.products.some(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
-    );
-  }, [vendors, search]);
+    if (q) {
+      result = result.filter(v =>
+        v.name.toLowerCase().includes(q) ||
+        (v.industry || "").toLowerCase().includes(q) ||
+        (v.accountType || "").toLowerCase().includes(q) ||
+        v.products.some(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+      );
+    }
+    
+    return result;
+  }, [vendors, search, selectedCategory]);
 
   const isSelected = (v: Vendor) => selected.some(s => s.vendorId === v.externalId);
 
@@ -401,27 +422,72 @@ function VendorSelector({
   return (
     <div className="flex gap-3 h-[420px]">
       {/* ── Left panel: vendor browser ── */}
-      <div className="w-52 flex-shrink-0 flex flex-col border border-[#e5e7eb] rounded-lg overflow-hidden">
-        <div className="p-2 border-b border-[#e5e7eb] bg-[#f9fafb]">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search vendors..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="sf-input pl-6 text-xs py-1.5"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="w-3 h-3" />
-              </button>
-            )}
+      <div className="w-56 flex-shrink-0 flex flex-col border border-[#e5e7eb] rounded-lg overflow-hidden">
+        <div className="border-b border-[#e5e7eb] bg-[#f9fafb]">
+          {/* Search box */}
+          <div className="p-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search vendors..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="sf-input pl-6 text-xs py-1.5 w-full"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Category filter tabs */}
+          {allCategories.length > 0 && (
+            <div className="px-2 pb-2 border-t border-[#e5e7eb]">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Category</p>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory(null)}
+                  className={`w-full text-left px-2 py-1 text-xs rounded transition-colors ${
+                    selectedCategory === null
+                      ? "bg-[#0176d3] text-white font-medium"
+                      : "hover:bg-[#f0f0f0] text-foreground"
+                  }`}
+                >
+                  All ({vendors.length})
+                </button>
+                {allCategories.map(cat => {
+                  const count = vendors.filter(v => v.products.some(p => p.category === cat)).length;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`w-full text-left px-2 py-1 text-xs rounded transition-colors truncate ${
+                        selectedCategory === cat
+                          ? "bg-[#0176d3] text-white font-medium"
+                          : "hover:bg-[#f0f0f0] text-foreground"
+                      }`}
+                      title={cat}
+                    >
+                      {cat} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Selection counter */}
           {selected.length > 0 && (
-            <p className="text-[10px] text-[#0176d3] font-semibold mt-1.5 text-center">
-              {selected.length} vendor{selected.length !== 1 ? "s" : ""} selected
-            </p>
+            <div className="p-2 border-t border-[#e5e7eb]">
+              <p className="text-[10px] text-[#0176d3] font-semibold text-center">
+                {selected.length} vendor{selected.length !== 1 ? "s" : ""} selected
+              </p>
+            </div>
           )}
         </div>
         <div className="flex-1 overflow-y-auto divide-y divide-[#f0f0f0]">
