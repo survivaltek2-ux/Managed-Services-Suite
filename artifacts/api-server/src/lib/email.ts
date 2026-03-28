@@ -1,4 +1,4 @@
-import { MailerSend, EmailParams, Recipient } from "mailersend";
+import nodemailer from "nodemailer";
 import { db, siteSettingsTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 
@@ -56,25 +56,33 @@ export function invalidateSmtpCache() {
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
-  const apiKey = process.env.MAILERSEND_API_KEY;
+  const apiKey = process.env.BREVO_API_KEY;
   
   if (!apiKey) {
-    console.error(`[Email] MailerSend API key not configured`);
+    console.error(`[Email] Brevo API key not configured`);
     return false;
   }
 
   try {
-    const mailerSend = new MailerSend({ api_key: apiKey });
-    
-    const recipients: Recipient[] = [{ email: to }];
-    const params = new EmailParams()
-      .setFrom({ email: cfg.fromEmail, name: cfg.fromName })
-      .setTo(recipients)
-      .setReplyTo({ email: cfg.fromEmail, name: cfg.fromName })
-      .setSubject(subject)
-      .setHtml(html);
+    const transport = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: "apikey",
+        pass: apiKey,
+      },
+    });
 
-    await mailerSend.email.send(params);
+    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${cfg.fromEmail}>` : cfg.fromEmail;
+    
+    await transport.sendMail({
+      from: fromDisplay,
+      to,
+      subject,
+      html,
+    });
+
     console.log(`[Email] Sent to ${to}: "${subject}"`);
     return true;
   } catch (err) {
@@ -84,24 +92,28 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 }
 
 export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const apiKey = process.env.MAILERSEND_API_KEY;
+  const apiKey = process.env.BREVO_API_KEY;
+  const cfg = await loadEmailConfig();
+  
   if (!apiKey) {
-    return { ok: false, error: "MailerSend API key not configured" };
+    return { ok: false, error: "Brevo API key not configured" };
   }
 
   try {
-    const mailerSend = new MailerSend({ api_key: apiKey });
-    const recipients: Recipient[] = [{ email: "test@example.com" }];
-    const params = new EmailParams()
-      .setFrom({ email: "test@siebertrservices.com" })
-      .setTo(recipients)
-      .setSubject("Test")
-      .setHtml("<p>Test</p>");
+    const transport = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: "apikey",
+        pass: apiKey,
+      },
+    });
 
-    await mailerSend.email.send(params);
-    return { ok: true, provider: "mailersend" };
+    await transport.verify();
+    return { ok: true, provider: "brevo" };
   } catch (err: any) {
-    return { ok: false, provider: "mailersend", error: err?.message || "Connection failed" };
+    return { ok: false, provider: "brevo", error: err?.message || "Connection failed" };
   }
 }
 
@@ -115,18 +127,18 @@ export async function getSmtpSettings(): Promise<{
   fromEmail: string;
   fromName: string;
   notificationEmail: string;
-  activeProvider: "mailersend" | "none";
+  activeProvider: "brevo" | "none";
 }> {
   const cfg = await loadEmailConfig();
-  const apiKey = process.env.MAILERSEND_API_KEY;
-  const activeProvider = apiKey ? "mailersend" : "none";
+  const apiKey = process.env.BREVO_API_KEY;
+  const activeProvider = apiKey ? "brevo" : "none";
   
   return {
     mailgunApiKeySet: false,
     mailgunDomain: "",
-    host: "",
-    port: 0,
-    user: "",
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    user: cfg.fromEmail,
     passSet: !!apiKey,
     fromEmail: cfg.fromEmail,
     fromName: cfg.fromName,
