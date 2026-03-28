@@ -2,7 +2,7 @@ import crypto from "crypto";
 import type { TsdConnector, TsdDeal, TsdLead, TsdCommission, TsdWebhookEvent, TsdPushResult } from "../types.js";
 import { withRetry } from "../utils.js";
 
-const INTELISYS_BASE_URL = "https://api.intelisys.com/partner/v1";
+const AVANT_BASE_URL = "https://api.avantcommunications.com/v1";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
@@ -37,8 +37,8 @@ function verifyHmacSignature(rawBody: string, signature: string, secret: string)
   );
 }
 
-export class IntelisysAdapter implements TsdConnector {
-  readonly provider = "intelisys" as const;
+export class AvantAdapter implements TsdConnector {
+  readonly provider = "avant" as const;
   private username: string;
   private password: string;
 
@@ -59,7 +59,7 @@ export class IntelisysAdapter implements TsdConnector {
   async testConnection(): Promise<{ ok: boolean; error?: string }> {
     try {
       const res = await withRetry(() =>
-        fetch(`${INTELISYS_BASE_URL}/account`, { headers: this.headers })
+        fetch(`${AVANT_BASE_URL}/ping`, { headers: this.headers })
       );
       if (res.status === 401) return { ok: false, error: "Invalid username or password" };
       if (res.ok) return { ok: true };
@@ -72,20 +72,18 @@ export class IntelisysAdapter implements TsdConnector {
   async pushDeal(deal: TsdDeal): Promise<TsdPushResult> {
     try {
       const body = {
-        deal_name: deal.title,
-        customer_name: deal.customerName,
-        customer_email: deal.customerEmail,
-        customer_phone: deal.customerPhone,
-        notes: deal.description,
-        estimated_mrr: deal.estimatedValue
-          ? (parseFloat(deal.estimatedValue) / 12).toFixed(2)
-          : undefined,
-        services: deal.products,
-        stage: deal.stage || "prospect",
+        opportunity_name: deal.title,
+        account_name: deal.customerName,
+        contact_email: deal.customerEmail,
+        contact_phone: deal.customerPhone,
+        description: deal.description,
+        amount: deal.estimatedValue ? parseFloat(deal.estimatedValue) : undefined,
+        stage: deal.stage || "Prospect",
+        products: deal.products,
       };
 
       const res = await withRetry(() =>
-        fetch(`${INTELISYS_BASE_URL}/deals`, {
+        fetch(`${AVANT_BASE_URL}/opportunities`, {
           method: "POST",
           headers: this.headers,
           body: JSON.stringify(body),
@@ -94,11 +92,11 @@ export class IntelisysAdapter implements TsdConnector {
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        return { success: false, error: `Intelisys API error ${res.status}: ${text}` };
+        return { success: false, error: `Avant API error ${res.status}: ${text}` };
       }
 
       const data = asRecord(await res.json().catch(() => ({})));
-      return { success: true, externalId: str(data.id) || str(data.deal_id) || undefined };
+      return { success: true, externalId: str(data.id) || str(data.opportunity_id) || undefined };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -107,30 +105,27 @@ export class IntelisysAdapter implements TsdConnector {
   async pullLeads(since?: Date): Promise<TsdLead[]> {
     try {
       const params = new URLSearchParams();
-      if (since) params.set("since", since.toISOString());
+      if (since) params.set("updated_after", since.toISOString());
 
       const res = await withRetry(() =>
-        fetch(`${INTELISYS_BASE_URL}/leads?${params}`, { headers: this.headers })
+        fetch(`${AVANT_BASE_URL}/leads?${params}`, { headers: this.headers })
       );
 
       if (!res.ok) return [];
 
       const data = asRecord(await res.json().catch(() => ({})));
-      const leads = asArray(data.items ?? data.leads);
+      const leads = asArray(data.leads ?? data.data);
 
       return leads.map((l) => {
         const r = asRecord(l);
-        const firstName = str(r.first_name);
-        const lastName = str(r.last_name);
-        const fullName = `${firstName} ${lastName}`.trim() || str(r.contact_name) || "Unknown";
         return {
           externalId: str(r.id),
-          companyName: str(r.company_name ?? r.account) || "Unknown",
-          contactName: fullName,
+          companyName: str(r.company_name ?? r.account_name) || "Unknown",
+          contactName: str(r.contact_name ?? r.full_name) || "Unknown",
           email: strOrUndef(r.email),
-          phone: strOrUndef(r.phone ?? r.mobile),
-          source: "intelisys",
-          interest: strOrUndef(r.service ?? r.interest),
+          phone: strOrUndef(r.phone),
+          source: "avant",
+          interest: strOrUndef(r.interest ?? r.product_interest),
           status: str(r.status) || "new",
         } satisfies TsdLead;
       });
@@ -142,28 +137,28 @@ export class IntelisysAdapter implements TsdConnector {
   async pullCommissions(since?: Date): Promise<TsdCommission[]> {
     try {
       const params = new URLSearchParams();
-      if (since) params.set("since", since.toISOString());
+      if (since) params.set("updated_after", since.toISOString());
 
       const res = await withRetry(() =>
-        fetch(`${INTELISYS_BASE_URL}/commissions?${params}`, { headers: this.headers })
+        fetch(`${AVANT_BASE_URL}/commissions?${params}`, { headers: this.headers })
       );
 
       if (!res.ok) return [];
 
       const data = asRecord(await res.json().catch(() => ({})));
-      const commissions = asArray(data.items ?? data.commissions);
+      const commissions = asArray(data.commissions ?? data.data);
 
       return commissions.map((c) => {
         const r = asRecord(c);
         return {
           externalId: str(r.id),
-          dealReference: strOrUndef(r.deal_id ?? r.reference),
-          amount: str(r.amount ?? r.commission_amount) || "0",
+          dealReference: strOrUndef(r.opportunity_id ?? r.deal_id),
+          amount: str(r.amount) || "0",
           status: str(r.status) || "pending",
-          description: strOrUndef(r.description ?? r.service_name),
-          paidAt: typeof r.payment_date === "string" ? new Date(r.payment_date) : undefined,
-          periodStart: typeof r.from_date === "string" ? new Date(r.from_date) : undefined,
-          periodEnd: typeof r.to_date === "string" ? new Date(r.to_date) : undefined,
+          description: strOrUndef(r.description),
+          paidAt: typeof r.paid_at === "string" ? new Date(r.paid_at) : undefined,
+          periodStart: typeof r.period_start === "string" ? new Date(r.period_start) : undefined,
+          periodEnd: typeof r.period_end === "string" ? new Date(r.period_end) : undefined,
         } satisfies TsdCommission;
       });
     } catch {
@@ -183,12 +178,12 @@ export class IntelisysAdapter implements TsdConnector {
       throw new Error("Invalid webhook payload");
     }
 
-    const action = str(payload.action);
+    const eventType = str(payload.event_type);
     let type: TsdWebhookEvent["type"] = "unknown";
-    if (action === "deal_updated") type = "deal_update";
-    else if (action === "lead_assigned") type = "lead_assigned";
-    else if (action === "commission_paid") type = "commission_paid";
+    if (eventType === "opportunity.updated") type = "deal_update";
+    else if (eventType === "lead.assigned") type = "lead_assigned";
+    else if (eventType === "commission.paid") type = "commission_paid";
 
-    return { type, provider: "intelisys", payload, raw: rawBody };
+    return { type, provider: "avant", payload, raw: rawBody };
   }
 }

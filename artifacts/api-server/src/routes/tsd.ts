@@ -20,24 +20,37 @@ function credentialStatus(provider: TsdProvider, dbCredRef: string | null, dbUse
 } {
   const envCred = resolveCredentialRef(provider);
   if (envCred) return { hasCredential: true, credentialSource: "env" };
-  const envUsername = process.env[`${provider.toUpperCase()}_USERNAME`];
-  const envPassword = process.env[`${provider.toUpperCase()}_PASSWORD`];
-  if (envUsername && envPassword) return { hasCredential: true, credentialSource: "env" };
-  if (dbCredRef || (dbUsername && dbPassword)) return { hasCredential: true, credentialSource: "db" };
+  if (provider === "telarus") {
+    const envUsername = process.env.TELARUS_USERNAME;
+    const envPassword = process.env.TELARUS_PASSWORD;
+    if (envUsername && envPassword) return { hasCredential: true, credentialSource: "env" };
+  }
+  if (dbUsername && dbPassword) return { hasCredential: true, credentialSource: "db" };
+  if (dbCredRef) return { hasCredential: true, credentialSource: "db" };
   return { hasCredential: false, credentialSource: null };
 }
 
 function resolveCredential(provider: TsdProvider, dbCredRef: string | null, dbUsername: string | null, dbPassword: string | null): { type: "api_key" | "username_password"; value: string } | null {
   const envCred = resolveCredentialRef(provider);
-  if (envCred) return { type: "api_key", value: envCred };
-  const envUsername = process.env[`${provider.toUpperCase()}_USERNAME`];
-  const envPassword = process.env[`${provider.toUpperCase()}_PASSWORD`];
-  if (envUsername && envPassword) return { type: "username_password", value: `${envUsername}::${envPassword}` };
-  if (dbCredRef) return { type: "api_key", value: safeDecryptSecret(dbCredRef) };
+  if (envCred) {
+    const type = provider === "telarus" ? "api_key" : "username_password";
+    return { type, value: envCred };
+  }
+  if (provider === "telarus") {
+    const envUsername = process.env.TELARUS_USERNAME;
+    const envPassword = process.env.TELARUS_PASSWORD;
+    if (envUsername && envPassword) return { type: "username_password", value: `${envUsername}::${envPassword}` };
+  }
   if (dbUsername && dbPassword) {
     const decryptedUsername = safeDecryptSecret(dbUsername);
     const decryptedPassword = safeDecryptSecret(dbPassword);
     return { type: "username_password", value: `${decryptedUsername}::${decryptedPassword}` };
+  }
+  if (dbCredRef) {
+    const decrypted = safeDecryptSecret(dbCredRef);
+    if (!decrypted) return null;
+    const type = provider === "telarus" ? "api_key" : "username_password";
+    return { type, value: decrypted };
   }
   return null;
 }
@@ -170,29 +183,46 @@ router.post("/admin/tsd/configs/:provider/test", requireAuth, requireAdmin, asyn
 
     const cred = resolveCredential(provider as TsdProvider, cfg?.credentialRef || null, cfg?.username || null, cfg?.password || null);
     if (!cred) {
-      res.json({ ok: false, error: `No credentials configured. Set ${provider.toUpperCase()}_API_KEY env var or ${provider.toUpperCase()}_USERNAME/${provider.toUpperCase()}_PASSWORD env vars, or enter credentials in the admin UI.` });
+      const credHint = provider === "telarus"
+        ? `TELARUS_API_KEY or TELARUS_USERNAME/TELARUS_PASSWORD env vars`
+        : `${provider.toUpperCase()}_USERNAME / ${provider.toUpperCase()}_PASSWORD env vars`;
+      res.json({ ok: false, error: `No credentials configured. Set ${credHint}, or enter credentials in the admin UI.` });
       return;
     }
 
     let connector;
-    if (cred.type === "username_password" && provider === "telarus") {
-      const [username, password] = cred.value.split("::");
-      const credentials: TsdAuthCredentials = {
-        type: "username_password",
-        username,
-        password,
-        agentId: process.env.TELARUS_AGENT_ID || undefined,
-        securityToken: process.env.TELARUS_SECURITY_TOKEN || undefined,
-      };
-      if (cfg?.mfaCode) {
-        credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
-      }
-      if (cfg?.securityToken && !credentials.securityToken) {
-        credentials.securityToken = safeDecryptSecret(cfg.securityToken) || undefined;
+    const [part1, part2] = cred.value.split("::");
+    if (provider === "telarus") {
+      let credentials: TsdAuthCredentials;
+      if (cred.type === "api_key") {
+        credentials = {
+          type: "api_key",
+          apiKey: part1,
+          agentId: part2 || process.env.TELARUS_AGENT_ID || undefined,
+        };
+      } else {
+        credentials = {
+          type: "username_password",
+          username: part1,
+          password: part2,
+          agentId: process.env.TELARUS_AGENT_ID || undefined,
+          securityToken: process.env.TELARUS_SECURITY_TOKEN || undefined,
+        };
+        if (cfg?.mfaCode) {
+          credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+        }
+        if (cfg?.securityToken && !credentials.securityToken) {
+          credentials.securityToken = safeDecryptSecret(cfg.securityToken) || undefined;
+        }
       }
       connector = createTsdConnectorWithAuth(provider, credentials);
     } else {
-      connector = createTsdConnector(provider as TsdProvider, cred.value);
+      const credentials: TsdAuthCredentials = {
+        type: "username_password",
+        username: part1,
+        password: part2,
+      };
+      connector = createTsdConnectorWithAuth(provider as TsdProvider, credentials);
     }
 
     const result = await connector.testConnection();

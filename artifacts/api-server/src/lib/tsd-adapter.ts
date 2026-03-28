@@ -26,15 +26,17 @@ export interface TsdPushResult {
 }
 
 async function pushToAvant(deal: TsdDealPayload): Promise<TsdPushResult> {
-  const apiKey = process.env.AVANT_API_KEY;
-  if (!apiKey) {
-    console.log(`[TSD:Avant] No API key configured — simulating push for deal #${deal.dealId}`);
+  const username = process.env.AVANT_USERNAME;
+  const password = process.env.AVANT_PASSWORD;
+  if (!username || !password) {
+    console.log(`[TSD:Avant] No credentials configured — simulating push for deal #${deal.dealId}`);
     return { tsdId: "avant", success: true, externalId: `avant-sim-${deal.dealId}` };
   }
+  const token = Buffer.from(`${username}:${password}`).toString("base64");
   try {
     const res = await fetch("https://api.avant.com/v1/deals", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { "Authorization": `Basic ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         opportunity_name: deal.title,
         customer_name: deal.customerName,
@@ -88,15 +90,17 @@ async function pushToTelarus(deal: TsdDealPayload): Promise<TsdPushResult> {
 }
 
 async function pushToIntelisys(deal: TsdDealPayload): Promise<TsdPushResult> {
-  const apiKey = process.env.INTELISYS_API_KEY;
-  if (!apiKey) {
-    console.log(`[TSD:Intelisys] No API key configured — simulating push for deal #${deal.dealId}`);
+  const username = process.env.INTELISYS_USERNAME;
+  const password = process.env.INTELISYS_PASSWORD;
+  if (!username || !password) {
+    console.log(`[TSD:Intelisys] No credentials configured — simulating push for deal #${deal.dealId}`);
     return { tsdId: "intelisys", success: true, externalId: `intelisys-sim-${deal.dealId}` };
   }
+  const token = Buffer.from(`${username}:${password}`).toString("base64");
   try {
     const res = await fetch("https://api.intelisys.com/v1/deals/register", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { "Authorization": `Basic ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         deal_name: deal.title,
         customer: deal.customerName,
