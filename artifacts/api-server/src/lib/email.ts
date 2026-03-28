@@ -26,7 +26,7 @@ async function loadEmailConfig(): Promise<EmailConfig> {
   if (_configCache && now - _configCacheAt < CONFIG_TTL_MS) return _configCache;
 
   const envDefaults: EmailConfig = {
-    fromEmail: process.env.SMTP_FROM_EMAIL || "notifications@siebertrservices.com",
+    fromEmail: process.env.SMTP_FROM_EMAIL || "rsiebert@siebertrservices.com",
     fromName: process.env.SMTP_FROM_NAME || "Siebert Services",
     notificationEmail: process.env.NOTIFICATION_EMAIL || "sales@siebertrservices.com",
   };
