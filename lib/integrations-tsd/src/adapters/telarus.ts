@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { TsdConnector, TsdDeal, TsdLead, TsdCommission, TsdWebhookEvent, TsdPushResult, TsdLoginResult, TsdAuthCredentials, TsdOpportunity, TsdAccount, TsdContact, TsdOrder, TsdQuote, TsdActivity, TsdTask } from "../types.js";
+import type { TsdConnector, TsdDeal, TsdLead, TsdCommission, TsdWebhookEvent, TsdPushResult, TsdLoginResult, TsdAuthCredentials, TsdOpportunity, TsdAccount, TsdContact, TsdOrder, TsdQuote, TsdActivity, TsdTask, TsdVendor } from "../types.js";
 import { withRetry } from "../utils.js";
 
 const SALESFORCE_SOAP_LOGIN_URL = "https://login.salesforce.com/services/Soap/u/59.0";
@@ -714,6 +714,81 @@ export class TelarusAdapter implements TsdConnector {
       });
     } catch (err) {
       console.error("[Telarus] pullTasks error:", err);
+      return [];
+    }
+  }
+
+  async pullVendors(since?: Date): Promise<TsdVendor[]> {
+    try {
+      const sinceClause = since ? ` AND LastModifiedDate >= ${since.toISOString()}` : "";
+
+      // Try custom Vendor/Supplier objects first, then fall back to Account-based vendors
+      const customObjNames = ["Vendor__c", "Supplier__c", "Carrier__c", "Provider__c"];
+      let customRecords: unknown[] = [];
+      let usedCustomObject = "";
+
+      for (const objName of customObjNames) {
+        try {
+          const test = await this.sfQuery(`SELECT Id FROM ${objName} LIMIT 1`);
+          if (test.length >= 0) { usedCustomObject = objName; break; }
+        } catch { continue; }
+      }
+
+      if (usedCustomObject) {
+        const soql = `SELECT Id, Name, Phone__c, Website__c, Description__c, IsActive__c FROM ${usedCustomObject} WHERE Id != null${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+        customRecords = await this.sfQueryAll(soql).catch(() => []);
+
+        if (customRecords.length > 0) {
+          return customRecords.map((r) => {
+            const rec = asRecord(r);
+            return {
+              externalId: str(rec.Id),
+              name: str(rec.Name) || "Unknown",
+              phone: strOrUndef(rec.Phone__c),
+              website: strOrUndef(rec.Website__c),
+              description: strOrUndef(rec.Description__c),
+              isActive: rec.IsActive__c !== false,
+              rawData: rec,
+            } satisfies TsdVendor;
+          });
+        }
+      }
+
+      // Fall back: Account records typed as vendor/partner/carrier/reseller
+      const vendorTypes = ["'Partner'", "'Vendor'", "'Distributor'", "'Reseller'", "'Competitor'", "'Channel Partner / Reseller'", "'Carrier'", "'Provider'", "'Supplier'"];
+      const typeFilter = `Type IN (${vendorTypes.join(", ")})`;
+      const soql = `SELECT Id, Name, Type, Industry, Phone, Website, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, Description, NumberOfEmployees, AnnualRevenue FROM Account WHERE ${typeFilter}${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+
+      const records = await this.sfQueryAll(soql);
+
+      // If no typed vendors found, broaden the query to partner-named accounts
+      const finalRecords = records.length > 0 ? records : await this.sfQueryAll(
+        `SELECT Id, Name, Type, Industry, Phone, Website, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, Description, NumberOfEmployees, AnnualRevenue FROM Account WHERE Name LIKE '%Carrier%' OR Name LIKE '%Provider%' OR Name LIKE '%Vendor%'${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 200`
+      ).catch(() => []);
+
+      return finalRecords.map((r) => {
+        const rec = asRecord(r);
+        return {
+          externalId: str(rec.Id),
+          name: str(rec.Name) || "Unknown",
+          accountType: strOrUndef(rec.Type),
+          industry: strOrUndef(rec.Industry),
+          phone: strOrUndef(rec.Phone),
+          website: strOrUndef(rec.Website),
+          billingStreet: strOrUndef(rec.BillingStreet),
+          billingCity: strOrUndef(rec.BillingCity),
+          billingState: strOrUndef(rec.BillingState),
+          billingPostalCode: strOrUndef(rec.BillingPostalCode),
+          billingCountry: strOrUndef(rec.BillingCountry),
+          description: strOrUndef(rec.Description),
+          numberOfEmployees: typeof rec.NumberOfEmployees === "number" ? rec.NumberOfEmployees : undefined,
+          annualRevenue: rec.AnnualRevenue != null ? String(rec.AnnualRevenue) : undefined,
+          isActive: true,
+          rawData: rec,
+        } satisfies TsdVendor;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullVendors error:", err);
       return [];
     }
   }

@@ -217,7 +217,7 @@ export const documentsTable = pgTable("documents", {
 export const tsdProviderEnum = pgEnum("tsd_provider", ["avant", "telarus", "intelisys"]);
 export const tsdSyncDirectionEnum = pgEnum("tsd_sync_direction", ["outbound", "inbound"]);
 export const tsdProviderSyncStatusEnum = pgEnum("tsd_provider_sync_status", ["success", "failure", "partial"]);
-export const tsdSyncEntityEnum = pgEnum("tsd_sync_entity", ["deal", "lead", "commission", "webhook", "opportunity", "account", "contact", "order", "quote", "activity", "task"]);
+export const tsdSyncEntityEnum = pgEnum("tsd_sync_entity", ["deal", "lead", "commission", "webhook", "opportunity", "account", "contact", "order", "quote", "activity", "task", "vendor"]);
 
 export const tsdConfigsTable = pgTable("tsd_configs", {
   id: serial("id").primaryKey(),
@@ -239,6 +239,7 @@ export const tsdConfigsTable = pgTable("tsd_configs", {
   lastQuoteSyncAt: timestamp("last_quote_sync_at"),
   lastActivitySyncAt: timestamp("last_activity_sync_at"),
   lastTaskSyncAt: timestamp("last_task_sync_at"),
+  lastVendorSyncAt: timestamp("last_vendor_sync_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -413,6 +414,30 @@ export const telarusTasksTable = pgTable("telarus_tasks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const telarusVendorsTable = pgTable("telarus_vendors", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  name: text("name").notNull(),
+  accountType: text("account_type"),
+  industry: text("industry"),
+  phone: text("phone"),
+  website: text("website"),
+  billingStreet: text("billing_street"),
+  billingCity: text("billing_city"),
+  billingState: text("billing_state"),
+  billingPostalCode: text("billing_postal_code"),
+  billingCountry: text("billing_country"),
+  description: text("description"),
+  partnerType: text("partner_type"),
+  partnerStatus: text("partner_status"),
+  numberOfEmployees: integer("number_of_employees"),
+  annualRevenue: decimal("annual_revenue", { precision: 14, scale: 2 }),
+  isActive: boolean("is_active").notNull().default(true),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertPartnerSchema = createInsertSchema(partnersTable).omit({ id: true, createdAt: true, updatedAt: true, tier: true, status: true, totalDeals: true, totalRevenue: true, ytdRevenue: true, approvedAt: true });
 export const insertDealSchema = createInsertSchema(partnerDealsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
 export const insertLeadSchema = createInsertSchema(partnerLeadsTable).omit({ id: true, createdAt: true, assignedAt: true, partnerId: true });
@@ -452,3 +477,4 @@ export type TelarusOrder = typeof telarusOrdersTable.$inferSelect;
 export type TelarusQuote = typeof telarusQuotesTable.$inferSelect;
 export type TelarusActivity = typeof telarusActivitiesTable.$inferSelect;
 export type TelarusTask = typeof telarusTasksTable.$inferSelect;
+export type TelarusVendor = typeof telarusVendorsTable.$inferSelect;

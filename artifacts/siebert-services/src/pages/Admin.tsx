@@ -2577,6 +2577,7 @@ function TsdIntegrationsTab({
                         { key: "quotes",        label: "Quotes",        ts: cfg.lastQuoteSyncAt },
                         { key: "activities",    label: "Activities",    ts: cfg.lastActivitySyncAt },
                         { key: "tasks",         label: "Tasks",         ts: cfg.lastTaskSyncAt },
+                        { key: "vendors",       label: "Vendors",       ts: cfg.lastVendorSyncAt },
                       ].map(({ key, label, ts }) => (
                         <div key={key} className="flex items-center justify-between bg-muted/30 rounded px-2 py-1.5">
                           <div>

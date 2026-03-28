@@ -1,4 +1,4 @@
-import { db, tsdConfigsTable, tsdSyncLogsTable, partnerLeadsTable, partnerCommissionsTable, partnersTable, tsdDealMappingsTable, telarusOpportunitiesTable, telarusAccountsTable, telarusContactsTable, telarusOrdersTable, telarusQuotesTable, telarusActivitiesTable, telarusTasksTable } from "@workspace/db";
+import { db, tsdConfigsTable, tsdSyncLogsTable, partnerLeadsTable, partnerCommissionsTable, partnersTable, tsdDealMappingsTable, telarusOpportunitiesTable, telarusAccountsTable, telarusContactsTable, telarusOrdersTable, telarusQuotesTable, telarusActivitiesTable, telarusTasksTable, telarusVendorsTable } from "@workspace/db";
 import type { TsdConfig } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { createTsdConnector, createTsdConnectorWithAuth, resolveCredentialRef } from "@workspace/integrations-tsd";
@@ -86,7 +86,7 @@ async function logSync({
 }: {
   provider: TsdProvider;
   direction: "outbound" | "inbound";
-  entityType: "deal" | "lead" | "commission" | "webhook" | "opportunity" | "account" | "contact" | "order" | "quote" | "activity" | "task";
+  entityType: "deal" | "lead" | "commission" | "webhook" | "opportunity" | "account" | "contact" | "order" | "quote" | "activity" | "task" | "vendor";
   status: "success" | "failure" | "partial";
   recordsAffected?: number;
   payloadSummary?: string;
@@ -382,7 +382,7 @@ export async function syncCommissionsFromTSDs(provider?: TsdProvider): Promise<v
 // ─── Generic upsert helper ────────────────────────────────────────────────────
 
 async function upsertTelarusRecords<T extends { externalId: string }>(
-  table: typeof telarusOpportunitiesTable | typeof telarusAccountsTable | typeof telarusContactsTable | typeof telarusOrdersTable | typeof telarusQuotesTable | typeof telarusActivitiesTable | typeof telarusTasksTable,
+  table: typeof telarusOpportunitiesTable | typeof telarusAccountsTable | typeof telarusContactsTable | typeof telarusOrdersTable | typeof telarusQuotesTable | typeof telarusActivitiesTable | typeof telarusTasksTable | typeof telarusVendorsTable,
   records: T[],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mapper: (r: T) => Record<string, any>
@@ -682,6 +682,50 @@ export async function syncTasksFromTelarus(provider?: TsdProvider): Promise<void
   }
 }
 
+export async function syncVendorsFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullVendors) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "vendor", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastVendorSyncAt ?? undefined;
+      const items = await connector.pullVendors(since);
+      const { upserted } = await upsertTelarusRecords(telarusVendorsTable, items, (r) => ({
+        externalId: r.externalId,
+        name: r.name,
+        accountType: r.accountType ?? null,
+        industry: r.industry ?? null,
+        phone: r.phone ?? null,
+        website: r.website ?? null,
+        billingStreet: r.billingStreet ?? null,
+        billingCity: r.billingCity ?? null,
+        billingState: r.billingState ?? null,
+        billingPostalCode: r.billingPostalCode ?? null,
+        billingCountry: r.billingCountry ?? null,
+        description: r.description ?? null,
+        partnerType: r.partnerType ?? null,
+        partnerStatus: r.partnerStatus ?? null,
+        numberOfEmployees: r.numberOfEmployees ?? null,
+        annualRevenue: r.annualRevenue ?? null,
+        isActive: r.isActive ?? true,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastVendorSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "vendor", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "vendor", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
 export async function syncAllTelarusData(): Promise<void> {
   console.log("[TSD] Running full Telarus data sync...");
   await Promise.allSettled([
@@ -692,6 +736,7 @@ export async function syncAllTelarusData(): Promise<void> {
     syncQuotesFromTelarus(),
     syncActivitiesFromTelarus(),
     syncTasksFromTelarus(),
+    syncVendorsFromTelarus(),
   ]);
   console.log("[TSD] Full Telarus data sync complete.");
 }

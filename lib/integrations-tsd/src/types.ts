@@ -181,6 +181,27 @@ export interface TsdLoginResult {
   error?: string;
 }
 
+export interface TsdVendor {
+  externalId: string;
+  name: string;
+  accountType?: string;
+  industry?: string;
+  phone?: string;
+  website?: string;
+  billingStreet?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingPostalCode?: string;
+  billingCountry?: string;
+  description?: string;
+  partnerType?: string;
+  partnerStatus?: string;
+  numberOfEmployees?: number;
+  annualRevenue?: string;
+  isActive?: boolean;
+  rawData?: Record<string, unknown>;
+}
+
 export interface TsdConnector {
   provider: TsdProvider;
   pushDeal(deal: TsdDeal): Promise<TsdPushResult>;
@@ -193,6 +214,7 @@ export interface TsdConnector {
   pullQuotes?(since?: Date): Promise<TsdQuote[]>;
   pullActivities?(since?: Date): Promise<TsdActivity[]>;
   pullTasks?(since?: Date): Promise<TsdTask[]>;
+  pullVendors?(since?: Date): Promise<TsdVendor[]>;
   handleWebhook(rawBody: string, signature: string, secret: string): Promise<TsdWebhookEvent>;
   testConnection(): Promise<{ ok: boolean; error?: string; requiresMfa?: boolean }>;
   login?(): Promise<TsdLoginResult>;

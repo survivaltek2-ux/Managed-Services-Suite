@@ -1,11 +1,11 @@
 import { Router, type IRouter, type Response } from "express";
-import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable, tsdProductsTable, telarusOpportunitiesTable, telarusAccountsTable, telarusContactsTable, telarusOrdersTable, telarusQuotesTable, telarusActivitiesTable, telarusTasksTable } from "@workspace/db";
+import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable, tsdProductsTable, telarusOpportunitiesTable, telarusAccountsTable, telarusContactsTable, telarusOrdersTable, telarusQuotesTable, telarusActivitiesTable, telarusTasksTable, telarusVendorsTable } from "@workspace/db";
 import { eq, and, desc, inArray, asc } from "drizzle-orm";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, type PartnerRequest } from "../middlewares/partnerAuth.js";
 import { resolveCredentialRef, createTsdConnector, createTsdConnectorWithAuth } from "@workspace/integrations-tsd";
 import type { TsdProvider, TsdAuthCredentials } from "@workspace/integrations-tsd";
-import { syncLeadsFromTSDs, syncCommissionsFromTSDs, syncOpportunitiesFromTelarus, syncAccountsFromTelarus, syncContactsFromTelarus, syncOrdersFromTelarus, syncQuotesFromTelarus, syncActivitiesFromTelarus, syncTasksFromTelarus, syncAllTelarusData } from "../lib/tsdSync.js";
+import { syncLeadsFromTSDs, syncCommissionsFromTSDs, syncOpportunitiesFromTelarus, syncAccountsFromTelarus, syncContactsFromTelarus, syncOrdersFromTelarus, syncQuotesFromTelarus, syncActivitiesFromTelarus, syncTasksFromTelarus, syncVendorsFromTelarus, syncAllTelarusData } from "../lib/tsdSync.js";
 import { encryptSecret, safeDecryptSecret } from "../lib/tsdSecrets.js";
 import { pushDeal, TSD_IDS, TSD_LABELS, type TsdId } from "../lib/tsd-adapter.js";
 
@@ -88,6 +88,7 @@ router.get("/admin/tsd/configs", requireAuth, requireAdmin, async (_req: AuthReq
         lastQuoteSyncAt: c.lastQuoteSyncAt,
         lastActivitySyncAt: c.lastActivitySyncAt,
         lastTaskSyncAt: c.lastTaskSyncAt,
+        lastVendorSyncAt: c.lastVendorSyncAt,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       };
@@ -672,6 +673,25 @@ router.post("/admin/telarus/sync/tasks", requireAuth, requireAdmin, async (_req:
   try {
     syncTasksFromTelarus().catch(err => console.error("[TSD] Tasks sync error:", err));
     res.json({ success: true, message: "Tasks sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.get("/admin/telarus/vendors", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusVendorsTable).orderBy(desc(telarusVendorsTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get vendors error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/admin/telarus/sync/vendors", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncVendorsFromTelarus().catch(err => console.error("[TSD] Vendors sync error:", err));
+    res.json({ success: true, message: "Vendors sync started" });
   } catch (err) {
     res.status(500).json({ error: "server_error", message: String(err) });
   }
