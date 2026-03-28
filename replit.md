@@ -30,11 +30,11 @@ Full-featured MSP/Reseller marketing + client portal website for **Siebert Repai
 - `/about` — About Us
 - `/contact` — Contact form
 - `/quote` — Multi-step quote request form
-- `/portal` — Client portal (login/register + ticket dashboard)
+- `/portal` — Client portal (login/register + 4 tabs: Support Tickets, My Quotes, Billing, My Account)
 - `/blog` — Blog listing page
 - `/blog/:slug` — Individual blog post view
 - `/proposal/:number` — Customer-facing proposal view with accept/reject
-- `/admin` — Full CMS admin panel (13 tabs)
+- `/admin` — Full CMS admin panel (21 tabs incl. Reporting, Invoices)
 
 **Features:**
 - AI chat assistant (bottom-right, powered by GPT-5.2 via OpenAI AI integration, streaming SSE, conversation history persisted to DB)
@@ -232,3 +232,31 @@ Two-way integration with Technology Solution Distributors.
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 - `pnpm --filter @workspace/db run push` — Push schema changes to database
+
+## Database Notes
+
+- **Development DB**: `postgresql://postgres:password@helium/heliumdb?sslmode=disable` (local Replit-managed PostgreSQL)
+- **Production DB**: Set `DATABASE_URL` env var to any PostgreSQL connection string for deployment
+- **Schema migrations**: `pnpm --filter @workspace/db run push` uses `drizzle-kit push`. If stuck on interactive enum questions, use direct SQL via `psql $DATABASE_URL -f migration.sql` instead.
+- **New tables**: When drizzle-kit push fails interactively, create tables directly with `psql "postgresql://postgres:password@helium/heliumdb" -c "CREATE TABLE IF NOT EXISTS ..."`
+- **Key tables**: `invoices`, `tsd_configs`, `tsd_products`, `tsd_vendor_mappings`, `tsd_sync_logs`, `tsd_provider_sync_logs`, `tsd_deal_mappings`
+
+## Invoice & Billing
+
+- Admin can create/manage invoices from the **Invoices** tab in admin panel
+- Clients see their invoices in the **Billing** tab of the client portal
+- API endpoints: `GET/POST /api/admin/invoices`, `PATCH/DELETE /api/admin/invoices/:id`, `GET /api/invoices` (client)
+
+## Admin Reporting
+
+- **Reporting** tab in admin panel shows KPIs: total clients, tickets, quotes, proposals, invoice revenue
+- Shows invoice status breakdown (draft/sent/viewed/paid/overdue/void)
+- Shows top partners by revenue and recent proposals
+- API: `GET /api/admin/reports` (admin-only)
+
+## Client Portal Tabs
+
+- **Support Tickets**: Create, view, reply to support tickets
+- **My Quotes**: View quote requests and received proposals
+- **Billing**: View all invoices issued by Siebert Services
+- **My Account**: Edit profile (name, company, phone); view member info; sign out

@@ -12,6 +12,8 @@ import openaiRouter from "./openai";
 import documentsRouter from "./documents";
 import tsdRouter from "./tsd";
 import webhooksRouter from "./webhooks";
+import invoicesRouter from "./invoices";
+import reportsRouter from "./reports";
 
 const router: IRouter = Router();
 
@@ -28,5 +30,7 @@ router.use(openaiRouter);
 router.use(documentsRouter);
 router.use(tsdRouter);
 router.use(webhooksRouter);
+router.use(invoicesRouter);
+router.use(reportsRouter);
 
 export default router;

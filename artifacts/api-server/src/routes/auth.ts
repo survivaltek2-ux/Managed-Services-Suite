@@ -114,6 +114,25 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.put("/auth/me", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, company, phone } = req.body;
+    const updates: any = {};
+    if (name) updates.name = name;
+    if (company) updates.company = company;
+    if (phone !== undefined) updates.phone = phone || null;
+    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.userId!)).returning();
+    if (!user) { res.status(404).json({ error: "not_found" }); return; }
+    res.json({
+      id: user.id, name: user.name, email: user.email,
+      company: user.company, phone: user.phone, role: user.role, createdAt: user.createdAt,
+    });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to update profile" });
+  }
+});
+
 router.post("/auth/request-code", async (req, res) => {
   try {
     const { email: rawEmail, type } = req.body;

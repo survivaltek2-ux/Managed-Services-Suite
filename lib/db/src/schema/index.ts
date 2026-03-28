@@ -8,3 +8,4 @@ export * from "./cms";
 export * from "./partners";
 export * from "./conversations";
 export * from "./messages";
+export * from "./invoices";

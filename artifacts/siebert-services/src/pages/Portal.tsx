@@ -6,7 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
   Lock, LogOut, TicketIcon, PlusCircle, AlertCircle,
-  FileText, ClipboardList, ExternalLink, Clock, CheckCircle2, XCircle, Eye, Send, X, ChevronRight, MessageSquare
+  FileText, ClipboardList, ExternalLink, Clock, CheckCircle2, XCircle, Eye, Send, X, ChevronRight, MessageSquare,
+  CreditCard, User, Building, Phone, Mail, CalendarDays, Save, Edit2
 } from "lucide-react";
 
 
@@ -46,7 +47,7 @@ export default function Portal() {
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [ssoError, setSsoError] = useState("");
   const [ssoLoading, setSsoLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"tickets" | "quotes">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "quotes" | "billing" | "account">("tickets");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,6 +57,12 @@ export default function Portal() {
   const [myQuotes, setMyQuotes] = useState<any[] | null>(null);
   const [myProposals, setMyProposals] = useState<any[] | null>(null);
   const [quotesLoading, setQuotesLoading] = useState(false);
+
+  const [myInvoices, setMyInvoices] = useState<any[] | null>(null);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: "", company: "", phone: "" });
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [ticketDetail, setTicketDetail] = useState<any | null>(null);
@@ -99,7 +106,13 @@ export default function Portal() {
     if (isAuthenticated && token && activeTab === "quotes" && myQuotes === null) {
       fetchMyQuotes();
     }
-  }, [isAuthenticated, token, activeTab]);
+    if (isAuthenticated && token && activeTab === "billing" && myInvoices === null) {
+      fetchMyInvoices();
+    }
+    if (isAuthenticated && user && activeTab === "account") {
+      setProfileForm({ name: (user as any).name || "", company: (user as any).company || "", phone: (user as any).phone || "" });
+    }
+  }, [isAuthenticated, token, activeTab, user]);
 
   const fetchMyQuotes = async () => {
     setQuotesLoading(true);
@@ -112,6 +125,38 @@ export default function Portal() {
       }
     } catch { /* silent */ }
     finally { setQuotesLoading(false); }
+  };
+
+  const fetchMyInvoices = async () => {
+    setInvoicesLoading(true);
+    try {
+      const res = await fetch(getApiUrl("/invoices"), { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setMyInvoices(data.invoices || []);
+      }
+    } catch { /* silent */ }
+    finally { setInvoicesLoading(false); }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    try {
+      const res = await fetch(getApiUrl("/auth/me"), {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+      });
+      if (res.ok) {
+        toast({ title: "Profile updated successfully" });
+        setProfileEditing(false);
+      } else {
+        toast({ variant: "destructive", title: "Update failed", description: "Please try again." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network error" });
+    } finally { setProfileSaving(false); }
   };
 
 
@@ -313,7 +358,7 @@ export default function Portal() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 bg-white border rounded-xl p-1 mb-6 w-fit">
+        <div className="flex gap-1 bg-white border rounded-xl p-1 mb-6 flex-wrap">
           <button
             onClick={() => setActiveTab("tickets")}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
@@ -332,6 +377,29 @@ export default function Portal() {
             }`}
           >
             <ClipboardList className="w-4 h-4" /> My Quotes
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("billing");
+              if (myInvoices === null) fetchMyInvoices();
+            }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "billing" ? "bg-navy text-white shadow-sm" : "text-muted-foreground hover:text-navy"
+            }`}
+          >
+            <CreditCard className="w-4 h-4" /> Billing
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("account");
+              setProfileForm({ name: (user as any)?.name || "", company: (user as any)?.company || "", phone: (user as any)?.phone || "" });
+              setProfileEditing(false);
+            }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "account" ? "bg-navy text-white shadow-sm" : "text-muted-foreground hover:text-navy"
+            }`}
+          >
+            <User className="w-4 h-4" /> My Account
           </button>
         </div>
 
@@ -620,6 +688,147 @@ export default function Portal() {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* ── Billing Tab ──────────────────────────────────────────────── */}
+        {activeTab === "billing" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-navy flex items-center gap-2"><CreditCard className="w-5 h-5" /> My Invoices</h2>
+            </div>
+            {invoicesLoading ? (
+              <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" /></div>
+            ) : !myInvoices || myInvoices.length === 0 ? (
+              <Card className="border-dashed bg-transparent shadow-none">
+                <CardContent className="py-12 text-center text-muted-foreground flex flex-col items-center">
+                  <CreditCard className="w-12 h-12 text-muted-foreground/30 mb-3" />
+                  <p className="font-medium">No invoices yet</p>
+                  <p className="text-sm mt-1">Your invoices from Siebert Services will appear here once issued.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {myInvoices.map((inv: any) => {
+                  const statusMeta: Record<string, { label: string; cls: string }> = {
+                    draft:   { label: "Draft",   cls: "bg-gray-100 text-gray-600" },
+                    sent:    { label: "Sent",    cls: "bg-blue-100 text-blue-700" },
+                    viewed:  { label: "Viewed",  cls: "bg-yellow-100 text-yellow-700" },
+                    paid:    { label: "Paid",    cls: "bg-green-100 text-green-700" },
+                    overdue: { label: "Overdue", cls: "bg-red-100 text-red-700" },
+                    void:    { label: "Void",    cls: "bg-gray-200 text-gray-500" },
+                  };
+                  const s = statusMeta[inv.status] ?? { label: inv.status, cls: "bg-gray-100 text-gray-600" };
+                  return (
+                    <Card key={inv.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-xs font-bold text-muted-foreground font-mono">{inv.invoiceNumber}</span>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${s.cls}`}>{s.label}</span>
+                          </div>
+                          <h3 className="font-bold text-navy text-lg leading-tight">{inv.title}</h3>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            {inv.dueDate && (
+                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Due {format(new Date(inv.dueDate), "MMM dd, yyyy")}</span>
+                            )}
+                            <span>Issued {format(new Date(inv.createdAt), "MMM dd, yyyy")}</span>
+                          </div>
+                          {inv.notes && <p className="text-sm text-muted-foreground">{inv.notes}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-2xl font-bold text-navy">${parseFloat(inv.total || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                          {inv.tax && parseFloat(inv.tax) > 0 && (
+                            <div className="text-xs text-muted-foreground mt-0.5">incl. ${parseFloat(inv.tax).toLocaleString("en-US", { minimumFractionDigits: 2 })} tax</div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Account Tab ──────────────────────────────────────────────── */}
+        {activeTab === "account" && (
+          <div className="max-w-2xl space-y-6">
+            <h2 className="text-xl font-bold text-navy flex items-center gap-2"><User className="w-5 h-5" /> My Account</h2>
+
+            {/* Profile Card */}
+            <Card>
+              <CardHeader className="pb-3 border-b">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>Profile Information</span>
+                  {!profileEditing && (
+                    <Button variant="outline" size="sm" onClick={() => setProfileEditing(true)} className="gap-1.5">
+                      <Edit2 className="w-3.5 h-3.5" /> Edit
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-5">
+                {profileEditing ? (
+                  <form onSubmit={handleSaveProfile} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label>Full Name</Label>
+                      <Input value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Company</Label>
+                      <Input value={profileForm.company} onChange={e => setProfileForm(p => ({ ...p, company: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Phone</Label>
+                      <Input type="tel" value={profileForm.phone} onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button type="submit" disabled={profileSaving} className="gap-1.5"><Save className="w-4 h-4" />{profileSaving ? "Saving…" : "Save Changes"}</Button>
+                      <Button type="button" variant="outline" onClick={() => setProfileEditing(false)}>Cancel</Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    {[
+                      { icon: <User className="w-4 h-4 text-muted-foreground" />, label: "Full Name", value: (user as any)?.name },
+                      { icon: <Mail className="w-4 h-4 text-muted-foreground" />, label: "Email", value: (user as any)?.email, note: "Cannot be changed" },
+                      { icon: <Building className="w-4 h-4 text-muted-foreground" />, label: "Company", value: (user as any)?.company },
+                      { icon: <Phone className="w-4 h-4 text-muted-foreground" />, label: "Phone", value: (user as any)?.phone || "—" },
+                      { icon: <CalendarDays className="w-4 h-4 text-muted-foreground" />, label: "Member Since", value: (user as any)?.createdAt ? format(new Date((user as any).createdAt), "MMMM dd, yyyy") : "—" },
+                    ].map(f => (
+                      <div key={f.label} className="flex items-start gap-3">
+                        <div className="mt-0.5">{f.icon}</div>
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">{f.label}</p>
+                          <p className="font-medium text-navy">{f.value || "—"}</p>
+                          {f.note && <p className="text-xs text-muted-foreground">{f.note}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Security Card */}
+            <Card>
+              <CardHeader className="pb-3 border-b"><CardTitle className="text-base">Security</CardTitle></CardHeader>
+              <CardContent className="pt-5 space-y-3">
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-medium text-navy">Password</p>
+                    <p className="text-sm text-muted-foreground">Last changed: unknown</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = "/portal?change_password=1"}>Change Password</Button>
+                </div>
+                <div className="pt-2 border-t">
+                  <Button variant="ghost" onClick={logout} className="text-destructive hover:bg-destructive/10 hover:text-destructive w-full justify-start gap-2">
+                    <LogOut className="w-4 h-4" /> Sign Out of All Sessions
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
