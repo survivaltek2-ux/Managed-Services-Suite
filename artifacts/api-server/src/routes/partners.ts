@@ -231,7 +231,8 @@ router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest,
           .then(r => r[0]);
 
         if (!existingCommission) {
-          const COMMISSION_RATE = 0.10;
+          const [partnerRecord] = await tx.select({ commissionRate: partnersTable.commissionRate }).from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+          const COMMISSION_RATE = parseFloat(partnerRecord?.commissionRate || "10") / 100;
           const dealValue = parseFloat(String(deal.actualValue || deal.estimatedValue || "0"));
           if (dealValue > 0) {
             const commissionAmount = (dealValue * COMMISSION_RATE).toFixed(2);
@@ -411,6 +412,31 @@ router.get("/partner/commissions/summary", requirePartnerAuth, async (req: Partn
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load commission summary" });
+  }
+});
+
+// ─── Partner: Dispute commission ──────────────────────────────────────────────
+
+router.post("/partner/commissions/:id/dispute", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { reason } = req.body;
+    const [commission] = await db.select()
+      .from(partnerCommissionsTable)
+      .where(and(eq(partnerCommissionsTable.id, id), eq(partnerCommissionsTable.partnerId, req.partnerId!)))
+      .limit(1);
+    if (!commission) { res.status(404).json({ error: "not_found" }); return; }
+    if (!["pending", "approved"].includes(commission.status)) {
+      res.status(400).json({ error: "invalid_status", message: "Only pending or approved commissions can be disputed" });
+      return;
+    }
+    const [updated] = await db.update(partnerCommissionsTable)
+      .set({ status: "disputed", notes: reason || "Partner disputed this commission" })
+      .where(eq(partnerCommissionsTable.id, id)).returning();
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to dispute commission" });
   }
 });
 
@@ -790,6 +816,52 @@ router.get("/admin/partner/commissions", requireAdmin, async (_req, res) => {
   }
 });
 
+router.get("/admin/partner/commissions/export", requireAdmin, async (_req, res) => {
+  try {
+    const commissions = await db.select({
+      id: partnerCommissionsTable.id,
+      partnerCompany: partnersTable.companyName,
+      partnerContact: partnersTable.contactName,
+      partnerEmail: partnersTable.email,
+      type: partnerCommissionsTable.type,
+      description: partnerCommissionsTable.description,
+      amount: partnerCommissionsTable.amount,
+      rate: partnerCommissionsTable.rate,
+      status: partnerCommissionsTable.status,
+      notes: partnerCommissionsTable.notes,
+      paidAt: partnerCommissionsTable.paidAt,
+      createdAt: partnerCommissionsTable.createdAt,
+    }).from(partnerCommissionsTable)
+      .leftJoin(partnersTable, eq(partnerCommissionsTable.partnerId, partnersTable.id))
+      .orderBy(desc(partnerCommissionsTable.createdAt));
+
+    const rows = [
+      ["ID", "Partner Company", "Contact", "Email", "Type", "Description", "Amount", "Rate %", "Status", "Notes", "Paid At", "Created At"],
+      ...commissions.map(c => [
+        c.id,
+        c.partnerCompany || "",
+        c.partnerContact || "",
+        c.partnerEmail || "",
+        c.type,
+        c.description,
+        c.amount,
+        c.rate || "",
+        c.status,
+        c.notes || "",
+        c.paidAt ? new Date(c.paidAt).toISOString() : "",
+        new Date(c.createdAt).toISOString(),
+      ])
+    ];
+    const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="commissions-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to export commissions" });
+  }
+});
+
 router.post("/admin/partner/commissions", requireAdmin, async (req, res) => {
   try {
     const { partnerId, dealId, type, description, amount, rate, status, periodStart, periodEnd } = req.body;
@@ -812,14 +884,24 @@ router.post("/admin/partner/commissions", requireAdmin, async (req, res) => {
 router.put("/admin/partner/commissions/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { status } = req.body;
-    const validStatuses = ["pending", "approved", "paid", "disputed", "rejected"];
-    if (!validStatuses.includes(status)) {
-      res.status(400).json({ error: "invalid_status", message: `Status must be one of: ${validStatuses.join(", ")}` });
+    const { status, notes, amount, rate } = req.body;
+    const updates: any = {};
+    if (status !== undefined) {
+      const validStatuses = ["pending", "approved", "paid", "disputed", "rejected"];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({ error: "invalid_status", message: `Status must be one of: ${validStatuses.join(", ")}` });
+        return;
+      }
+      updates.status = status;
+      if (status === "paid") updates.paidAt = new Date();
+    }
+    if (notes !== undefined) updates.notes = notes || null;
+    if (amount !== undefined) updates.amount = parseFloat(amount).toFixed(2);
+    if (rate !== undefined) updates.rate = rate || null;
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "validation_error", message: "No fields to update" });
       return;
     }
-    const updates: any = { status };
-    if (status === "paid") updates.paidAt = new Date();
     const [commission] = await db.update(partnerCommissionsTable).set(updates).where(eq(partnerCommissionsTable.id, id)).returning();
     res.json(commission);
   } catch (err) {

@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   LayoutDashboard, Settings, Briefcase, MessageSquare, Users, HelpCircle,
   Inbox, FileText, Ticket as TicketIcon, LogOut, Loader2, Plus, Edit2,
   Trash2, Save, Search, Download, Activity, PenTool, Eye, Send, Check,
   X, ChevronDown, BarChart3, Clock, DollarSign, AlertCircle, Mail, KeyRound,
-  Building2, Shield, Lock, RefreshCw, UserCheck, UserX, Ban
+  Building2, Shield, Lock, RefreshCw, UserCheck, UserX, Ban, FolderOpen,
+  Upload, AlertTriangle
 } from "lucide-react";
 import {
   Button, Input, Textarea, Label, Card, CardHeader, CardTitle, CardContent, Badge,
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "partners" | "partnerCommissions" | "users" | "activity";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "partners" | "partnerCommissions" | "documents" | "users" | "activity";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -31,6 +32,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "tickets", label: "Tickets", icon: <TicketIcon size={18} /> },
   { id: "partners", label: "Partners", icon: <Building2 size={18} />, section: "Partners" },
   { id: "partnerCommissions", label: "Commissions", icon: <DollarSign size={18} /> },
+  { id: "documents", label: "Documents", icon: <FolderOpen size={18} /> },
   { id: "users", label: "Users", icon: <Users size={18} />, section: "System" },
   { id: "activity", label: "Activity Log", icon: <Activity size={18} /> },
 ];
@@ -79,6 +81,7 @@ export default function Admin() {
         tickets: "/api/admin/tickets",
         partners: "/api/admin/partners",
         partnerCommissions: "/api/admin/partner/commissions",
+        documents: "/api/admin/documents",
         users: "/api/admin/users",
         activity: "/api/admin/activity",
       };
@@ -366,6 +369,7 @@ export default function Admin() {
               {activeTab === "tickets" && <TicketsTab tickets={data.tickets || []} refresh={() => fetchData("tickets")} headers={headers} exportCSV={() => exportCSV("tickets")} />}
               {activeTab === "partners" && <PartnerManagementTab partners={data.partners || []} refresh={() => fetchData("partners")} headers={headers} />}
               {activeTab === "partnerCommissions" && <PartnerCommissionsTab commissions={data.partnerCommissions || []} refresh={() => fetchData("partnerCommissions")} headers={headers} />}
+              {activeTab === "documents" && <DocumentsTab documents={data.documents || []} refresh={() => fetchData("documents")} headers={headers} partners={data.partners || []} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
             </div>
@@ -1487,33 +1491,53 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10" });
+  const [notesOpen, setNotesOpen] = useState<any | null>(null);
+  const [notesText, setNotesText] = useState("");
+  const [form, setForm] = useState({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10", notes: "" });
+  const [exporting, setExporting] = useState(false);
 
   const filtered = useMemo(() => commissions.filter((c: any) => {
     const matchSearch = !search || [c.description, c.partnerCompany, c.partnerContact].some(f => f?.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchSearch && matchStatus;
-  }), [commissions, search, statusFilter]);
+    const matchType = typeFilter === "all" || c.type === typeFilter;
+    return matchSearch && matchStatus && matchType;
+  }), [commissions, search, statusFilter, typeFilter]);
 
   const totals = useMemo(() => ({
     pending: commissions.filter((c: any) => c.status === "pending").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
     approved: commissions.filter((c: any) => c.status === "approved").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
     paid: commissions.filter((c: any) => c.status === "paid").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
+    disputed: commissions.filter((c: any) => c.status === "disputed").reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
     total: commissions.reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0),
   }), [commissions]);
 
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: number, status: string, notes?: string) => {
     try {
+      const body: any = { status };
+      if (notes !== undefined) body.notes = notes;
       const res = await fetch(`/api/admin/partner/commissions/${id}`, {
         method: "PUT", headers: { ...headers(), "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       if (res.ok) { toast({ title: `Commission ${status}` }); refresh(); }
       else { const err = await res.json().catch(() => ({})); toast({ title: err.message || "Failed to update commission", variant: "destructive" }); }
     } catch { toast({ title: "Error updating commission", variant: "destructive" }); }
+  };
+
+  const saveNotes = async () => {
+    if (!notesOpen) return;
+    try {
+      const res = await fetch(`/api/admin/partner/commissions/${notesOpen.id}`, {
+        method: "PUT", headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notesText }),
+      });
+      if (res.ok) { toast({ title: "Notes saved" }); setNotesOpen(null); refresh(); }
+      else toast({ title: "Failed to save notes", variant: "destructive" });
+    } catch { toast({ title: "Error saving notes", variant: "destructive" }); }
   };
 
   const createCommission = async () => {
@@ -1522,22 +1546,38 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
         method: "POST", headers: { ...headers(), "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, partnerId: parseInt(form.partnerId), dealId: form.dealId ? parseInt(form.dealId) : null }),
       });
-      if (res.ok) { toast({ title: "Commission created" }); setCreateOpen(false); setForm({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10" }); refresh(); }
+      if (res.ok) { toast({ title: "Commission created" }); setCreateOpen(false); setForm({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10", notes: "" }); refresh(); }
       else toast({ title: "Failed to create commission", variant: "destructive" });
     } catch { toast({ title: "Error creating commission", variant: "destructive" }); }
   };
 
+  const exportCSV = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/admin/partner/commissions/export", { headers: headers() });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `commissions-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "Commissions exported" });
+      } else toast({ title: "Export failed", variant: "destructive" });
+    } catch { toast({ title: "Export failed", variant: "destructive" }); } finally { setExporting(false); }
+  };
+
   const statusBadge = (status: string) => {
-    const colors: Record<string, string> = { pending: "bg-yellow-100 text-yellow-800", approved: "bg-blue-100 text-blue-800", paid: "bg-emerald-100 text-emerald-800", rejected: "bg-red-100 text-red-800" };
+    const colors: Record<string, string> = { pending: "bg-yellow-100 text-yellow-800", approved: "bg-blue-100 text-blue-800", paid: "bg-emerald-100 text-emerald-800", rejected: "bg-red-100 text-red-800", disputed: "bg-orange-100 text-orange-800" };
     return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || "bg-gray-100 text-gray-800"}`}>{status}</span>;
   };
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-3">
         {[
           { label: "Pending", value: fmt(totals.pending), color: "text-yellow-600" },
           { label: "Approved", value: fmt(totals.approved), color: "text-blue-600" },
+          { label: "Disputed", value: fmt(totals.disputed), color: "text-orange-600" },
           { label: "Paid", value: fmt(totals.paid), color: "text-emerald-600" },
           { label: "Total", value: fmt(totals.total), color: "text-primary" },
         ].map(m => (
@@ -1554,10 +1594,15 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Partner Commissions</CardTitle>
-            <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Commission</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={exportCSV} disabled={exporting}>
+                {exporting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} Export CSV
+              </Button>
+              <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Commission</Button>
+            </div>
           </div>
-          <div className="flex items-center gap-3 mt-3">
-            <div className="relative flex-1">
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search by partner or description..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
@@ -1566,7 +1611,15 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="paid">Paid</option>
+              <option value="disputed">Disputed</option>
               <option value="rejected">Rejected</option>
+            </select>
+            <select className="h-9 px-3 rounded-md border text-sm bg-background" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+              <option value="all">All Types</option>
+              <option value="deal">Deal</option>
+              <option value="recurring">Recurring</option>
+              <option value="spiff">Spiff</option>
+              <option value="bonus">Bonus</option>
             </select>
           </div>
         </CardHeader>
@@ -1587,12 +1640,19 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
               </thead>
               <tbody>
                 {filtered.map((c: any) => (
-                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <tr key={c.id} className={`border-b last:border-0 hover:bg-muted/50 ${c.status === "disputed" ? "bg-orange-50/50" : ""}`}>
                     <td className="px-5 py-3">
                       <div className="font-medium">{c.partnerCompany || "—"}</div>
                       <div className="text-xs text-muted-foreground">{c.partnerContact}</div>
                     </td>
-                    <td className="px-5 py-3 max-w-[250px] truncate">{c.description}</td>
+                    <td className="px-5 py-3 max-w-[220px]">
+                      <div className="truncate">{c.description}</div>
+                      {c.notes && (
+                        <div className="text-xs text-orange-600 truncate mt-0.5" title={c.notes}>
+                          <AlertTriangle className="inline w-3 h-3 mr-0.5" />{c.notes}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-5 py-3 capitalize">{c.type}</td>
                     <td className="px-5 py-3 text-right">{c.rate ? `${c.rate}%` : "—"}</td>
                     <td className="px-5 py-3 text-right font-medium">{fmt(parseFloat(c.amount || 0))}</td>
@@ -1600,6 +1660,9 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
                     <td className="px-5 py-3 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="Add notes" onClick={() => { setNotesOpen(c); setNotesText(c.notes || ""); }}>
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
                         {c.status === "pending" && (
                           <>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Approve" onClick={() => updateStatus(c.id, "approved")}><Check className="w-4 h-4" /></Button>
@@ -1608,6 +1671,12 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
                         )}
                         {c.status === "approved" && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Mark Paid" onClick={() => updateStatus(c.id, "paid")}><DollarSign className="w-4 h-4" /></Button>
+                        )}
+                        {c.status === "disputed" && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Resolve — Approve" onClick={() => updateStatus(c.id, "approved", "Dispute resolved — commission approved")}><Check className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" title="Resolve — Reject" onClick={() => updateStatus(c.id, "rejected", "Dispute resolved — commission rejected")}><X className="w-4 h-4" /></Button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -1627,7 +1696,7 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
             <div><Label>Partner ID</Label><Input type="number" value={form.partnerId} onChange={e => setForm(p => ({ ...p, partnerId: e.target.value }))} placeholder="Enter partner ID" /></div>
             <div><Label>Deal ID (optional)</Label><Input type="number" value={form.dealId} onChange={e => setForm(p => ({ ...p, dealId: e.target.value }))} placeholder="Associated deal ID" /></div>
             <div><Label>Type</Label>
-              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background mt-1" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
                 <option value="deal">Deal</option><option value="recurring">Recurring</option><option value="spiff">Spiff</option><option value="bonus">Bonus</option>
               </select>
             </div>
@@ -1636,10 +1705,208 @@ function PartnerCommissionsTab({ commissions, refresh, headers }: { commissions:
               <div><Label>Amount ($)</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" /></div>
               <div><Label>Rate (%)</Label><Input type="number" step="0.01" value={form.rate} onChange={e => setForm(p => ({ ...p, rate: e.target.value }))} placeholder="10" /></div>
             </div>
+            <div><Label>Notes (optional)</Label><Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Internal notes..." /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={createCommission} disabled={!form.partnerId || !form.description || !form.amount}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!notesOpen} onOpenChange={() => setNotesOpen(null)}>
+        <DialogContent role="dialog" aria-modal="true">
+          <DialogHeader><DialogTitle>Commission Notes</DialogTitle></DialogHeader>
+          {notesOpen && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{notesOpen.description} — {fmt(parseFloat(notesOpen.amount))}</p>
+              <Textarea value={notesText} onChange={e => setNotesText(e.target.value)} placeholder="Add internal notes..." rows={4} />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotesOpen(null)}>Cancel</Button>
+            <Button onClick={saveNotes}><Save className="w-4 h-4 mr-1" /> Save Notes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DocumentsTab({ documents, refresh, headers, partners }: { documents: any[]; refresh: () => void; headers: () => any; partners: any[] }) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState<number | null>(null);
+  const [form, setForm] = useState({ name: "", description: "", category: "other", partnerId: "" });
+  const [file, setFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const CATEGORIES = ["contract", "proposal", "invoice", "report", "agreement", "other"];
+
+  const filtered = useMemo(() => documents.filter((d: any) => {
+    const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || (d.description || "").toLowerCase().includes(search.toLowerCase()) || (d.partnerCompany || "").toLowerCase().includes(search.toLowerCase());
+    const matchCat = categoryFilter === "all" || d.category === categoryFilter;
+    return matchSearch && matchCat && d.active !== false;
+  }), [documents, search, categoryFilter]);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  };
+
+  const handleUpload = async () => {
+    if (!file || !form.name) return;
+    setUploading(true);
+    try {
+      const content = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      if (file.size > 10 * 1024 * 1024) { toast({ title: "File must be under 10MB", variant: "destructive" }); return; }
+      const res = await fetch("/api/admin/documents", {
+        method: "POST",
+        headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, description: form.description || null, filename: file.name, mimeType: file.type || "application/octet-stream", size: file.size, content, category: form.category, partnerId: form.partnerId || null }),
+      });
+      if (res.ok) {
+        toast({ title: "Document uploaded" });
+        setUploadOpen(false);
+        setFile(null);
+        setForm({ name: "", description: "", category: "other", partnerId: "" });
+        refresh();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: err.message || "Upload failed", variant: "destructive" });
+      }
+    } catch { toast({ title: "Upload failed", variant: "destructive" }); } finally { setUploading(false); }
+  };
+
+  const handleDownload = async (doc: any) => {
+    setDownloading(doc.id);
+    try {
+      const res = await fetch(`/api/admin/documents/${doc.id}/download`, { headers: headers() });
+      if (!res.ok) { toast({ title: "Download failed", variant: "destructive" }); return; }
+      const { content, filename, mimeType } = await res.json();
+      const byteChars = atob(content);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast({ title: "Download failed", variant: "destructive" }); } finally { setDownloading(null); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this document?")) return;
+    try {
+      const res = await fetch(`/api/admin/documents/${id}`, { method: "DELETE", headers: headers() });
+      if (res.ok) { toast({ title: "Document deleted" }); refresh(); }
+      else toast({ title: "Failed to delete", variant: "destructive" });
+    } catch { toast({ title: "Delete failed", variant: "destructive" }); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Documents</CardTitle>
+            <Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="w-4 h-4 mr-1" /> Upload Document</Button>
+          </div>
+          <div className="flex items-center gap-3 mt-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Search documents..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <select className="h-9 px-3 rounded-md border text-sm bg-background" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+              <option value="all">All Categories</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+            </select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-5 py-3 text-left">Name</th>
+                  <th className="px-5 py-3 text-left">Category</th>
+                  <th className="px-5 py-3 text-left">Partner</th>
+                  <th className="px-5 py-3 text-left">Uploaded By</th>
+                  <th className="px-5 py-3 text-left">Size</th>
+                  <th className="px-5 py-3 text-left">Date</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((doc: any) => (
+                  <tr key={doc.id} className="border-b last:border-0 hover:bg-muted/50">
+                    <td className="px-5 py-3">
+                      <div className="font-medium">{doc.name}</div>
+                      {doc.description && <div className="text-xs text-muted-foreground truncate max-w-[220px]">{doc.description}</div>}
+                    </td>
+                    <td className="px-5 py-3 capitalize">{doc.category}</td>
+                    <td className="px-5 py-3">{doc.partnerCompany || <span className="text-muted-foreground">All Partners</span>}</td>
+                    <td className="px-5 py-3 capitalize">{doc.uploadedBy}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{formatBytes(doc.size)}</td>
+                    <td className="px-5 py-3 text-xs text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" onClick={() => handleDownload(doc)} disabled={downloading === doc.id}>
+                          {downloading === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" title="Delete" onClick={() => handleDelete(doc.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No documents found.</div>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent role="dialog" aria-modal="true">
+          <DialogHeader><DialogTitle>Upload Document</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Document Name *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Partner Agreement 2026" /></div>
+            <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description..." rows={2} /></div>
+            <div><Label>Category</Label>
+              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background mt-1" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              </select>
+            </div>
+            <div><Label>Partner (optional — leave blank for all partners)</Label>
+              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background mt-1" value={form.partnerId} onChange={e => setForm(p => ({ ...p, partnerId: e.target.value }))}>
+                <option value="">All Partners (Global)</option>
+                {partners.map((p: any) => <option key={p.id} value={p.id}>{p.companyName}</option>)}
+              </select>
+            </div>
+            <div><Label>File * (max 10MB)</Label>
+              <input type="file" ref={fileRef} className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
+              <Button variant="outline" className="w-full mt-1" onClick={() => fileRef.current?.click()}>
+                {file ? file.name : "Choose File..."}
+              </Button>
+              {file && <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024).toFixed(1)} KB</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUploadOpen(false); setFile(null); }}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={!form.name || !file || uploading}>
+              {uploading ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Uploading...</> : <><Upload className="w-4 h-4 mr-1" /> Upload</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

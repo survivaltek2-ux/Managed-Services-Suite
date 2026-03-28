@@ -66,7 +66,8 @@ Reseller/MSP partner portal at `/partners/` base path. Fully redesigned with Sal
 - `/dashboard` — Salesforce-style home with KPI cards, revenue pipeline chart, deals by stage pie chart, recent deals table, quick actions
 - `/deals` — Deal registration with list/kanban toggle, search, filters (stages: prospect, qualification, proposal, negotiation, closed_won, closed_lost)
 - `/leads` — Lead management with search, inline status updates
-- `/commissions` — Commission KPI cards (total, paid, approved, pending) + transaction table
+- `/commissions` — Commission KPI cards (total, paid, approved, pending) + monthly earnings bar chart + transaction table with status/type filters + dispute commission workflow
+- `/documents` — Document management: download admin-shared docs, upload/delete own partner docs
 - `/resources` — Resource library with category filter tabs + search
 - `/training` — Training courses with progress bars, summary cards
 - `/support` — Support cases with create/view/message modals, priority/status badges
@@ -81,7 +82,8 @@ Backend for both websites.
 - `src/routes/auth.ts` — Client auth (register, login, me)
 - `src/routes/cms.ts` — Blog CRUD, user management, dashboard stats, CSV export, activity log, status updates
 - `src/routes/quotes.ts` — Proposals CRUD with line items, public view, accept/reject workflow
-- `src/routes/partners.ts` — Partner auth, deals, leads, commissions, support tickets, MDF requests, dashboard, admin management (auto-commission on deal close, admin commission CRUD with requireAdmin)
+- `src/routes/partners.ts` — Partner auth, deals, leads, commissions (per-partner rate, dispute flow, CSV export, notes), support tickets, MDF requests, dashboard, admin management
+- `src/routes/documents.ts` — Document library: admin uploads/manages docs; partners can download shared + upload/delete their own; base64 storage, 10MB limit
 - `src/lib/email.ts` — Nodemailer email service with HTML-escaped templates, graceful degradation when SMTP unconfigured
 - `src/middlewares/auth.ts` — `requireAuth` (any logged-in user) + `requireAdmin` (admin role check)
 - `src/routes/tickets.ts` — Client support tickets

@@ -34,6 +34,7 @@ export const partnersTable = pgTable("partners", {
   totalDeals: integer("total_deals").notNull().default(0),
   totalRevenue: decimal("total_revenue", { precision: 12, scale: 2 }).notNull().default("0"),
   ytdRevenue: decimal("ytd_revenue", { precision: 12, scale: 2 }).notNull().default("0"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull().default("10.00"),
   ssoProvider: text("sso_provider"),
   ssoId: text("sso_id"),
   isAdmin: boolean("is_admin").notNull().default(false),
@@ -141,6 +142,7 @@ export const partnerCommissionsTable = pgTable("partner_commissions", {
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   rate: decimal("rate", { precision: 5, scale: 2 }),
   status: commissionStatusEnum("status").notNull().default("pending"),
+  notes: text("notes"),
   paidAt: timestamp("paid_at"),
   periodStart: timestamp("period_start"),
   periodEnd: timestamp("period_end"),
@@ -189,6 +191,25 @@ export const partnerMdfRequestsTable = pgTable("partner_mdf_requests", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const documentCategoryEnum = pgEnum("document_category", ["contract", "proposal", "invoice", "report", "agreement", "other"]);
+
+export const documentsTable = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull().default("application/octet-stream"),
+  size: integer("size").notNull().default(0),
+  content: text("content").notNull(),
+  category: documentCategoryEnum("category").notNull().default("other"),
+  partnerId: integer("partner_id").references(() => partnersTable.id),
+  uploadedBy: text("uploaded_by").notNull().default("admin"),
+  tags: text("tags").notNull().default("[]"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertPartnerSchema = createInsertSchema(partnersTable).omit({ id: true, createdAt: true, updatedAt: true, tier: true, status: true, totalDeals: true, totalRevenue: true, ytdRevenue: true, approvedAt: true });
 export const insertDealSchema = createInsertSchema(partnerDealsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
 export const insertLeadSchema = createInsertSchema(partnerLeadsTable).omit({ id: true, createdAt: true, assignedAt: true, partnerId: true });
@@ -200,6 +221,7 @@ export const insertCommissionSchema = createInsertSchema(partnerCommissionsTable
 export const insertSupportTicketSchema = createInsertSchema(partnerSupportTicketsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTicketMessageSchema = createInsertSchema(partnerTicketMessagesTable).omit({ id: true, createdAt: true });
 export const insertMdfRequestSchema = createInsertSchema(partnerMdfRequestsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDocumentSchema = createInsertSchema(documentsTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type Partner = typeof partnersTable.$inferSelect;
 export type PartnerDeal = typeof partnerDealsTable.$inferSelect;
@@ -212,3 +234,4 @@ export type PartnerCommission = typeof partnerCommissionsTable.$inferSelect;
 export type PartnerSupportTicket = typeof partnerSupportTicketsTable.$inferSelect;
 export type PartnerTicketMessage = typeof partnerTicketMessagesTable.$inferSelect;
 export type PartnerMdfRequest = typeof partnerMdfRequestsTable.$inferSelect;
+export type Document = typeof documentsTable.$inferSelect;

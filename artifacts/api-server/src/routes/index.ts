@@ -9,6 +9,7 @@ import chatRouter from "./chat";
 import cmsRouter from "./cms";
 import partnersRouter from "./partners";
 import openaiRouter from "./openai";
+import documentsRouter from "./documents";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(chatRouter);
 router.use(cmsRouter);
 router.use(partnersRouter);
 router.use(openaiRouter);
+router.use(documentsRouter);
 
 export default router;
