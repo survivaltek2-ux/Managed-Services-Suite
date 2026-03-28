@@ -10,6 +10,8 @@ import cmsRouter from "./cms";
 import partnersRouter from "./partners";
 import openaiRouter from "./openai";
 import documentsRouter from "./documents";
+import tsdRouter from "./tsd";
+import webhooksRouter from "./webhooks";
 
 const router: IRouter = Router();
 
@@ -24,5 +26,7 @@ router.use(cmsRouter);
 router.use(partnersRouter);
 router.use(openaiRouter);
 router.use(documentsRouter);
+router.use(tsdRouter);
+router.use(webhooksRouter);
 
 export default router;

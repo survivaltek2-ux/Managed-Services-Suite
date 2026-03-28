@@ -1,4 +1,5 @@
 import app from "./app";
+import { ensureTsdConfigsExist, startTsdSyncScheduler } from "./lib/tsdSync.js";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const port = Number(rawPort);
@@ -7,6 +8,12 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`Server listening on port ${port}`);
+  try {
+    await ensureTsdConfigsExist();
+    await startTsdSyncScheduler();
+  } catch (err) {
+    console.error("[TSD] Startup error:", err);
+  }
 });

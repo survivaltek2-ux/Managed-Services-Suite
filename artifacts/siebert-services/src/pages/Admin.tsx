@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "partners" | "partnerCommissions" | "documents" | "users" | "activity";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "partners" | "partnerCommissions" | "documents" | "users" | "activity" | "tsdIntegrations";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -33,6 +33,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "partners", label: "Partners", icon: <Building2 size={18} />, section: "Partners" },
   { id: "partnerCommissions", label: "Commissions", icon: <DollarSign size={18} /> },
   { id: "documents", label: "Documents", icon: <FolderOpen size={18} /> },
+  { id: "tsdIntegrations", label: "TSD Integrations", icon: <RefreshCw size={18} />, section: "Integrations" },
   { id: "users", label: "Users", icon: <Users size={18} />, section: "System" },
   { id: "activity", label: "Activity Log", icon: <Activity size={18} /> },
 ];
@@ -84,7 +85,21 @@ export default function Admin() {
         documents: "/api/admin/documents",
         users: "/api/admin/users",
         activity: "/api/admin/activity",
+        tsdIntegrations: "/api/admin/tsd/configs",
       };
+      if (tab === "tsdIntegrations") {
+        const [cfgRes, logRes] = await Promise.all([
+          fetch(endpoints["tsdIntegrations"], { headers: headers() }),
+          fetch("/api/admin/tsd/logs?limit=50", { headers: headers() }),
+        ]);
+        const [cfgData, logData] = await Promise.all([
+          cfgRes.ok ? cfgRes.json() : [],
+          logRes.ok ? logRes.json() : [],
+        ]);
+        setData(prev => ({ ...prev, tsdConfigs: cfgData, tsdLogs: logData }));
+        setLoading(false);
+        return;
+      }
       if (tab === "settings") {
         const [cmsRes, smtpRes] = await Promise.all([
           fetch(endpoints["settings"], { headers: headers() }),
@@ -370,6 +385,7 @@ export default function Admin() {
               {activeTab === "partners" && <PartnerManagementTab partners={data.partners || []} refresh={() => fetchData("partners")} headers={headers} />}
               {activeTab === "partnerCommissions" && <PartnerCommissionsTab commissions={data.partnerCommissions || []} refresh={() => fetchData("partnerCommissions")} headers={headers} />}
               {activeTab === "documents" && <DocumentsTab documents={data.documents || []} refresh={() => fetchData("documents")} headers={headers} partners={data.partners || []} />}
+              {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
             </div>
@@ -1938,6 +1954,295 @@ function ActivityTab({ activities }: { activities: any[] }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── TSD Integrations Tab ────────────────────────────────────────────────────
+
+const TSD_PROVIDER_LABELS: Record<string, string> = {
+  avant: "Avant Communications",
+  telarus: "Telarus",
+  intelisys: "Intelisys",
+};
+
+const TSD_STATUS_COLORS: Record<string, string> = {
+  success: "bg-green-100 text-green-700",
+  failure: "bg-red-100 text-red-700",
+  partial: "bg-yellow-100 text-yellow-700",
+};
+
+function TsdIntegrationsTab({
+  configs, logs, headers, refresh, toast,
+}: {
+  configs: any[];
+  logs: any[];
+  headers: () => any;
+  refresh: () => void;
+  toast: any;
+}) {
+  const [editingProvider, setEditingProvider] = useState<string | null>(null);
+  const [credInput, setCredInput] = useState("");
+  const [webhookInput, setWebhookInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [expandedLog, setExpandedLog] = useState<number | null>(null);
+
+  const allProviders = ["avant", "telarus", "intelisys"];
+
+  const getConfig = (p: string) => configs.find((c: any) => c.provider === p) || { provider: p, enabled: false };
+
+  const handleToggle = async (provider: string, enabled: boolean) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/tsd/configs/${provider}`, {
+        method: "PUT", headers: headers(),
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) { refresh(); toast({ title: `${TSD_PROVIDER_LABELS[provider]} ${enabled ? "enabled" : "disabled"}` }); }
+      else toast({ title: "Failed to update", variant: "destructive" });
+    } catch { toast({ title: "Error updating config", variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveCreds = async (provider: string) => {
+    setSaving(true);
+    try {
+      const body: any = {};
+      if (credInput && !credInput.includes("****")) body.credentialRef = credInput;
+      if (webhookInput && !webhookInput.includes("****")) body.webhookSecret = webhookInput;
+      const res = await fetch(`/api/admin/tsd/configs/${provider}`, {
+        method: "PUT", headers: headers(),
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        refresh();
+        setEditingProvider(null);
+        setCredInput("");
+        setWebhookInput("");
+        toast({ title: "Credentials saved" });
+      } else {
+        toast({ title: "Failed to save credentials", variant: "destructive" });
+      }
+    } catch { toast({ title: "Error saving credentials", variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  const handleTest = async (provider: string) => {
+    setTesting(provider);
+    try {
+      const res = await fetch(`/api/admin/tsd/configs/${provider}/test`, { method: "POST", headers: headers() });
+      const data = await res.json();
+      if (data.ok) toast({ title: `${TSD_PROVIDER_LABELS[provider]}: Connection successful` });
+      else toast({ title: `Connection failed: ${data.error || "Unknown error"}`, variant: "destructive" });
+    } catch { toast({ title: "Test connection error", variant: "destructive" }); }
+    finally { setTesting(null); }
+  };
+
+  const handleSync = async (provider: string, type: "leads" | "commissions") => {
+    setSyncing(`${provider}:${type}`);
+    try {
+      const res = await fetch(`/api/admin/tsd/sync/${provider}/${type}`, { method: "POST", headers: headers() });
+      if (res.ok) {
+        toast({ title: `${TSD_PROVIDER_LABELS[provider]} ${type} sync triggered` });
+        setTimeout(() => { refresh(); setSyncing(null); }, 2000);
+      } else {
+        toast({ title: "Failed to trigger sync", variant: "destructive" });
+        setSyncing(null);
+      }
+    } catch { toast({ title: "Error triggering sync", variant: "destructive" }); setSyncing(null); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold mb-1">TSD Integrations</h2>
+        <p className="text-sm text-muted-foreground">Manage two-way integrations with Technology Solution Distributors. Deals are automatically pushed to enabled TSDs when registered.</p>
+      </div>
+
+      <div className="grid gap-4">
+        {allProviders.map((provider) => {
+          const cfg = getConfig(provider);
+          const isEditingThis = editingProvider === provider;
+          return (
+            <Card key={provider}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${cfg.enabled ? "bg-green-500" : "bg-gray-300"}`} />
+                    <div>
+                      <p className="font-semibold">{TSD_PROVIDER_LABELS[provider]}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{provider}</p>
+                    </div>
+                    {cfg.hasCredential ? (
+                      <Badge className="text-xs bg-green-50 text-green-700 border border-green-200">API key set</Badge>
+                    ) : (
+                      <Badge className="text-xs bg-amber-50 text-amber-700 border border-amber-200">No API key</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleToggle(provider, !cfg.enabled)}
+                      disabled={saving}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${cfg.enabled ? "bg-green-500" : "bg-gray-200"}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${cfg.enabled ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Button size="sm" variant="outline" onClick={() => handleTest(provider)} disabled={testing === provider}>
+                    {testing === provider ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Activity size={14} className="mr-1" />}
+                    Test Connection
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleSync(provider, "leads")} disabled={!!syncing}>
+                    {syncing === `${provider}:leads` ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RefreshCw size={14} className="mr-1" />}
+                    Sync Leads
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleSync(provider, "commissions")} disabled={!!syncing}>
+                    {syncing === `${provider}:commissions` ? <Loader2 size={14} className="mr-1 animate-spin" /> : <DollarSign size={14} className="mr-1" />}
+                    Sync Commissions
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setEditingProvider(isEditingThis ? null : provider);
+                    setCredInput("");
+                    setWebhookInput("");
+                  }}>
+                    <KeyRound size={14} className="mr-1" />
+                    {isEditingThis ? "Cancel" : "Edit Credentials"}
+                  </Button>
+                </div>
+
+                {!cfg.hasCredential && (
+                  <div className="mb-3 p-3 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                    No API credentials configured. Enter them below or set the <code className="font-mono bg-amber-100 px-1 rounded">{provider.toUpperCase()}_API_KEY</code> environment variable (env var takes precedence).
+                  </div>
+                )}
+
+                {isEditingThis && (
+                  <div className="bg-muted/40 rounded-lg p-4 space-y-3 border">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      Credentials are masked after saving and never shown again.
+                      {cfg.credentialSource === "env" && " Currently using env var — DB value would be overridden by env var."}
+                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        API Key / Credential
+                        {provider === "telarus" ? " (format: apiKey::agentId)" : provider === "intelisys" ? " (format: apiKey::partnerId)" : ""}
+                      </Label>
+                      <Input
+                        type="password"
+                        placeholder={cfg.hasCredential ? "Enter new value to replace (leave blank to keep existing)" : "Enter API key"}
+                        value={credInput}
+                        onChange={e => setCredInput(e.target.value)}
+                        className="font-mono text-sm"
+                        autoComplete="new-password"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Env var <code className="font-mono text-xs">{provider.toUpperCase()}_API_KEY</code> takes precedence over this field.
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Webhook Secret (for signature verification)</Label>
+                      <Input
+                        type="password"
+                        placeholder={cfg.hasWebhookSecret ? "Enter new value to replace (leave blank to keep existing)" : "Enter webhook secret"}
+                        value={webhookInput}
+                        onChange={e => setWebhookInput(e.target.value)}
+                        className="font-mono text-sm"
+                        autoComplete="new-password"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Env var <code className="font-mono text-xs">{provider.toUpperCase()}_WEBHOOK_SECRET</code> takes precedence.
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Webhook URL: <code className="bg-muted px-1 rounded text-xs">/api/webhooks/tsd/{provider}</code></p>
+                    <Button size="sm" onClick={() => handleSaveCreds(provider)} disabled={saving || (!credInput && !webhookInput)}>
+                      {saving ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />}
+                      Save Credentials
+                    </Button>
+                  </div>
+                )}
+
+                {(cfg.lastLeadSyncAt || cfg.lastCommissionSyncAt) && (
+                  <div className="text-xs text-muted-foreground mt-3 flex gap-4">
+                    {cfg.lastLeadSyncAt && <span>Last lead sync: {new Date(cfg.lastLeadSyncAt).toLocaleString()}</span>}
+                    {cfg.lastCommissionSyncAt && <span>Last commission sync: {new Date(cfg.lastCommissionSyncAt).toLocaleString()}</span>}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold">Sync History</h3>
+          <Button size="sm" variant="outline" onClick={refresh}><RefreshCw size={14} className="mr-1" />Refresh</Button>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="px-4 py-2 text-left font-medium">Provider</th>
+                    <th className="px-4 py-2 text-left font-medium">Direction</th>
+                    <th className="px-4 py-2 text-left font-medium">Entity</th>
+                    <th className="px-4 py-2 text-left font-medium">Status</th>
+                    <th className="px-4 py-2 text-left font-medium">Records</th>
+                    <th className="px-4 py-2 text-left font-medium">Timestamp</th>
+                    <th className="px-4 py-2 text-left font-medium">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {logs.map((log: any) => (
+                    <React.Fragment key={log.id}>
+                      <tr className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-2 font-medium capitalize">{TSD_PROVIDER_LABELS[log.provider] || log.provider}</td>
+                        <td className="px-4 py-2 capitalize">{log.direction}</td>
+                        <td className="px-4 py-2 capitalize">{log.entityType}</td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TSD_STATUS_COLORS[log.status] || "bg-gray-100 text-gray-700"}`}>
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2">{log.recordsAffected}</td>
+                        <td className="px-4 py-2 whitespace-nowrap text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</td>
+                        <td className="px-4 py-2">
+                          {(log.errorMessage || log.payloadSummary) && (
+                            <button onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)} className="text-xs text-blue-600 hover:underline">
+                              {expandedLog === log.id ? "Hide" : "Show"}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {expandedLog === log.id && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-2 bg-muted/30">
+                            {log.errorMessage && (
+                              <div className="text-xs text-red-600 mb-1"><strong>Error:</strong> {log.errorMessage}</div>
+                            )}
+                            {log.payloadSummary && (
+                              <div className="text-xs text-muted-foreground"><strong>Payload:</strong> {log.payloadSummary}</div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                  {logs.length === 0 && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No sync events recorded yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 

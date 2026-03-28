@@ -6,6 +6,7 @@ import { eq, and, desc, sql, count, sum } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "../lib/email.js";
+import { pushDealToTSDs } from "../lib/tsdSync.js";
 
 const router: IRouter = Router();
 
@@ -232,6 +233,7 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
         email: partner.email,
       }).catch(err => console.error("[Email] Deal notification error:", err));
     }
+    pushDealToTSDs(deal).catch(err => console.error("[TSD] Deal push error:", err));
     res.status(201).json({ ...deal, products: JSON.parse(deal.products) });
   } catch (err) {
     console.error(err);

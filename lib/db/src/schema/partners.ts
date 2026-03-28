@@ -142,6 +142,7 @@ export const partnerCommissionsTable = pgTable("partner_commissions", {
   rate: decimal("rate", { precision: 5, scale: 2 }),
   status: commissionStatusEnum("status").notNull().default("pending"),
   notes: text("notes"),
+  tsdDiscrepancy: text("tsd_discrepancy"),
   paidAt: timestamp("paid_at"),
   periodStart: timestamp("period_start"),
   periodEnd: timestamp("period_end"),
@@ -191,6 +192,43 @@ export const documentsTable = pgTable("documents", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const tsdProviderEnum = pgEnum("tsd_provider", ["avant", "telarus", "intelisys"]);
+export const tsdSyncDirectionEnum = pgEnum("tsd_sync_direction", ["outbound", "inbound"]);
+export const tsdSyncStatusEnum = pgEnum("tsd_sync_status", ["success", "failure", "partial"]);
+export const tsdSyncEntityEnum = pgEnum("tsd_sync_entity", ["deal", "lead", "commission", "webhook"]);
+
+export const tsdConfigsTable = pgTable("tsd_configs", {
+  id: serial("id").primaryKey(),
+  provider: tsdProviderEnum("provider").notNull().unique(),
+  enabled: boolean("enabled").notNull().default(false),
+  credentialRef: text("credential_ref"),
+  webhookSecret: text("webhook_secret"),
+  lastLeadSyncAt: timestamp("last_lead_sync_at"),
+  lastCommissionSyncAt: timestamp("last_commission_sync_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const tsdDealMappingsTable = pgTable("tsd_deal_mappings", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => partnerDealsTable.id),
+  provider: tsdProviderEnum("provider").notNull(),
+  externalId: text("external_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const tsdSyncLogsTable = pgTable("tsd_sync_logs", {
+  id: serial("id").primaryKey(),
+  provider: tsdProviderEnum("provider").notNull(),
+  direction: tsdSyncDirectionEnum("direction").notNull(),
+  entityType: tsdSyncEntityEnum("entity_type").notNull(),
+  status: tsdSyncStatusEnum("status").notNull(),
+  recordsAffected: integer("records_affected").notNull().default(0),
+  payloadSummary: text("payload_summary"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertPartnerSchema = createInsertSchema(partnersTable).omit({ id: true, createdAt: true, updatedAt: true, tier: true, status: true, totalDeals: true, totalRevenue: true, ytdRevenue: true, approvedAt: true });
 export const insertDealSchema = createInsertSchema(partnerDealsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
 export const insertLeadSchema = createInsertSchema(partnerLeadsTable).omit({ id: true, createdAt: true, assignedAt: true, partnerId: true });
@@ -202,6 +240,8 @@ export const insertCommissionSchema = createInsertSchema(partnerCommissionsTable
 export const insertSupportTicketSchema = createInsertSchema(partnerSupportTicketsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTicketMessageSchema = createInsertSchema(partnerTicketMessagesTable).omit({ id: true, createdAt: true });
 export const insertDocumentSchema = createInsertSchema(documentsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTsdConfigSchema = createInsertSchema(tsdConfigsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTsdSyncLogSchema = createInsertSchema(tsdSyncLogsTable).omit({ id: true, createdAt: true });
 
 export type Partner = typeof partnersTable.$inferSelect;
 export type PartnerDeal = typeof partnerDealsTable.$inferSelect;
@@ -214,3 +254,6 @@ export type PartnerCommission = typeof partnerCommissionsTable.$inferSelect;
 export type PartnerSupportTicket = typeof partnerSupportTicketsTable.$inferSelect;
 export type PartnerTicketMessage = typeof partnerTicketMessagesTable.$inferSelect;
 export type Document = typeof documentsTable.$inferSelect;
+export type TsdConfig = typeof tsdConfigsTable.$inferSelect;
+export type TsdSyncLog = typeof tsdSyncLogsTable.$inferSelect;
+export type TsdDealMapping = typeof tsdDealMappingsTable.$inferSelect;

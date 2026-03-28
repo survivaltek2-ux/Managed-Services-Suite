@@ -145,7 +145,10 @@ artifacts-monorepo/
 - `partner_certifications` — Available certifications
 - `partner_cert_progress` — Partner certification progress
 - `partner_announcements` — Company announcements
-- `partner_commissions` — Commission tracking (status enum: pending/approved/paid/disputed/rejected; per-partner rate, notes, dispute workflow)
+- `partner_commissions` — Commission tracking (status enum: pending/approved/paid/disputed/rejected; per-partner rate, notes, dispute workflow, `tsd_discrepancy` for TSD reconciliation mismatches)
+- `tsd_configs` — TSD provider settings (avant/telarus/intelisys; enabled flag, AES-256-GCM encrypted `credential_ref` and `webhook_secret`, sync timestamps)
+- `tsd_sync_logs` — Audit log for all TSD sync operations (direction, entity type, status, records affected)
+- `tsd_deal_mappings` — Maps local deal IDs to TSD external IDs per-provider (used for commission reconciliation)
 
 ## Partner Tier Automation
 
@@ -166,6 +169,43 @@ Partners are automatically promoted based on **YTD (Year-To-Date) Revenue**:
 - Helper function: `promotePartnerByRevenue(partnerId)` in `src/routes/partners.ts`
 - Called automatically after deal closure
 - No downtime or scheduled jobs needed
+
+## TSD Integration (Avant / Telarus / Intelisys)
+
+Two-way integration with Technology Solution Distributors.
+
+**Key Files:**
+- `lib/integrations-tsd/` — Provider adapters (AvantAdapter, TelarusAdapter, IntelisysAdapter), factory, types, utils
+- `artifacts/api-server/src/lib/tsdSync.ts` — Core sync logic: deal push, lead/commission pull, scheduler
+- `artifacts/api-server/src/lib/tsdSecrets.ts` — AES-256-GCM encryption for DB-stored credentials
+- `artifacts/api-server/src/routes/tsd.ts` — Admin API routes
+- `artifacts/api-server/src/routes/webhooks.ts` — Inbound webhook handling
+
+**Required Environment Variables:**
+- `TSD_SECRETS_KEY` — 64-char hex (32-byte) key for AES-256-GCM encryption of DB-stored secrets (**required**, auto-generated)
+- `AVANT_API_KEY` — Avant API key (optional; can be entered via admin UI instead)
+- `TELARUS_API_KEY` + `TELARUS_AGENT_ID` — Telarus credentials
+- `INTELISYS_API_KEY` + `INTELISYS_PARTNER_ID` — Intelisys credentials
+- `AVANT_WEBHOOK_SECRET` / `TELARUS_WEBHOOK_SECRET` / `INTELISYS_WEBHOOK_SECRET` — Webhook HMAC secrets (optional; overrides DB values)
+- `TSD_LEAD_SYNC_INTERVAL_MINUTES` — Lead sync interval (default: 15)
+- `TSD_COMMISSION_SYNC_INTERVAL_MINUTES` — Commission sync interval (default: 60)
+
+**Credential Precedence:** env var → encrypted DB value. Env vars always take priority.
+
+**Admin API:**
+- `GET /api/admin/tsd/configs` — List provider configs
+- `PUT /api/admin/tsd/configs/:provider` — Enable/disable, update credentials (encrypted before DB storage)
+- `POST /api/admin/tsd/configs/:provider/test` — Test connectivity
+- `POST /api/admin/tsd/sync/:provider/leads` — Trigger lead sync (provider or "all")
+- `POST /api/admin/tsd/sync/:provider/commissions` — Trigger commission sync
+- `GET /api/admin/tsd/logs` — Sync history
+
+**Webhook Endpoints:**
+- `POST /api/webhooks/tsd/:provider` — Receives deal updates, lead assignments, commission confirmations (HMAC verified using raw body)
+
+**Commission Reconciliation:**
+- Deal push records external ID → `tsd_deal_mappings`
+- Commission sync cross-references by external ID → writes `tsd_discrepancy` field when amounts/statuses differ
 
 ## Database Schema (continued)
 
