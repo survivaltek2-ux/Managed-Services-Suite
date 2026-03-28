@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable } from "@workspace/db";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "../lib/email.js";
-import { pushDealToTSDs } from "../lib/tsdSync.js";
+import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
 
@@ -197,7 +197,11 @@ router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res
     const deals = await db.select().from(partnerDealsTable)
       .where(eq(partnerDealsTable.partnerId, req.partnerId!))
       .orderBy(desc(partnerDealsTable.createdAt));
-    res.json(deals.map(d => ({ ...d, products: JSON.parse(d.products) })));
+    res.json(deals.map(d => ({
+      ...d,
+      products: JSON.parse(d.products),
+      tsdTargets: JSON.parse(d.tsdTargets || "[]"),
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load deals" });
@@ -206,11 +210,12 @@ router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res
 
 router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const { title, customerName, customerEmail, customerPhone, description, products, estimatedValue, stage, expectedCloseDate, notes } = req.body;
+    const { title, customerName, customerEmail, customerPhone, description, products, estimatedValue, stage, expectedCloseDate, notes, tsdTargets } = req.body;
     if (!title || !customerName) {
       res.status(400).json({ error: "validation_error", message: "title and customerName are required" });
       return;
     }
+    const confirmedTsdTargets: TsdId[] = Array.isArray(tsdTargets) ? tsdTargets : [];
     const [deal] = await db.insert(partnerDealsTable).values({
       partnerId: req.partnerId!,
       title, customerName,
@@ -221,6 +226,7 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
       stage: stage || "prospect",
       expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
       notes: notes || null,
+      tsdTargets: JSON.stringify(confirmedTsdTargets),
     }).returning();
     const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     if (partner) {
@@ -233,8 +239,43 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
         email: partner.email,
       }).catch(err => console.error("[Email] Deal notification error:", err));
     }
-    pushDealToTSDs(deal).catch(err => console.error("[TSD] Deal push error:", err));
-    res.status(201).json({ ...deal, products: JSON.parse(deal.products) });
+
+    if (confirmedTsdTargets.length > 0 && partner) {
+      const productList: string[] = JSON.parse(deal.products || "[]");
+      const payload = {
+        dealId: deal.id,
+        title: deal.title,
+        customerName: deal.customerName,
+        customerEmail: deal.customerEmail,
+        products: productList,
+        estimatedValue: deal.estimatedValue,
+        partnerCompany: partner.companyName,
+        partnerEmail: partner.email,
+      };
+      const pushPromises = confirmedTsdTargets.map(async (tsdId) => {
+        try {
+          const result = await pushDeal(tsdId, payload);
+          await db.insert(tsdDealPushLogsTable).values({
+            dealId: deal.id,
+            tsdId,
+            status: result.success ? "success" : "failed",
+            errorMessage: result.success ? null : result.errorMessage,
+            payload: JSON.stringify({ externalId: result.externalId }),
+          });
+        } catch (pushErr: any) {
+          console.error(`[TSD] Push to ${tsdId} failed:`, pushErr);
+          await db.insert(tsdDealPushLogsTable).values({
+            dealId: deal.id,
+            tsdId,
+            status: "failed",
+            errorMessage: pushErr.message || "Unknown error",
+          }).catch(() => {});
+        }
+      });
+      Promise.all(pushPromises).catch(err => console.error("[TSD] Push batch error:", err));
+    }
+
+    res.status(201).json({ ...deal, products: JSON.parse(deal.products), tsdTargets: confirmedTsdTargets });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to register deal" });

@@ -1,15 +1,18 @@
 import { Router, type IRouter, type Response } from "express";
-import { db, tsdConfigsTable, tsdSyncLogsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable } from "@workspace/db";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
+import { requirePartnerAuth, type PartnerRequest } from "../middlewares/partnerAuth.js";
 import { resolveCredentialRef, createTsdConnector } from "@workspace/integrations-tsd";
 import type { TsdProvider } from "@workspace/integrations-tsd";
 import { syncLeadsFromTSDs, syncCommissionsFromTSDs } from "../lib/tsdSync.js";
 import { encryptSecret, safeDecryptSecret } from "../lib/tsdSecrets.js";
+import { pushDeal, TSD_IDS, TSD_LABELS, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
 
 const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
+const TSD_LIST = TSD_IDS.map(id => ({ id, label: TSD_LABELS[id] }));
 
 function credentialStatus(provider: TsdProvider, dbCredRef: string | null): {
   hasCredential: boolean;
@@ -35,6 +38,8 @@ function webhookSecretStatus(provider: TsdProvider, dbSecret: string | null): bo
 function encryptOrThrow(value: string): string {
   return encryptSecret(value);
 }
+
+// ─── Admin: TSD Config Management ──────────────────────────────────────────────
 
 router.get("/admin/tsd/configs", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
@@ -205,4 +210,168 @@ router.get("/admin/tsd/logs", requireAuth, requireAdmin, async (req: AuthRequest
   }
 });
 
+// ─── Vendor-to-TSD Mapping ─────────────────────────────────────────────────────
+
+async function getMatchingTSDs(products: string[]): Promise<{ id: TsdId; label: string }[]> {
+  if (!products || products.length === 0) return TSD_LIST;
+  const mappings = await db.select().from(tsdVendorMappingsTable)
+    .where(and(
+      eq(tsdVendorMappingsTable.active, true),
+      inArray(tsdVendorMappingsTable.productName, products)
+    ));
+  const matched = new Set<TsdId>();
+  for (const m of mappings) {
+    const ids: string[] = JSON.parse(m.tsdIds || "[]");
+    for (const id of ids) {
+      if (TSD_IDS.includes(id as TsdId)) matched.add(id as TsdId);
+    }
+  }
+  if (matched.size === 0) return TSD_LIST;
+  return Array.from(matched).map(id => ({ id, label: TSD_LABELS[id] }));
+}
+
+router.post("/partner/deals/tsd-matches", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { products } = req.body;
+    const matches = await getMatchingTSDs(Array.isArray(products) ? products : []);
+    res.json({ matches });
+  } catch (err) {
+    console.error("[TSD] tsd-matches error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to resolve TSD matches" });
+  }
+});
+
+router.post("/partner/deals/:id/retry-tsd-push", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.id as string);
+    const [deal] = await db.select().from(partnerDealsTable)
+      .where(and(eq(partnerDealsTable.id, dealId), eq(partnerDealsTable.partnerId, req.partnerId!)))
+      .limit(1);
+    if (!deal) { res.status(404).json({ error: "not_found", message: "Deal not found" }); return; }
+
+    const [partner] = await db.select({ companyName: partnersTable.companyName, email: partnersTable.email })
+      .from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+
+    const failedLogs = await db.select().from(tsdDealPushLogsTable)
+      .where(and(eq(tsdDealPushLogsTable.dealId, dealId), eq(tsdDealPushLogsTable.status, "failed")));
+
+    if (failedLogs.length === 0) {
+      res.json({ message: "No failed pushes to retry", results: [] });
+      return;
+    }
+
+    const products: string[] = JSON.parse(deal.products || "[]");
+    const payload = {
+      dealId: deal.id,
+      title: deal.title,
+      customerName: deal.customerName,
+      customerEmail: deal.customerEmail,
+      products,
+      estimatedValue: deal.estimatedValue,
+      partnerCompany: partner?.companyName || "",
+      partnerEmail: partner?.email || "",
+    };
+
+    const results = [];
+    for (const log of failedLogs) {
+      const result = await pushDeal(log.tsdId as TsdId, payload);
+      await db.update(tsdDealPushLogsTable).set({
+        status: result.success ? "success" : "failed",
+        errorMessage: result.success ? null : result.errorMessage,
+        payload: JSON.stringify({ externalId: result.externalId }),
+      }).where(eq(tsdDealPushLogsTable.id, log.id));
+      results.push(result);
+    }
+
+    const syncLogs = await db.select().from(tsdDealPushLogsTable).where(eq(tsdDealPushLogsTable.dealId, dealId));
+    res.json({ results, syncLogs });
+  } catch (err) {
+    console.error("[TSD] retry-push error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to retry TSD push" });
+  }
+});
+
+router.get("/partner/deals/:id/tsd-logs", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.id as string);
+    const [deal] = await db.select({ id: partnerDealsTable.id }).from(partnerDealsTable)
+      .where(and(eq(partnerDealsTable.id, dealId), eq(partnerDealsTable.partnerId, req.partnerId!)))
+      .limit(1);
+    if (!deal) { res.status(404).json({ error: "not_found" }); return; }
+    const logs = await db.select().from(tsdDealPushLogsTable).where(eq(tsdDealPushLogsTable.dealId, dealId));
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to fetch TSD logs" });
+  }
+});
+
+router.get("/admin/tsd-vendor-mappings", requireAuth, async (_req, res: Response) => {
+  try {
+    const mappings = await db.select().from(tsdVendorMappingsTable).orderBy(tsdVendorMappingsTable.productName);
+    res.json(mappings.map(m => ({ ...m, tsdIds: JSON.parse(m.tsdIds || "[]") })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load vendor mappings" });
+  }
+});
+
+router.put("/admin/tsd-vendor-mappings/:id", requireAuth, async (req, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { tsdIds, active } = req.body;
+    const [mapping] = await db.update(tsdVendorMappingsTable).set({
+      tsdIds: JSON.stringify(Array.isArray(tsdIds) ? tsdIds : []),
+      active: active !== undefined ? active : true,
+      updatedAt: new Date(),
+    }).where(eq(tsdVendorMappingsTable.id, id)).returning();
+    if (!mapping) { res.status(404).json({ error: "not_found" }); return; }
+    res.json({ ...mapping, tsdIds: JSON.parse(mapping.tsdIds || "[]") });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update vendor mapping" });
+  }
+});
+
+router.post("/admin/tsd-vendor-mappings", requireAuth, async (req, res: Response) => {
+  try {
+    const { productName, tsdIds } = req.body;
+    if (!productName) { res.status(400).json({ error: "validation_error", message: "productName required" }); return; }
+    const [mapping] = await db.insert(tsdVendorMappingsTable).values({
+      productName,
+      tsdIds: JSON.stringify(Array.isArray(tsdIds) ? tsdIds : []),
+    }).returning();
+    res.status(201).json({ ...mapping, tsdIds: JSON.parse(mapping.tsdIds || "[]") });
+  } catch (err: any) {
+    if (err.code === "23505") {
+      res.status(400).json({ error: "conflict", message: "A mapping for this product already exists" });
+    } else {
+      console.error(err);
+      res.status(500).json({ error: "server_error", message: "Failed to create vendor mapping" });
+    }
+  }
+});
+
+router.delete("/admin/tsd-vendor-mappings/:id", requireAuth, async (req, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(tsdVendorMappingsTable).where(eq(tsdVendorMappingsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete vendor mapping" });
+  }
+});
+
+router.get("/admin/tsd-deal-push-logs", requireAuth, async (_req, res: Response) => {
+  try {
+    const logs = await db.select().from(tsdDealPushLogsTable).orderBy(desc(tsdDealPushLogsTable.createdAt));
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to fetch TSD deal push logs" });
+  }
+});
+
+export { getMatchingTSDs };
 export default router;

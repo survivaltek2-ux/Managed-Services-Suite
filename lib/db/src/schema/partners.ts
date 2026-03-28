@@ -59,8 +59,30 @@ export const partnerDealsTable = pgTable("partner_deals", {
   expectedCloseDate: timestamp("expected_close_date"),
   closedAt: timestamp("closed_at"),
   notes: text("notes"),
+  tsdTargets: text("tsd_targets").notNull().default("[]"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const tsdDealPushStatusEnum = pgEnum("tsd_sync_status", ["pending", "success", "failed"]);
+
+export const tsdVendorMappingsTable = pgTable("tsd_vendor_mappings", {
+  id: serial("id").primaryKey(),
+  productName: text("product_name").notNull().unique(),
+  tsdIds: text("tsd_ids").notNull().default("[]"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const tsdDealPushLogsTable = pgTable("tsd_sync_logs", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").references(() => partnerDealsTable.id),
+  tsdId: text("tsd_id").notNull(),
+  status: tsdDealPushStatusEnum("status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  payload: text("payload"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const partnerLeadsTable = pgTable("partner_leads", {
@@ -194,7 +216,7 @@ export const documentsTable = pgTable("documents", {
 
 export const tsdProviderEnum = pgEnum("tsd_provider", ["avant", "telarus", "intelisys"]);
 export const tsdSyncDirectionEnum = pgEnum("tsd_sync_direction", ["outbound", "inbound"]);
-export const tsdSyncStatusEnum = pgEnum("tsd_sync_status", ["success", "failure", "partial"]);
+export const tsdProviderSyncStatusEnum = pgEnum("tsd_provider_sync_status", ["success", "failure", "partial"]);
 export const tsdSyncEntityEnum = pgEnum("tsd_sync_entity", ["deal", "lead", "commission", "webhook"]);
 
 export const tsdConfigsTable = pgTable("tsd_configs", {
@@ -217,12 +239,12 @@ export const tsdDealMappingsTable = pgTable("tsd_deal_mappings", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const tsdSyncLogsTable = pgTable("tsd_sync_logs", {
+export const tsdSyncLogsTable = pgTable("tsd_provider_sync_logs", {
   id: serial("id").primaryKey(),
   provider: tsdProviderEnum("provider").notNull(),
   direction: tsdSyncDirectionEnum("direction").notNull(),
   entityType: tsdSyncEntityEnum("entity_type").notNull(),
-  status: tsdSyncStatusEnum("status").notNull(),
+  status: tsdProviderSyncStatusEnum("status").notNull(),
   recordsAffected: integer("records_affected").notNull().default(0),
   payloadSummary: text("payload_summary"),
   errorMessage: text("error_message"),
@@ -257,3 +279,5 @@ export type Document = typeof documentsTable.$inferSelect;
 export type TsdConfig = typeof tsdConfigsTable.$inferSelect;
 export type TsdSyncLog = typeof tsdSyncLogsTable.$inferSelect;
 export type TsdDealMapping = typeof tsdDealMappingsTable.$inferSelect;
+export type TsdVendorMapping = typeof tsdVendorMappingsTable.$inferSelect;
+export type TsdDealPushLog = typeof tsdDealPushLogsTable.$inferSelect;

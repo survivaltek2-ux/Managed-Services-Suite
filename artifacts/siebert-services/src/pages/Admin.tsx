@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "partners" | "partnerCommissions" | "documents" | "users" | "activity" | "tsdIntegrations";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "contacts" | "quotes" | "proposals" | "tickets" | "partners" | "partnerCommissions" | "documents" | "users" | "activity" | "tsdIntegrations" | "tsdVendorRouting";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -32,6 +32,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "tickets", label: "Tickets", icon: <TicketIcon size={18} /> },
   { id: "partners", label: "Partners", icon: <Building2 size={18} />, section: "Partners" },
   { id: "partnerCommissions", label: "Commissions", icon: <DollarSign size={18} /> },
+  { id: "tsdVendorRouting", label: "TSD Vendor Routing", icon: <RefreshCw size={18} /> },
   { id: "documents", label: "Documents", icon: <FolderOpen size={18} /> },
   { id: "tsdIntegrations", label: "TSD Integrations", icon: <RefreshCw size={18} />, section: "Integrations" },
   { id: "users", label: "Users", icon: <Users size={18} />, section: "System" },
@@ -82,6 +83,7 @@ export default function Admin() {
         tickets: "/api/admin/tickets",
         partners: "/api/admin/partners",
         partnerCommissions: "/api/admin/partner/commissions",
+        tsdVendorRouting: "/api/admin/tsd-vendor-mappings",
         documents: "/api/admin/documents",
         users: "/api/admin/users",
         activity: "/api/admin/activity",
@@ -384,6 +386,7 @@ export default function Admin() {
               {activeTab === "tickets" && <TicketsTab tickets={data.tickets || []} refresh={() => fetchData("tickets")} headers={headers} exportCSV={() => exportCSV("tickets")} />}
               {activeTab === "partners" && <PartnerManagementTab partners={data.partners || []} refresh={() => fetchData("partners")} headers={headers} />}
               {activeTab === "partnerCommissions" && <PartnerCommissionsTab commissions={data.partnerCommissions || []} refresh={() => fetchData("partnerCommissions")} headers={headers} />}
+              {activeTab === "tsdVendorRouting" && <TsdVendorRoutingTab mappings={data.tsdVendorRouting || []} refresh={() => fetchData("tsdVendorRouting")} headers={headers} />}
               {activeTab === "documents" && <DocumentsTab documents={data.documents || []} refresh={() => fetchData("documents")} headers={headers} partners={data.partners || []} />}
               {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
@@ -2540,6 +2543,173 @@ function PartnerManagementTab({ partners, refresh, headers }: { partners: any[];
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const TSD_OPTIONS = [
+  { id: "avant", label: "Avant" },
+  { id: "telarus", label: "Telarus" },
+  { id: "intelisys", label: "Intelisys" },
+];
+
+interface VendorMapping {
+  id: number;
+  productName: string;
+  tsdIds: string[];
+  active: boolean;
+  updatedAt: string;
+}
+
+function TsdVendorRoutingTab({ mappings, refresh, headers }: { mappings: VendorMapping[]; refresh: () => void; headers: () => Record<string, string> }) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState<number | null>(null);
+  const [localMappings, setLocalMappings] = useState<VendorMapping[]>([]);
+  const [newProduct, setNewProduct] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  React.useEffect(() => {
+    setLocalMappings(mappings);
+  }, [mappings]);
+
+  const toggleTsd = (mappingId: number, tsdId: string) => {
+    setLocalMappings(prev => prev.map(m => {
+      if (m.id !== mappingId) return m;
+      const has = m.tsdIds.includes(tsdId);
+      return { ...m, tsdIds: has ? m.tsdIds.filter(x => x !== tsdId) : [...m.tsdIds, tsdId] };
+    }));
+  };
+
+  const saveMapping = async (mapping: VendorMapping) => {
+    setSaving(mapping.id);
+    try {
+      const res = await fetch(`/api/admin/tsd-vendor-mappings/${mapping.id}`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify({ tsdIds: mapping.tsdIds, active: mapping.active }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      toast({ title: "Saved", description: `Mapping for "${mapping.productName}" updated.` });
+      refresh();
+    } catch {
+      toast({ title: "Error", description: "Failed to save mapping.", variant: "destructive" });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const addMapping = async () => {
+    if (!newProduct.trim()) return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/admin/tsd-vendor-mappings", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ productName: newProduct.trim(), tsdIds: [] }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to add");
+      }
+      toast({ title: "Added", description: `Mapping for "${newProduct}" created.` });
+      setNewProduct("");
+      refresh();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to add mapping.", variant: "destructive" });
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const deleteMapping = async (id: number, productName: string) => {
+    if (!confirm(`Delete mapping for "${productName}"?`)) return;
+    try {
+      await fetch(`/api/admin/tsd-vendor-mappings/${id}`, { method: "DELETE", headers: headers() });
+      toast({ title: "Deleted", description: `Mapping for "${productName}" removed.` });
+      refresh();
+    } catch {
+      toast({ title: "Error", description: "Failed to delete mapping.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold mb-1">TSD Vendor Routing</h2>
+        <p className="text-sm text-muted-foreground">Configure which Technology Solution Distributors (TSDs) carry each product. When a partner registers a deal, matching TSDs are automatically suggested.</p>
+      </div>
+
+      <div className="flex gap-2 items-center">
+        <Input
+          placeholder="New product name..."
+          value={newProduct}
+          onChange={e => setNewProduct(e.target.value)}
+          className="max-w-xs"
+          onKeyDown={e => e.key === "Enter" && addMapping()}
+        />
+        <Button onClick={addMapping} disabled={adding || !newProduct.trim()} size="sm">
+          {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Add Product
+        </Button>
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left px-4 py-3 font-semibold">Product / Vendor</th>
+              {TSD_OPTIONS.map(t => (
+                <th key={t.id} className="text-center px-4 py-3 font-semibold">{t.label}</th>
+              ))}
+              <th className="text-center px-4 py-3 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {localMappings.length === 0 ? (
+              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No mappings configured.</td></tr>
+            ) : localMappings.map(m => (
+              <tr key={m.id} className={`hover:bg-muted/20 ${!m.active ? "opacity-50" : ""}`}>
+                <td className="px-4 py-3 font-medium">{m.productName}</td>
+                {TSD_OPTIONS.map(t => (
+                  <td key={t.id} className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={m.tsdIds.includes(t.id)}
+                      onChange={() => toggleTsd(m.id, t.id)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </td>
+                ))}
+                <td className="px-4 py-3 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => saveMapping(m)}
+                      disabled={saving === m.id}
+                    >
+                      {saving === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteMapping(m.id, m.productName)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm text-blue-800">
+        <strong>How it works:</strong> When a partner selects products during deal registration, the system matches them against this table and pre-selects the appropriate TSD(s). Partners can review and change the selection before submitting. Deals are then pushed to the confirmed TSDs automatically.
+      </div>
     </div>
   );
 }
