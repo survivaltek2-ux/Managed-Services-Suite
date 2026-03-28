@@ -69,7 +69,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       port: 587,
       secure: false,
       auth: {
-        user: "apikey",
+        user: "a64bce001@smtp-brevo.com",
         pass: apiKey,
       },
     });
@@ -105,7 +105,7 @@ export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: st
       port: 587,
       secure: false,
       auth: {
-        user: "apikey",
+        user: "a64bce001@smtp-brevo.com",
         pass: apiKey,
       },
     });
