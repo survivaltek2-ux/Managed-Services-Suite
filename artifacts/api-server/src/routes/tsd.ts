@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Response } from "express";
-import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable } from "@workspace/db";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable, tsdProductsTable } from "@workspace/db";
+import { eq, and, desc, inArray, asc } from "drizzle-orm";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, type PartnerRequest } from "../middlewares/partnerAuth.js";
 import { resolveCredentialRef, createTsdConnector } from "@workspace/integrations-tsd";
@@ -374,4 +374,70 @@ router.get("/admin/tsd-deal-push-logs", requireAuth, async (_req, res: Response)
 });
 
 export { getMatchingTSDs };
+
+// ─── TSD Product Catalog ────────────────────────────────────────────────────
+
+router.get("/admin/tsd-products", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const products = await db.select().from(tsdProductsTable)
+      .orderBy(tsdProductsTable.category, asc(tsdProductsTable.sortOrder), tsdProductsTable.name);
+    res.json(products.map(p => ({ ...p, availableAt: JSON.parse(p.availableAt) })));
+  } catch (err) {
+    console.error("[TSD] Get products error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to load product catalog" });
+  }
+});
+
+router.post("/admin/tsd-products", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { category, name, description, availableAt, active, sortOrder } = req.body;
+    if (!category || !name) {
+      res.status(400).json({ error: "validation_error", message: "category and name are required" });
+      return;
+    }
+    const [product] = await db.insert(tsdProductsTable).values({
+      category: category.trim(),
+      name: name.trim(),
+      description: description?.trim() || null,
+      availableAt: JSON.stringify(Array.isArray(availableAt) ? availableAt : []),
+      active: active !== false,
+      sortOrder: sortOrder || 0,
+    }).returning();
+    res.status(201).json({ ...product, availableAt: JSON.parse(product.availableAt) });
+  } catch (err) {
+    console.error("[TSD] Create product error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to create product" });
+  }
+});
+
+router.put("/admin/tsd-products/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { category, name, description, availableAt, active, sortOrder } = req.body;
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (category !== undefined) updates.category = category.trim();
+    if (name !== undefined) updates.name = name.trim();
+    if (description !== undefined) updates.description = description?.trim() || null;
+    if (availableAt !== undefined) updates.availableAt = JSON.stringify(Array.isArray(availableAt) ? availableAt : []);
+    if (active !== undefined) updates.active = active;
+    if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+    const [product] = await db.update(tsdProductsTable).set(updates).where(eq(tsdProductsTable.id, id)).returning();
+    if (!product) { res.status(404).json({ error: "not_found", message: "Product not found" }); return; }
+    res.json({ ...product, availableAt: JSON.parse(product.availableAt) });
+  } catch (err) {
+    console.error("[TSD] Update product error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to update product" });
+  }
+});
+
+router.delete("/admin/tsd-products/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(tsdProductsTable).where(eq(tsdProductsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[TSD] Delete product error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete product" });
+  }
+});
 export default router;

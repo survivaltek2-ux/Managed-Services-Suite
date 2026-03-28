@@ -251,6 +251,18 @@ export const tsdSyncLogsTable = pgTable("tsd_provider_sync_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const tsdProductsTable = pgTable("tsd_products", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  availableAt: text("available_at").notNull().default("[]"),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertPartnerSchema = createInsertSchema(partnersTable).omit({ id: true, createdAt: true, updatedAt: true, tier: true, status: true, totalDeals: true, totalRevenue: true, ytdRevenue: true, approvedAt: true });
 export const insertDealSchema = createInsertSchema(partnerDealsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
 export const insertLeadSchema = createInsertSchema(partnerLeadsTable).omit({ id: true, createdAt: true, assignedAt: true, partnerId: true });
@@ -264,6 +276,7 @@ export const insertTicketMessageSchema = createInsertSchema(partnerTicketMessage
 export const insertDocumentSchema = createInsertSchema(documentsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTsdConfigSchema = createInsertSchema(tsdConfigsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTsdSyncLogSchema = createInsertSchema(tsdSyncLogsTable).omit({ id: true, createdAt: true });
+export const insertTsdProductSchema = createInsertSchema(tsdProductsTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type Partner = typeof partnersTable.$inferSelect;
 export type PartnerDeal = typeof partnerDealsTable.$inferSelect;
@@ -281,3 +294,4 @@ export type TsdSyncLog = typeof tsdSyncLogsTable.$inferSelect;
 export type TsdDealMapping = typeof tsdDealMappingsTable.$inferSelect;
 export type TsdVendorMapping = typeof tsdVendorMappingsTable.$inferSelect;
 export type TsdDealPushLog = typeof tsdDealPushLogsTable.$inferSelect;
+export type TsdProduct = typeof tsdProductsTable.$inferSelect;

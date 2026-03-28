@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable } from "@workspace/db";
-import { eq, and, desc, sql, count, sum } from "drizzle-orm";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable } from "@workspace/db";
+import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "../lib/email.js";
@@ -463,6 +463,26 @@ router.get("/partner/announcements", requirePartnerAuth, async (_req, res: Respo
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load announcements" });
+  }
+});
+
+// ─── TSD Product Catalog (Partner-facing) ─────────────────────────────────────
+
+router.get("/partner/tsd-products", requirePartnerAuth, async (_req: PartnerRequest, res: Response) => {
+  try {
+    const products = await db.select().from(tsdProductsTable)
+      .where(eq(tsdProductsTable.active, true))
+      .orderBy(tsdProductsTable.category, asc(tsdProductsTable.sortOrder), tsdProductsTable.name);
+    const parsed = products.map(p => ({ ...p, availableAt: JSON.parse(p.availableAt) }));
+    const grouped: Record<string, typeof parsed> = {};
+    for (const p of parsed) {
+      if (!grouped[p.category]) grouped[p.category] = [];
+      grouped[p.category].push(p);
+    }
+    res.json({ products: parsed, grouped });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load product catalog" });
   }
 });
 

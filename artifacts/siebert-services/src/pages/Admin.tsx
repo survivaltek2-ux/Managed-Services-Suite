@@ -90,15 +90,17 @@ export default function Admin() {
         tsdIntegrations: "/api/admin/tsd/configs",
       };
       if (tab === "tsdIntegrations") {
-        const [cfgRes, logRes] = await Promise.all([
+        const [cfgRes, logRes, productRes] = await Promise.all([
           fetch(endpoints["tsdIntegrations"], { headers: headers() }),
           fetch("/api/admin/tsd/logs?limit=50", { headers: headers() }),
+          fetch("/api/admin/tsd-products", { headers: headers() }),
         ]);
-        const [cfgData, logData] = await Promise.all([
+        const [cfgData, logData, productData] = await Promise.all([
           cfgRes.ok ? cfgRes.json() : [],
           logRes.ok ? logRes.json() : [],
+          productRes.ok ? productRes.json() : [],
         ]);
-        setData(prev => ({ ...prev, tsdConfigs: cfgData, tsdLogs: logData }));
+        setData(prev => ({ ...prev, tsdConfigs: cfgData, tsdLogs: logData, tsdProducts: productData }));
         setLoading(false);
         return;
       }
@@ -388,7 +390,7 @@ export default function Admin() {
               {activeTab === "partnerCommissions" && <PartnerCommissionsTab commissions={data.partnerCommissions || []} refresh={() => fetchData("partnerCommissions")} headers={headers} />}
               {activeTab === "tsdVendorRouting" && <TsdVendorRoutingTab mappings={data.tsdVendorRouting || []} refresh={() => fetchData("tsdVendorRouting")} headers={headers} />}
               {activeTab === "documents" && <DocumentsTab documents={data.documents || []} refresh={() => fetchData("documents")} headers={headers} partners={data.partners || []} />}
-              {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
+              {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} products={data.tsdProducts || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
             </div>
@@ -1960,6 +1962,308 @@ function ActivityTab({ activities }: { activities: any[] }) {
   );
 }
 
+// ─── TSD Product Catalog Section ─────────────────────────────────────────────
+
+const TSD_PROVIDERS_LIST = ["avant", "telarus", "intelisys"];
+const TSD_PROVIDER_DISPLAY: Record<string, string> = {
+  avant: "Avant",
+  telarus: "Telarus",
+  intelisys: "Intelisys",
+};
+
+const EMPTY_PRODUCT_FORM = {
+  category: "", name: "", description: "",
+  availableAt: [] as string[], active: true, sortOrder: 0,
+};
+
+function ProductCatalogSection({
+  products, headers, refresh, toast,
+}: {
+  products: any[];
+  headers: () => any;
+  refresh: () => void;
+  toast: any;
+}) {
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [form, setForm] = useState({ ...EMPTY_PRODUCT_FORM });
+  const [saving, setSaving] = useState(false);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
+  const filteredProducts = products.filter(p =>
+    !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.category.toLowerCase().includes(search.toLowerCase()) ||
+    (p.description || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const grouped: Record<string, any[]> = {};
+  for (const p of filteredProducts) {
+    if (!grouped[p.category]) grouped[p.category] = [];
+    grouped[p.category].push(p);
+  }
+  const categories = Object.keys(grouped).sort();
+
+  const toggleCat = (cat: string) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
+
+  const openCreate = () => {
+    setForm({ ...EMPTY_PRODUCT_FORM });
+    setEditingProduct(null);
+    setShowForm(true);
+  };
+
+  const openEdit = (product: any) => {
+    setForm({
+      category: product.category,
+      name: product.name,
+      description: product.description || "",
+      availableAt: Array.isArray(product.availableAt) ? product.availableAt : [],
+      active: product.active,
+      sortOrder: product.sortOrder || 0,
+    });
+    setEditingProduct(product);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.category.trim() || !form.name.trim()) {
+      toast({ title: "Category and name are required", variant: "destructive" }); return;
+    }
+    setSaving(true);
+    try {
+      const url = editingProduct ? `/api/admin/tsd-products/${editingProduct.id}` : "/api/admin/tsd-products";
+      const method = editingProduct ? "PUT" : "POST";
+      const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(form) });
+      if (res.ok) {
+        toast({ title: editingProduct ? "Product updated" : "Product created" });
+        setShowForm(false);
+        refresh();
+      } else {
+        const err = await res.json();
+        toast({ title: err.message || "Failed to save", variant: "destructive" });
+      }
+    } catch { toast({ title: "Error saving product", variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  const handleToggleActive = async (product: any) => {
+    try {
+      const res = await fetch(`/api/admin/tsd-products/${product.id}`, {
+        method: "PUT", headers: headers(), body: JSON.stringify({ active: !product.active }),
+      });
+      if (res.ok) { refresh(); toast({ title: product.active ? "Product disabled" : "Product enabled" }); }
+      else toast({ title: "Failed to update", variant: "destructive" });
+    } catch { toast({ title: "Error updating product", variant: "destructive" }); }
+  };
+
+  const handleDelete = async (product: any) => {
+    if (!window.confirm(`Delete "${product.name}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/admin/tsd-products/${product.id}`, { method: "DELETE", headers: headers() });
+      if (res.ok) { refresh(); toast({ title: "Product deleted" }); }
+      else toast({ title: "Failed to delete", variant: "destructive" });
+    } catch { toast({ title: "Error deleting product", variant: "destructive" }); }
+  };
+
+  const toggleProvider = (provider: string) => {
+    setForm(prev => ({
+      ...prev,
+      availableAt: prev.availableAt.includes(provider)
+        ? prev.availableAt.filter(p => p !== provider)
+        : [...prev.availableAt, provider],
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Product Catalog</h3>
+          <p className="text-sm text-muted-foreground">Manage the product and service catalog shown on the deal registration form.</p>
+        </div>
+        <Button size="sm" onClick={openCreate}><Plus size={14} className="mr-1" />Add Product</Button>
+      </div>
+
+      {showForm && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{editingProduct ? "Edit Product" : "New Product"}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Category *</Label>
+                <Input
+                  value={form.category}
+                  onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+                  placeholder="e.g. UCaaS, CCaaS, SD-WAN"
+                  list="existing-categories"
+                />
+                <datalist id="existing-categories">
+                  {categories.map(cat => <option key={cat} value={cat} />)}
+                </datalist>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Product Name *</Label>
+                <Input
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Product or service name"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Description</Label>
+              <Input
+                value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                placeholder="Brief description (optional)"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Available at TSDs</Label>
+              <div className="flex gap-3">
+                {TSD_PROVIDERS_LIST.map(provider => (
+                  <label key={provider} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.availableAt.includes(provider)}
+                      onChange={() => toggleProvider(provider)}
+                      className="w-4 h-4 rounded"
+                    />
+                    {TSD_PROVIDER_DISPLAY[provider]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Sort Order</Label>
+                <Input
+                  type="number"
+                  value={form.sortOrder}
+                  onChange={e => setForm(p => ({ ...p, sortOrder: parseInt(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-5">
+                <input
+                  type="checkbox"
+                  id="product-active"
+                  checked={form.active}
+                  onChange={e => setForm(p => ({ ...p, active: e.target.checked }))}
+                  className="w-4 h-4 rounded"
+                />
+                <Label htmlFor="product-active" className="text-sm cursor-pointer">Active (visible to partners)</Label>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />}
+                {editingProduct ? "Save Changes" : "Create Product"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="relative">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search catalog..."
+          className="pl-8"
+        />
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {categories.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              {search ? "No products match your search." : "No products in catalog."}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {categories.map(cat => {
+                const items = grouped[cat];
+                const isExpanded = !!search || expandedCats.has(cat);
+                const activeCount = items.filter(p => p.active).length;
+                return (
+                  <div key={cat}>
+                    <button
+                      type="button"
+                      onClick={() => !search && toggleCat(cat)}
+                      className={`w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors ${search ? "cursor-default" : ""}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {!search && (
+                          <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+                        )}
+                        <span className="font-medium text-sm">{cat}</span>
+                        <Badge className="text-xs bg-muted text-muted-foreground border-0">
+                          {activeCount}/{items.length} active
+                        </Badge>
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t divide-y bg-muted/10">
+                        {items.map((product: any) => (
+                          <div key={product.id} className={`flex items-center justify-between px-6 py-2.5 ${!product.active ? "opacity-50" : ""}`}>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{product.name}</span>
+                                {!product.active && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">inactive</span>
+                                )}
+                              </div>
+                              {product.description && (
+                                <p className="text-xs text-muted-foreground mt-0.5">{product.description}</p>
+                              )}
+                              <div className="flex gap-1 mt-1">
+                                {(Array.isArray(product.availableAt) ? product.availableAt : []).map((tsd: string) => (
+                                  <span key={tsd} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
+                                    {TSD_PROVIDER_DISPLAY[tsd] || tsd}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0 ml-3">
+                              <button
+                                onClick={() => handleToggleActive(product)}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${product.active ? "bg-green-500" : "bg-gray-200"}`}
+                                title={product.active ? "Disable" : "Enable"}
+                              >
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${product.active ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+                              </button>
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(product)} className="h-7 w-7 p-0">
+                                <Edit2 size={12} />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDelete(product)} className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+                                <Trash2 size={12} />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── TSD Integrations Tab ────────────────────────────────────────────────────
 
 const TSD_PROVIDER_LABELS: Record<string, string> = {
@@ -1975,10 +2279,11 @@ const TSD_STATUS_COLORS: Record<string, string> = {
 };
 
 function TsdIntegrationsTab({
-  configs, logs, headers, refresh, toast,
+  configs, logs, products, headers, refresh, toast,
 }: {
   configs: any[];
   logs: any[];
+  products: any[];
   headers: () => any;
   refresh: () => void;
   toast: any;
@@ -2179,6 +2484,8 @@ function TsdIntegrationsTab({
           );
         })}
       </div>
+
+      <ProductCatalogSection products={products} headers={headers} refresh={refresh} toast={toast} />
 
       <div>
         <div className="flex items-center justify-between mb-3">

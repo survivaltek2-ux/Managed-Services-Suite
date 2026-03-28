@@ -149,6 +149,7 @@ artifacts-monorepo/
 - `tsd_configs` — TSD provider settings (avant/telarus/intelisys; enabled flag, AES-256-GCM encrypted `credential_ref` and `webhook_secret`, sync timestamps)
 - `tsd_sync_logs` — Audit log for all TSD sync operations (direction, entity type, status, records affected)
 - `tsd_deal_mappings` — Maps local deal IDs to TSD external IDs per-provider (used for commission reconciliation)
+- `tsd_products` — Product and service catalog (category, name, description, available_at JSON array of TSDs, active flag, sort_order). Seeded with 56 items across 9 categories (UCaaS, CCaaS, Network Connectivity, SD-WAN, SASE/Security, Cloud Infrastructure, Managed Services, IoT/M2M, Collaboration)
 
 ## Partner Tier Automation
 
@@ -199,6 +200,20 @@ Two-way integration with Technology Solution Distributors.
 - `POST /api/admin/tsd/sync/:provider/leads` — Trigger lead sync (provider or "all")
 - `POST /api/admin/tsd/sync/:provider/commissions` — Trigger commission sync
 - `GET /api/admin/tsd/logs` — Sync history
+- `GET /api/admin/tsd-products` — List all catalog items (admin)
+- `POST /api/admin/tsd-products` — Create catalog item
+- `PUT /api/admin/tsd-products/:id` — Update catalog item
+- `DELETE /api/admin/tsd-products/:id` — Delete catalog item
+
+**Partner API:**
+- `GET /api/partner/tsd-products` — Returns active catalog items grouped by category (`{ products, grouped }`)
+
+**Product Catalog (Deal Form):**
+- The deal registration form's "Products of Interest" replaces hardcoded checkboxes with a categorized, searchable product/service selector loaded from the API.
+- Multi-select across categories, search input, expandable category sections.
+- Legacy deal records with old product strings continue to display correctly (stored as JSON string array).
+- Admins manage the catalog from the TSD Integrations tab with toggle-active, edit, add, and delete controls.
+- Each product stores `available_at` (JSON array of TSDs) to support Task #7 routing resolver.
 
 **Webhook Endpoints:**
 - `POST /api/webhooks/tsd/:provider` — Receives deal updates, lead assignments, commission confirmations (HMAC verified using raw body)

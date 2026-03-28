@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import {
   useDeals, useCreateDeal, useResolveTsdMatches, useDealTsdLogs, useRetryTsdPush,
   type Deal, type TsdMatch, type TsdSyncLog,
 } from "@/hooks/use-deals";
+import { useTsdProducts, type TsdProduct } from "@/hooks/use-tsd-products";
 import { formatCurrency } from "@/lib/utils";
 import {
   Plus, Search, List, Columns3, X, ChevronDown, Filter, ChevronRight,
@@ -294,9 +295,141 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`sf-badge ${map[status] || 'sf-badge-default'} capitalize`}>{status.replace('_', ' ')}</span>;
 }
 
-const PRODUCTS = ["Zoom Meetings", "Zoom Phone", "Zoom Rooms", "Microsoft 365", "Cybersecurity Suite", "Network Hardware"];
-
 type ModalStep = "details" | "tsd-confirm";
+
+function ProductSelector({ selected, onChange }: { selected: string[]; onChange: (products: string[]) => void }) {
+  const { data: catalog, isLoading } = useTsdProducts();
+  const [search, setSearch] = useState("");
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const toggleProduct = (name: string) => {
+    onChange(selected.includes(name) ? selected.filter(x => x !== name) : [...selected, name]);
+  };
+
+  const filteredGrouped = useMemo(() => {
+    if (!catalog) return {};
+    if (!search.trim()) return catalog.grouped;
+    const q = search.toLowerCase();
+    const result: Record<string, TsdProduct[]> = {};
+    for (const [cat, items] of Object.entries(catalog.grouped)) {
+      const filtered = items.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        (p.description || "").toLowerCase().includes(q)
+      );
+      if (filtered.length > 0) result[cat] = filtered;
+    }
+    return result;
+  }, [catalog, search]);
+
+  const categories = Object.keys(filteredGrouped).sort();
+  const hasSearch = !!search.trim();
+
+  if (isLoading) {
+    return <div className="text-xs text-muted-foreground py-4 text-center">Loading product catalog...</div>;
+  }
+
+  if (!catalog || catalog.products.length === 0) {
+    return <div className="text-xs text-muted-foreground py-4 text-center">No products available.</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search products and services..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="sf-input pl-8 text-sm"
+        />
+        {search && (
+          <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 p-2 bg-[#f3f3f3] rounded border border-border">
+          {selected.map(name => (
+            <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3]/10 text-[#0176d3] text-xs rounded-full">
+              {name}
+              <button onClick={() => toggleProduct(name)} className="hover:text-red-500">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="border border-border rounded max-h-60 overflow-y-auto">
+        {categories.length === 0 ? (
+          <div className="text-center py-6 text-xs text-muted-foreground">No products match your search.</div>
+        ) : (
+          categories.map(cat => {
+            const items = filteredGrouped[cat];
+            const isExpanded = hasSearch || expandedCategories.has(cat);
+            const selectedInCat = items.filter(p => selected.includes(p.name)).length;
+            return (
+              <div key={cat} className="border-b border-border last:border-0">
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(cat)}
+                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-[#f3f3f3] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {!hasSearch && (
+                      <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    )}
+                    <span className="text-xs font-semibold text-foreground">{cat}</span>
+                    <span className="text-[10px] text-muted-foreground">({items.length})</span>
+                  </div>
+                  {selectedInCat > 0 && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[#0176d3]/10 text-[#0176d3] rounded-full">{selectedInCat} selected</span>
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="px-3 pb-2 space-y-1">
+                    {items.map(product => (
+                      <label
+                        key={product.id}
+                        className="flex items-start gap-2 p-1.5 rounded hover:bg-[#f3f3f3] cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 mt-0.5 rounded text-[#0176d3] focus:ring-[#0176d3] flex-shrink-0"
+                          checked={selected.includes(product.name)}
+                          onChange={() => toggleProduct(product.name)}
+                        />
+                        <div className="min-w-0">
+                          <span className="text-sm text-foreground leading-tight block">{product.name}</span>
+                          {product.description && (
+                            <span className="text-[11px] text-muted-foreground leading-tight block">{product.description}</span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
 
 function AddDealModal({ onClose }: { onClose: () => void }) {
   const { mutateAsync: createDeal, isPending } = useCreateDeal();
@@ -307,13 +440,6 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
   });
   const [tsdMatches, setTsdMatches] = useState<TsdMatch[]>([]);
   const [selectedTsds, setSelectedTsds] = useState<string[]>([]);
-
-  const toggleProduct = (p: string) => {
-    setFormData(prev => ({
-      ...prev,
-      products: prev.products.includes(p) ? prev.products.filter(x => x !== p) : [...prev.products, p],
-    }));
-  };
 
   const toggleTsd = (id: string) => {
     setSelectedTsds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -394,20 +520,16 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
                 <input className="sf-input" type="number" min="0" step="0.01" value={formData.estimatedValue} onChange={e => setFormData({ ...formData, estimatedValue: e.target.value })} required />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Products of Interest</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {PRODUCTS.map(p => (
-                    <label key={p} className="flex items-center gap-2 p-2 border border-border rounded hover:bg-[#f3f3f3] cursor-pointer text-sm">
-                      <input
-                        type="checkbox"
-                        className="w-3.5 h-3.5 rounded text-[#0176d3] focus:ring-[#0176d3]"
-                        checked={formData.products.includes(p)}
-                        onChange={() => toggleProduct(p)}
-                      />
-                      {p}
-                    </label>
-                  ))}
-                </div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Products &amp; Services of Interest
+                  {formData.products.length > 0 && (
+                    <span className="ml-2 text-[#0176d3] normal-case font-normal">{formData.products.length} selected</span>
+                  )}
+                </label>
+                <ProductSelector
+                  selected={formData.products}
+                  onChange={products => setFormData({ ...formData, products })}
+                />
               </div>
             </form>
           ) : (
