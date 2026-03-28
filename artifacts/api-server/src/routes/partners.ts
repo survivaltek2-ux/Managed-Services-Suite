@@ -383,6 +383,30 @@ router.put("/partner/leads/:id", requirePartnerAuth, async (req: PartnerRequest,
   }
 });
 
+router.post("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { companyName, contactName, email, phone, interest, notes } = req.body;
+    if (!companyName || !contactName || !interest) {
+      res.status(400).json({ error: "invalid_input", message: "Company name, contact name, and interest are required" });
+      return;
+    }
+    const [lead] = await db.insert(partnerLeadsTable).values({
+      partnerId: req.partnerId!,
+      companyName: companyName.trim(),
+      contactName: contactName.trim(),
+      email: email?.trim() || null,
+      phone: phone?.trim() || null,
+      interest: interest.trim(),
+      notes: notes?.trim() || null,
+      source: "partner_submission",
+    }).returning();
+    res.status(201).json(lead);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to submit lead" });
+  }
+});
+
 // ─── Resources ────────────────────────────────────────────────────────────────
 
 router.get("/partner/resources", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
