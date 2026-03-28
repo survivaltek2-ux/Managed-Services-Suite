@@ -399,145 +399,173 @@ function VendorSelector({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search vendors, carriers, or products..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="sf-input pl-8 text-sm"
-        />
-        {search && (
-          <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+    <div className="flex gap-3 h-[420px]">
+      {/* ── Left panel: vendor browser ── */}
+      <div className="w-52 flex-shrink-0 flex flex-col border border-[#e5e7eb] rounded-lg overflow-hidden">
+        <div className="p-2 border-b border-[#e5e7eb] bg-[#f9fafb]">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search vendors..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="sf-input pl-6 text-xs py-1.5"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          {selected.length > 0 && (
+            <p className="text-[10px] text-[#0176d3] font-semibold mt-1.5 text-center">
+              {selected.length} vendor{selected.length !== 1 ? "s" : ""} selected
+            </p>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto divide-y divide-[#f0f0f0]">
+          {filtered.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">No matches.</div>
+          ) : (
+            filtered.map(v => {
+              const checked = isSelected(v);
+              return (
+                <button
+                  key={v.externalId}
+                  type="button"
+                  onClick={() => toggleVendor(v)}
+                  className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${
+                    checked
+                      ? "bg-[#e8f3fd] text-[#0176d3]"
+                      : "hover:bg-[#f3f3f3] text-foreground"
+                  }`}
+                >
+                  <div className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                    checked ? "bg-[#0176d3] border-[#0176d3]" : "border-[#d1d5db] bg-white"
+                  }`}>
+                    {checked && <Check className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  <span className="text-xs font-medium truncate">{v.name}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
       </div>
 
-      <div className="border border-border rounded max-h-96 overflow-y-auto divide-y divide-border">
-        {filtered.length === 0 ? (
-          <div className="text-center py-6 text-xs text-muted-foreground">No vendors match your search.</div>
+      {/* ── Right panel: product picker for selected vendors ── */}
+      <div className="flex-1 flex flex-col border border-[#e5e7eb] rounded-lg overflow-hidden">
+        {selected.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 text-muted-foreground gap-2">
+            <Building2 className="w-8 h-8 text-[#d1d5db]" />
+            <p className="text-sm font-medium">No vendors selected</p>
+            <p className="text-xs">Click vendors on the left to add them, then select which products apply.</p>
+          </div>
         ) : (
-          filtered.map(v => {
-            const sel = selected.find(s => s.vendorId === v.externalId);
-            const checked = !!sel;
-            // Group products by category
-            const grouped = v.products.reduce<Record<string, typeof v.products>>((acc, p) => {
-              if (!acc[p.category]) acc[p.category] = [];
-              acc[p.category].push(p);
-              return acc;
-            }, {});
-            const categories = Object.keys(grouped).sort();
+          <div className="flex-1 overflow-y-auto divide-y divide-[#f0f0f0]">
+            {selected.map(sel => {
+              const vendor = vendors.find(v => v.externalId === sel.vendorId);
+              if (!vendor) return null;
+              const grouped = vendor.products.reduce<Record<string, typeof vendor.products>>((acc, p) => {
+                if (!acc[p.category]) acc[p.category] = [];
+                acc[p.category].push(p);
+                return acc;
+              }, {});
+              const categories = Object.keys(grouped).sort();
 
-            return (
-              <div key={v.externalId} className={`p-2.5 transition-colors ${checked ? "bg-[#f0f7ff]" : ""}`}>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-3.5 h-3.5 mt-0.5 rounded text-[#0176d3] focus:ring-[#0176d3] flex-shrink-0"
-                    checked={checked}
-                    onChange={() => toggleVendor(v)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">{v.name}</span>
-                      {categories.length > 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-[#0176d3]/10 text-[#0176d3] rounded-full">{categories[0]}</span>
-                      )}
-                      {categories.length > 1 && (
-                        <span className="text-[10px] text-muted-foreground">+{categories.length - 1} more</span>
+              return (
+                <div key={sel.vendorId} className="p-3">
+                  {/* Vendor header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-[#0176d3]" />
+                      <span className="text-sm font-semibold text-foreground">{vendor.name}</span>
+                      {sel.services.length > 0 && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[#0176d3] text-white rounded-full">
+                          {sel.services.length}
+                        </span>
                       )}
                     </div>
-                    {!checked && v.products.length > 0 && (
-                      <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                        {v.products.slice(0, 4).map(p => p.name).join(" · ")}
-                        {v.products.length > 4 && ` · +${v.products.length - 4} more`}
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleVendor(vendor)}
+                      className="text-[10px] text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      Remove
+                    </button>
                   </div>
-                </label>
 
-                {checked && sel && (
-                  <div className="mt-3 ml-5 space-y-3">
-                    {/* Selected services summary */}
-                    {sel.services.length > 0 && (
-                      <div>
-                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Selected Products/Services</div>
-                        <div className="flex flex-wrap gap-1">
-                          {sel.services.map(svc => (
-                            <span key={svc} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3] text-white text-xs rounded-full">
-                              <Tag className="w-2.5 h-2.5" />
-                              {svc}
-                              <button type="button" onClick={() => removeService(v.externalId, svc)} className="hover:text-red-200 ml-0.5">
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                  {/* Selected service chips */}
+                  {sel.services.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {sel.services.map(svc => (
+                        <span key={svc} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3] text-white text-xs rounded-full">
+                          {svc}
+                          <button type="button" onClick={() => removeService(sel.vendorId, svc)} className="hover:text-red-200 ml-0.5">
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-                    {/* Clickable product catalog */}
-                    {categories.length > 0 ? (
-                      <div className="space-y-2">
-                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Available Products — click to select</div>
-                        {categories.map(cat => (
-                          <div key={cat}>
-                            <div className="text-[10px] text-muted-foreground mb-1 font-medium">{cat}</div>
-                            <div className="flex flex-wrap gap-1">
-                              {grouped[cat].map(p => {
-                                const isActive = sel.services.includes(p.name);
-                                return (
-                                  <button
-                                    key={p.name}
-                                    type="button"
-                                    title={p.description}
-                                    onClick={() => toggleService(v.externalId, p.name)}
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                                      isActive
-                                        ? "bg-[#0176d3] text-white border-[#0176d3]"
-                                        : "bg-white text-foreground border-border hover:border-[#0176d3] hover:text-[#0176d3]"
-                                    }`}
-                                  >
-                                    {isActive && <Check className="w-2.5 h-2.5" />}
-                                    {p.name}
-                                  </button>
-                                );
-                              })}
-                            </div>
+                  {/* Product catalog chips grouped by category */}
+                  {categories.length > 0 ? (
+                    <div className="space-y-2">
+                      {categories.map(cat => (
+                        <div key={cat}>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{cat}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {grouped[cat].map(p => {
+                              const isActive = sel.services.includes(p.name);
+                              return (
+                                <button
+                                  key={p.name}
+                                  type="button"
+                                  title={p.description}
+                                  onClick={() => toggleService(sel.vendorId, p.name)}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border transition-all ${
+                                    isActive
+                                      ? "bg-[#0176d3] text-white border-[#0176d3]"
+                                      : "bg-white text-foreground border-[#d1d5db] hover:border-[#0176d3] hover:text-[#0176d3]"
+                                  }`}
+                                >
+                                  {isActive && <Check className="w-2.5 h-2.5" />}
+                                  {p.name}
+                                </button>
+                              );
+                            })}
                           </div>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {/* Custom service input */}
-                    <div>
-                      <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Add Custom Service</div>
-                      <div className="flex gap-1">
-                        <input
-                          type="text"
-                          placeholder="Type a custom service and press Enter"
-                          value={customInputs[v.externalId] || ""}
-                          onChange={e => setCustomInputs(prev => ({ ...prev, [v.externalId]: e.target.value }))}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomService(v.externalId); } }}
-                          className="sf-input text-xs py-1 flex-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => addCustomService(v.externalId)}
-                          className="sf-btn sf-btn-neutral text-xs px-2 py-1"
-                        >
-                          Add
-                        </button>
-                      </div>
+                        </div>
+                      ))}
                     </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No catalog products for this vendor.</p>
+                  )}
+
+                  {/* Custom service input */}
+                  <div className="mt-2 flex gap-1">
+                    <input
+                      type="text"
+                      placeholder="Add a custom service..."
+                      value={customInputs[sel.vendorId] || ""}
+                      onChange={e => setCustomInputs(prev => ({ ...prev, [sel.vendorId]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomService(sel.vendorId); } }}
+                      className="sf-input text-xs py-1 flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addCustomService(sel.vendorId)}
+                      className="sf-btn sf-btn-neutral text-xs px-2 py-1"
+                    >
+                      Add
+                    </button>
                   </div>
-                )}
-              </div>
-            );
-          })
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
