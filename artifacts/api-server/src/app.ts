@@ -27,14 +27,20 @@ app.use("/api", router);
 
 if (existsSync(partnerIndex)) {
   app.use("/partners", express.static(partnerDist, staticOptions));
-  app.get(["/partners", "/partners/*"], (_req, res) => {
+  app.get(/^\/partners(\/.*)?$/, (_req, res) => {
     res.sendFile(partnerIndex);
   });
 }
 
 if (existsSync(marketingIndex)) {
   app.use(express.static(marketingDist, staticOptions));
-  app.get(["/", "/admin", "/admin/*", "/portal", "/blog", "/blog/*", "/proposal/*", "/services", "/zoom", "/about", "/contact", "/quote"], (_req, res) => {
+  app.get(/^\/(admin|portal|blog|services|zoom|about|contact|quote)(\/.*)?$/, (_req, res) => {
+    res.sendFile(marketingIndex);
+  });
+  app.get(/^\/proposal\/.*$/, (_req, res) => {
+    res.sendFile(marketingIndex);
+  });
+  app.get("/", (_req, res) => {
     res.sendFile(marketingIndex);
   });
 }
