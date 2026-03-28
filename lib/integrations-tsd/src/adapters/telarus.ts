@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { TsdConnector, TsdDeal, TsdLead, TsdCommission, TsdWebhookEvent, TsdPushResult, TsdLoginResult, TsdAuthCredentials } from "../types.js";
+import type { TsdConnector, TsdDeal, TsdLead, TsdCommission, TsdWebhookEvent, TsdPushResult, TsdLoginResult, TsdAuthCredentials, TsdOpportunity, TsdAccount, TsdContact, TsdOrder, TsdQuote, TsdActivity, TsdTask } from "../types.js";
 import { withRetry } from "../utils.js";
 
 const SALESFORCE_SOAP_LOGIN_URL = "https://login.salesforce.com/services/Soap/u/59.0";
@@ -496,6 +496,224 @@ export class TelarusAdapter implements TsdConnector {
         } satisfies TsdCommission;
       });
     } catch {
+      return [];
+    }
+  }
+
+  async pullOpportunities(since?: Date): Promise<TsdOpportunity[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Name, AccountId, Account.Name, Amount, StageName, Probability, CloseDate, Type, Description, LeadSource, OwnerId, Owner.Name FROM Opportunity${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const owner = asRecord(rec.Owner);
+        const account = asRecord(rec.Account);
+        return {
+          externalId: str(rec.Id),
+          name: str(rec.Name) || "Unknown",
+          accountId: strOrUndef(rec.AccountId),
+          accountName: strOrUndef(account.Name ?? rec.AccountName),
+          amount: strOrUndef(rec.Amount),
+          stage: strOrUndef(rec.StageName),
+          probability: typeof rec.Probability === "number" ? rec.Probability : undefined,
+          closeDate: typeof rec.CloseDate === "string" ? new Date(rec.CloseDate) : undefined,
+          type: strOrUndef(rec.Type),
+          description: strOrUndef(rec.Description),
+          leadSource: strOrUndef(rec.LeadSource),
+          ownerId: strOrUndef(rec.OwnerId),
+          ownerName: strOrUndef(owner.Name),
+          rawData: rec,
+        } satisfies TsdOpportunity;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullOpportunities error:", err);
+      return [];
+    }
+  }
+
+  async pullAccounts(since?: Date): Promise<TsdAccount[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Name, Industry, Phone, Website, BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, NumberOfEmployees, AnnualRevenue, Type, Description FROM Account${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        return {
+          externalId: str(rec.Id),
+          name: str(rec.Name) || "Unknown",
+          industry: strOrUndef(rec.Industry),
+          phone: strOrUndef(rec.Phone),
+          website: strOrUndef(rec.Website),
+          billingStreet: strOrUndef(rec.BillingStreet),
+          billingCity: strOrUndef(rec.BillingCity),
+          billingState: strOrUndef(rec.BillingState),
+          billingPostalCode: strOrUndef(rec.BillingPostalCode),
+          billingCountry: strOrUndef(rec.BillingCountry),
+          employeeCount: typeof rec.NumberOfEmployees === "number" ? rec.NumberOfEmployees : undefined,
+          annualRevenue: rec.AnnualRevenue != null ? String(rec.AnnualRevenue) : undefined,
+          type: strOrUndef(rec.Type),
+          description: strOrUndef(rec.Description),
+          rawData: rec,
+        } satisfies TsdAccount;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullAccounts error:", err);
+      return [];
+    }
+  }
+
+  async pullContacts(since?: Date): Promise<TsdContact[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, FirstName, LastName, Email, Phone, MobilePhone, Title, Department, AccountId, Account.Name, MailingCity, MailingState FROM Contact${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const account = asRecord(rec.Account);
+        return {
+          externalId: str(rec.Id),
+          firstName: strOrUndef(rec.FirstName),
+          lastName: str(rec.LastName) || "Unknown",
+          email: strOrUndef(rec.Email),
+          phone: strOrUndef(rec.Phone),
+          mobilePhone: strOrUndef(rec.MobilePhone),
+          title: strOrUndef(rec.Title),
+          department: strOrUndef(rec.Department),
+          accountId: strOrUndef(rec.AccountId),
+          accountName: strOrUndef(account.Name),
+          mailingCity: strOrUndef(rec.MailingCity),
+          mailingState: strOrUndef(rec.MailingState),
+          rawData: rec,
+        } satisfies TsdContact;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullContacts error:", err);
+      return [];
+    }
+  }
+
+  async pullOrders(since?: Date): Promise<TsdOrder[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Name, AccountId, Account.Name, Status, TotalAmount, EffectiveDate, EndDate, ContractId, Type, Description FROM Order${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const account = asRecord(rec.Account);
+        return {
+          externalId: str(rec.Id),
+          name: str(rec.Name) || "Unknown",
+          accountId: strOrUndef(rec.AccountId),
+          accountName: strOrUndef(account.Name),
+          status: strOrUndef(rec.Status),
+          orderAmount: rec.TotalAmount != null ? String(rec.TotalAmount) : undefined,
+          startDate: typeof rec.EffectiveDate === "string" ? new Date(rec.EffectiveDate) : undefined,
+          endDate: typeof rec.EndDate === "string" ? new Date(rec.EndDate) : undefined,
+          contractId: strOrUndef(rec.ContractId),
+          type: strOrUndef(rec.Type),
+          description: strOrUndef(rec.Description),
+          rawData: rec,
+        } satisfies TsdOrder;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullOrders error:", err);
+      return [];
+    }
+  }
+
+  async pullQuotes(since?: Date): Promise<TsdQuote[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Name, OpportunityId, Opportunity.Name, AccountId, Account.Name, Status, TotalPrice, ExpirationDate, Description FROM Quote${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const opp = asRecord(rec.Opportunity);
+        const account = asRecord(rec.Account);
+        return {
+          externalId: str(rec.Id),
+          name: str(rec.Name) || "Unknown",
+          opportunityId: strOrUndef(rec.OpportunityId),
+          opportunityName: strOrUndef(opp.Name),
+          accountId: strOrUndef(rec.AccountId),
+          accountName: strOrUndef(account.Name),
+          status: strOrUndef(rec.Status),
+          totalPrice: rec.TotalPrice != null ? String(rec.TotalPrice) : undefined,
+          expirationDate: typeof rec.ExpirationDate === "string" ? new Date(rec.ExpirationDate) : undefined,
+          description: strOrUndef(rec.Description),
+          rawData: rec,
+        } satisfies TsdQuote;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullQuotes error:", err);
+      return [];
+    }
+  }
+
+  async pullActivities(since?: Date): Promise<TsdActivity[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Subject, Type, Status, Priority, Description, AccountId, Account.Name, WhoId, Who.Name, WhatId, What.Name, ActivityDate, DurationInMinutes FROM Event${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql).catch(() => []);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const account = asRecord(rec.Account);
+        const who = asRecord(rec.Who);
+        const what = asRecord(rec.What);
+        return {
+          externalId: str(rec.Id),
+          subject: str(rec.Subject) || "Unknown",
+          type: strOrUndef(rec.Type),
+          status: strOrUndef(rec.Status),
+          priority: strOrUndef(rec.Priority),
+          description: strOrUndef(rec.Description),
+          accountId: strOrUndef(rec.AccountId),
+          accountName: strOrUndef(account.Name),
+          whoId: strOrUndef(rec.WhoId),
+          whoName: strOrUndef(who.Name),
+          whatId: strOrUndef(rec.WhatId),
+          whatName: strOrUndef(what.Name),
+          activityDate: typeof rec.ActivityDate === "string" ? new Date(rec.ActivityDate) : undefined,
+          durationMinutes: typeof rec.DurationInMinutes === "number" ? rec.DurationInMinutes : undefined,
+          rawData: rec,
+        } satisfies TsdActivity;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullActivities error:", err);
+      return [];
+    }
+  }
+
+  async pullTasks(since?: Date): Promise<TsdTask[]> {
+    try {
+      const sinceClause = since ? ` WHERE LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Subject, Status, Priority, Description, WhoId, Who.Name, WhatId, What.Name, OwnerId, Owner.Name, ActivityDate, IsClosed FROM Task${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 500`;
+      const records = await this.sfQueryAll(soql);
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const who = asRecord(rec.Who);
+        const what = asRecord(rec.What);
+        const owner = asRecord(rec.Owner);
+        return {
+          externalId: str(rec.Id),
+          subject: str(rec.Subject) || "Unknown",
+          status: strOrUndef(rec.Status),
+          priority: strOrUndef(rec.Priority),
+          description: strOrUndef(rec.Description),
+          whoId: strOrUndef(rec.WhoId),
+          whoName: strOrUndef(who.Name),
+          whatId: strOrUndef(rec.WhatId),
+          whatName: strOrUndef(what.Name),
+          ownerId: strOrUndef(rec.OwnerId),
+          ownerName: strOrUndef(owner.Name),
+          activityDate: typeof rec.ActivityDate === "string" ? new Date(rec.ActivityDate) : undefined,
+          isCompleted: rec.IsClosed === true,
+          rawData: rec,
+        } satisfies TsdTask;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullTasks error:", err);
       return [];
     }
   }

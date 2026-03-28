@@ -45,6 +45,121 @@ export interface TsdCommission {
   periodEnd?: Date;
 }
 
+export interface TsdOpportunity {
+  externalId: string;
+  name: string;
+  accountName?: string;
+  accountId?: string;
+  amount?: string;
+  stage?: string;
+  probability?: number;
+  closeDate?: Date;
+  type?: string;
+  description?: string;
+  leadSource?: string;
+  ownerName?: string;
+  ownerId?: string;
+  rawData?: Record<string, unknown>;
+}
+
+export interface TsdAccount {
+  externalId: string;
+  name: string;
+  industry?: string;
+  phone?: string;
+  website?: string;
+  billingStreet?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingPostalCode?: string;
+  billingCountry?: string;
+  employeeCount?: number;
+  annualRevenue?: string;
+  type?: string;
+  description?: string;
+  rawData?: Record<string, unknown>;
+}
+
+export interface TsdContact {
+  externalId: string;
+  firstName?: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  mobilePhone?: string;
+  title?: string;
+  department?: string;
+  accountId?: string;
+  accountName?: string;
+  mailingCity?: string;
+  mailingState?: string;
+  rawData?: Record<string, unknown>;
+}
+
+export interface TsdOrder {
+  externalId: string;
+  name: string;
+  accountId?: string;
+  accountName?: string;
+  status?: string;
+  orderAmount?: string;
+  startDate?: Date;
+  endDate?: Date;
+  contractId?: string;
+  type?: string;
+  description?: string;
+  rawData?: Record<string, unknown>;
+}
+
+export interface TsdQuote {
+  externalId: string;
+  name: string;
+  opportunityId?: string;
+  opportunityName?: string;
+  accountId?: string;
+  accountName?: string;
+  status?: string;
+  totalPrice?: string;
+  expirationDate?: Date;
+  description?: string;
+  rawData?: Record<string, unknown>;
+}
+
+export interface TsdActivity {
+  externalId: string;
+  subject: string;
+  type?: string;
+  status?: string;
+  priority?: string;
+  description?: string;
+  accountId?: string;
+  accountName?: string;
+  whoId?: string;
+  whoName?: string;
+  whatId?: string;
+  whatName?: string;
+  activityDate?: Date;
+  durationMinutes?: number;
+  rawData?: Record<string, unknown>;
+}
+
+export interface TsdTask {
+  externalId: string;
+  subject: string;
+  status?: string;
+  priority?: string;
+  description?: string;
+  whoId?: string;
+  whoName?: string;
+  whatId?: string;
+  whatName?: string;
+  ownerId?: string;
+  ownerName?: string;
+  activityDate?: Date;
+  isCompleted?: boolean;
+  rawData?: Record<string, unknown>;
+}
+
 export interface TsdWebhookEvent {
   type: "deal_update" | "lead_assigned" | "commission_paid" | "unknown";
   provider: TsdProvider;
@@ -71,6 +186,13 @@ export interface TsdConnector {
   pushDeal(deal: TsdDeal): Promise<TsdPushResult>;
   pullLeads(since?: Date): Promise<TsdLead[]>;
   pullCommissions(since?: Date): Promise<TsdCommission[]>;
+  pullOpportunities?(since?: Date): Promise<TsdOpportunity[]>;
+  pullAccounts?(since?: Date): Promise<TsdAccount[]>;
+  pullContacts?(since?: Date): Promise<TsdContact[]>;
+  pullOrders?(since?: Date): Promise<TsdOrder[]>;
+  pullQuotes?(since?: Date): Promise<TsdQuote[]>;
+  pullActivities?(since?: Date): Promise<TsdActivity[]>;
+  pullTasks?(since?: Date): Promise<TsdTask[]>;
   handleWebhook(rawBody: string, signature: string, secret: string): Promise<TsdWebhookEvent>;
   testConnection(): Promise<{ ok: boolean; error?: string; requiresMfa?: boolean }>;
   login?(): Promise<TsdLoginResult>;

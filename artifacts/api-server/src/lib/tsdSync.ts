@@ -1,4 +1,4 @@
-import { db, tsdConfigsTable, tsdSyncLogsTable, partnerLeadsTable, partnerCommissionsTable, partnersTable, tsdDealMappingsTable } from "@workspace/db";
+import { db, tsdConfigsTable, tsdSyncLogsTable, partnerLeadsTable, partnerCommissionsTable, partnersTable, tsdDealMappingsTable, telarusOpportunitiesTable, telarusAccountsTable, telarusContactsTable, telarusOrdersTable, telarusQuotesTable, telarusActivitiesTable, telarusTasksTable } from "@workspace/db";
 import type { TsdConfig } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { createTsdConnector, createTsdConnectorWithAuth, resolveCredentialRef } from "@workspace/integrations-tsd";
@@ -86,7 +86,7 @@ async function logSync({
 }: {
   provider: TsdProvider;
   direction: "outbound" | "inbound";
-  entityType: "deal" | "lead" | "commission" | "webhook";
+  entityType: "deal" | "lead" | "commission" | "webhook" | "opportunity" | "account" | "contact" | "order" | "quote" | "activity" | "task";
   status: "success" | "failure" | "partial";
   recordsAffected?: number;
   payloadSummary?: string;
@@ -379,6 +379,323 @@ export async function syncCommissionsFromTSDs(provider?: TsdProvider): Promise<v
   }
 }
 
+// ─── Generic upsert helper ────────────────────────────────────────────────────
+
+async function upsertTelarusRecords<T extends { externalId: string }>(
+  table: typeof telarusOpportunitiesTable | typeof telarusAccountsTable | typeof telarusContactsTable | typeof telarusOrdersTable | typeof telarusQuotesTable | typeof telarusActivitiesTable | typeof telarusTasksTable,
+  records: T[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mapper: (r: T) => Record<string, any>
+): Promise<{ upserted: number }> {
+  let upserted = 0;
+  for (const record of records) {
+    const values = mapper(record);
+    try {
+      await (db as import("drizzle-orm/node-postgres").NodePgDatabase)
+        .insert(table as never)
+        .values({ ...values, syncedAt: new Date() })
+        .onConflictDoUpdate({
+          target: (table as { externalId: unknown }).externalId as never,
+          set: { ...values, syncedAt: new Date() },
+        });
+      upserted++;
+    } catch {
+      // skip individual record errors
+    }
+  }
+  return { upserted };
+}
+
+export async function syncOpportunitiesFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullOpportunities) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "opportunity", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastOpportunitySyncAt ?? undefined;
+      const items = await connector.pullOpportunities(since);
+      const { upserted } = await upsertTelarusRecords(telarusOpportunitiesTable, items, (r) => ({
+        externalId: r.externalId,
+        name: r.name,
+        accountName: r.accountName ?? null,
+        accountId: r.accountId ?? null,
+        amount: r.amount ?? null,
+        stage: r.stage ?? null,
+        probability: r.probability ?? null,
+        closeDate: r.closeDate ?? null,
+        type: r.type ?? null,
+        description: r.description ?? null,
+        leadSource: r.leadSource ?? null,
+        ownerId: r.ownerId ?? null,
+        ownerName: r.ownerName ?? null,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastOpportunitySyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "opportunity", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "opportunity", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncAccountsFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullAccounts) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "account", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastAccountSyncAt ?? undefined;
+      const items = await connector.pullAccounts(since);
+      const { upserted } = await upsertTelarusRecords(telarusAccountsTable, items, (r) => ({
+        externalId: r.externalId,
+        name: r.name,
+        industry: r.industry ?? null,
+        phone: r.phone ?? null,
+        website: r.website ?? null,
+        billingStreet: r.billingStreet ?? null,
+        billingCity: r.billingCity ?? null,
+        billingState: r.billingState ?? null,
+        billingPostalCode: r.billingPostalCode ?? null,
+        billingCountry: r.billingCountry ?? null,
+        employeeCount: r.employeeCount ?? null,
+        annualRevenue: r.annualRevenue ?? null,
+        type: r.type ?? null,
+        description: r.description ?? null,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastAccountSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "account", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "account", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncContactsFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullContacts) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "contact", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastContactSyncAt ?? undefined;
+      const items = await connector.pullContacts(since);
+      const { upserted } = await upsertTelarusRecords(telarusContactsTable, items, (r) => ({
+        externalId: r.externalId,
+        firstName: r.firstName ?? null,
+        lastName: r.lastName,
+        email: r.email ?? null,
+        phone: r.phone ?? null,
+        mobilePhone: r.mobilePhone ?? null,
+        title: r.title ?? null,
+        department: r.department ?? null,
+        accountId: r.accountId ?? null,
+        accountName: r.accountName ?? null,
+        mailingCity: r.mailingCity ?? null,
+        mailingState: r.mailingState ?? null,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastContactSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "contact", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "contact", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncOrdersFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullOrders) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "order", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastOrderSyncAt ?? undefined;
+      const items = await connector.pullOrders(since);
+      const { upserted } = await upsertTelarusRecords(telarusOrdersTable, items, (r) => ({
+        externalId: r.externalId,
+        name: r.name,
+        accountId: r.accountId ?? null,
+        accountName: r.accountName ?? null,
+        status: r.status ?? null,
+        orderAmount: r.orderAmount ?? null,
+        startDate: r.startDate ?? null,
+        endDate: r.endDate ?? null,
+        contractId: r.contractId ?? null,
+        type: r.type ?? null,
+        description: r.description ?? null,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastOrderSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "order", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "order", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncQuotesFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullQuotes) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "quote", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastQuoteSyncAt ?? undefined;
+      const items = await connector.pullQuotes(since);
+      const { upserted } = await upsertTelarusRecords(telarusQuotesTable, items, (r) => ({
+        externalId: r.externalId,
+        name: r.name,
+        opportunityId: r.opportunityId ?? null,
+        opportunityName: r.opportunityName ?? null,
+        accountId: r.accountId ?? null,
+        accountName: r.accountName ?? null,
+        status: r.status ?? null,
+        totalPrice: r.totalPrice ?? null,
+        expirationDate: r.expirationDate ?? null,
+        description: r.description ?? null,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastQuoteSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "quote", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "quote", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncActivitiesFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullActivities) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "activity", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastActivitySyncAt ?? undefined;
+      const items = await connector.pullActivities(since);
+      const { upserted } = await upsertTelarusRecords(telarusActivitiesTable, items, (r) => ({
+        externalId: r.externalId,
+        subject: r.subject,
+        type: r.type ?? null,
+        status: r.status ?? null,
+        priority: r.priority ?? null,
+        description: r.description ?? null,
+        accountId: r.accountId ?? null,
+        accountName: r.accountName ?? null,
+        whoId: r.whoId ?? null,
+        whoName: r.whoName ?? null,
+        whatId: r.whatId ?? null,
+        whatName: r.whatName ?? null,
+        activityDate: r.activityDate ?? null,
+        durationMinutes: r.durationMinutes ?? null,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastActivitySyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "activity", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "activity", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncTasksFromTelarus(provider?: TsdProvider): Promise<void> {
+  const configs = await getEnabledConfigs(provider ?? "telarus");
+  for (const cfg of configs) {
+    if (cfg.provider !== "telarus") continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector?.pullTasks) continue;
+    try {
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const r = await connector.login();
+        if (!r.success) {
+          await logSync({ provider: "telarus", direction: "inbound", entityType: "task", status: "failure", errorMessage: `Auth failed: ${r.error}` });
+          continue;
+        }
+      }
+      const since = cfg.lastTaskSyncAt ?? undefined;
+      const items = await connector.pullTasks(since);
+      const { upserted } = await upsertTelarusRecords(telarusTasksTable, items, (r) => ({
+        externalId: r.externalId,
+        subject: r.subject,
+        status: r.status ?? null,
+        priority: r.priority ?? null,
+        description: r.description ?? null,
+        whoId: r.whoId ?? null,
+        whoName: r.whoName ?? null,
+        whatId: r.whatId ?? null,
+        whatName: r.whatName ?? null,
+        ownerId: r.ownerId ?? null,
+        ownerName: r.ownerName ?? null,
+        activityDate: r.activityDate ?? null,
+        isCompleted: r.isCompleted ?? false,
+        rawData: JSON.stringify(r.rawData ?? {}),
+      }));
+      await db.update(tsdConfigsTable).set({ lastTaskSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "task", status: "success", recordsAffected: upserted, payloadSummary: `total:${items.length} upserted:${upserted}` });
+    } catch (err) {
+      await logSync({ provider: "telarus", direction: "inbound", entityType: "task", status: "failure", errorMessage: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+export async function syncAllTelarusData(): Promise<void> {
+  console.log("[TSD] Running full Telarus data sync...");
+  await Promise.allSettled([
+    syncOpportunitiesFromTelarus(),
+    syncAccountsFromTelarus(),
+    syncContactsFromTelarus(),
+    syncOrdersFromTelarus(),
+    syncQuotesFromTelarus(),
+    syncActivitiesFromTelarus(),
+    syncTasksFromTelarus(),
+  ]);
+  console.log("[TSD] Full Telarus data sync complete.");
+}
+
 export async function ensureTsdConfigsExist(): Promise<void> {
   for (const provider of TSD_PROVIDERS) {
     const existing = await db.select({ id: tsdConfigsTable.id })
@@ -417,16 +734,27 @@ export async function startTsdSyncScheduler(): Promise<void> {
     }
   }, commissionIntervalMinutes * 60 * 1000);
 
+  const telarusIntervalMinutes = getSyncInterval("TELARUS_FULL_SYNC_INTERVAL_MINUTES", 120);
+
+  setInterval(async () => {
+    try {
+      await syncAllTelarusData();
+    } catch (err) {
+      console.error("[TSD] Telarus full sync error:", err);
+    }
+  }, telarusIntervalMinutes * 60 * 1000);
+
   setTimeout(async () => {
     try {
       console.log("[TSD] Running initial sync...");
       await syncLeadsFromTSDs();
       await syncCommissionsFromTSDs();
+      await syncAllTelarusData();
       console.log("[TSD] Initial sync complete.");
     } catch (err) {
       console.error("[TSD] Initial sync error:", err);
     }
   }, 10_000);
 
-  console.log(`[TSD] Scheduler started: leads every ${leadIntervalMinutes}min (TSD_LEAD_SYNC_INTERVAL_MINUTES), commissions every ${commissionIntervalMinutes}min (TSD_COMMISSION_SYNC_INTERVAL_MINUTES)`);
+  console.log(`[TSD] Scheduler started: leads every ${leadIntervalMinutes}min, commissions every ${commissionIntervalMinutes}min, telarus full sync every ${telarusIntervalMinutes}min`);
 }

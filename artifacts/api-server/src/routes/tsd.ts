@@ -1,11 +1,11 @@
 import { Router, type IRouter, type Response } from "express";
-import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable, tsdProductsTable } from "@workspace/db";
+import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealPushLogsTable, partnerDealsTable, partnersTable, tsdProductsTable, telarusOpportunitiesTable, telarusAccountsTable, telarusContactsTable, telarusOrdersTable, telarusQuotesTable, telarusActivitiesTable, telarusTasksTable } from "@workspace/db";
 import { eq, and, desc, inArray, asc } from "drizzle-orm";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, type PartnerRequest } from "../middlewares/partnerAuth.js";
 import { resolveCredentialRef, createTsdConnector, createTsdConnectorWithAuth } from "@workspace/integrations-tsd";
 import type { TsdProvider, TsdAuthCredentials } from "@workspace/integrations-tsd";
-import { syncLeadsFromTSDs, syncCommissionsFromTSDs } from "../lib/tsdSync.js";
+import { syncLeadsFromTSDs, syncCommissionsFromTSDs, syncOpportunitiesFromTelarus, syncAccountsFromTelarus, syncContactsFromTelarus, syncOrdersFromTelarus, syncQuotesFromTelarus, syncActivitiesFromTelarus, syncTasksFromTelarus, syncAllTelarusData } from "../lib/tsdSync.js";
 import { encryptSecret, safeDecryptSecret } from "../lib/tsdSecrets.js";
 import { pushDeal, TSD_IDS, TSD_LABELS, type TsdId } from "../lib/tsd-adapter.js";
 
@@ -81,6 +81,13 @@ router.get("/admin/tsd/configs", requireAuth, requireAdmin, async (_req: AuthReq
         hasWebhookSecret: webhookSecretStatus(c.provider as TsdProvider, c.webhookSecret),
         lastLeadSyncAt: c.lastLeadSyncAt,
         lastCommissionSyncAt: c.lastCommissionSyncAt,
+        lastOpportunitySyncAt: c.lastOpportunitySyncAt,
+        lastAccountSyncAt: c.lastAccountSyncAt,
+        lastContactSyncAt: c.lastContactSyncAt,
+        lastOrderSyncAt: c.lastOrderSyncAt,
+        lastQuoteSyncAt: c.lastQuoteSyncAt,
+        lastActivitySyncAt: c.lastActivitySyncAt,
+        lastTaskSyncAt: c.lastTaskSyncAt,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       };
@@ -523,4 +530,151 @@ router.delete("/admin/tsd-products/:id", requireAuth, requireAdmin, async (req: 
     res.status(500).json({ error: "server_error", message: "Failed to delete product" });
   }
 });
+
+// ─── Telarus Synced Data — Read Endpoints ────────────────────────────────────
+
+router.get("/admin/telarus/opportunities", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusOpportunitiesTable).orderBy(desc(telarusOpportunitiesTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get opportunities error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/telarus/accounts", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusAccountsTable).orderBy(desc(telarusAccountsTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get accounts error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/telarus/contacts", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusContactsTable).orderBy(desc(telarusContactsTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get contacts error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/telarus/orders", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusOrdersTable).orderBy(desc(telarusOrdersTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get orders error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/telarus/quotes", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusQuotesTable).orderBy(desc(telarusQuotesTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get quotes error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/telarus/activities", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusActivitiesTable).orderBy(desc(telarusActivitiesTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get activities error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/telarus/tasks", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await db.select().from(telarusTasksTable).orderBy(desc(telarusTasksTable.syncedAt)).limit(500);
+    res.json(rows);
+  } catch (err) {
+    console.error("[TSD] Get tasks error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ─── Telarus Sync Trigger Endpoints ──────────────────────────────────────────
+
+router.post("/admin/telarus/sync/all", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncAllTelarusData().catch(err => console.error("[TSD] Background full sync error:", err));
+    res.json({ success: true, message: "Full Telarus sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/opportunities", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncOpportunitiesFromTelarus().catch(err => console.error("[TSD] Opportunities sync error:", err));
+    res.json({ success: true, message: "Opportunities sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/accounts", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncAccountsFromTelarus().catch(err => console.error("[TSD] Accounts sync error:", err));
+    res.json({ success: true, message: "Accounts sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/contacts", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncContactsFromTelarus().catch(err => console.error("[TSD] Contacts sync error:", err));
+    res.json({ success: true, message: "Contacts sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/orders", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncOrdersFromTelarus().catch(err => console.error("[TSD] Orders sync error:", err));
+    res.json({ success: true, message: "Orders sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/quotes", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncQuotesFromTelarus().catch(err => console.error("[TSD] Quotes sync error:", err));
+    res.json({ success: true, message: "Quotes sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/activities", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncActivitiesFromTelarus().catch(err => console.error("[TSD] Activities sync error:", err));
+    res.json({ success: true, message: "Activities sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
+router.post("/admin/telarus/sync/tasks", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    syncTasksFromTelarus().catch(err => console.error("[TSD] Tasks sync error:", err));
+    res.json({ success: true, message: "Tasks sync started" });
+  } catch (err) {
+    res.status(500).json({ error: "server_error", message: String(err) });
+  }
+});
+
 export default router;

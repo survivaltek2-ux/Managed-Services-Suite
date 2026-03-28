@@ -217,7 +217,7 @@ export const documentsTable = pgTable("documents", {
 export const tsdProviderEnum = pgEnum("tsd_provider", ["avant", "telarus", "intelisys"]);
 export const tsdSyncDirectionEnum = pgEnum("tsd_sync_direction", ["outbound", "inbound"]);
 export const tsdProviderSyncStatusEnum = pgEnum("tsd_provider_sync_status", ["success", "failure", "partial"]);
-export const tsdSyncEntityEnum = pgEnum("tsd_sync_entity", ["deal", "lead", "commission", "webhook"]);
+export const tsdSyncEntityEnum = pgEnum("tsd_sync_entity", ["deal", "lead", "commission", "webhook", "opportunity", "account", "contact", "order", "quote", "activity", "task"]);
 
 export const tsdConfigsTable = pgTable("tsd_configs", {
   id: serial("id").primaryKey(),
@@ -232,6 +232,13 @@ export const tsdConfigsTable = pgTable("tsd_configs", {
   webhookSecret: text("webhook_secret"),
   lastLeadSyncAt: timestamp("last_lead_sync_at"),
   lastCommissionSyncAt: timestamp("last_commission_sync_at"),
+  lastOpportunitySyncAt: timestamp("last_opportunity_sync_at"),
+  lastAccountSyncAt: timestamp("last_account_sync_at"),
+  lastContactSyncAt: timestamp("last_contact_sync_at"),
+  lastOrderSyncAt: timestamp("last_order_sync_at"),
+  lastQuoteSyncAt: timestamp("last_quote_sync_at"),
+  lastActivitySyncAt: timestamp("last_activity_sync_at"),
+  lastTaskSyncAt: timestamp("last_task_sync_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -268,6 +275,144 @@ export const tsdProductsTable = pgTable("tsd_products", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ─── Telarus Synced Data Tables ──────────────────────────────────────────────
+
+export const telarusOpportunitiesTable = pgTable("telarus_opportunities", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  name: text("name").notNull(),
+  accountName: text("account_name"),
+  accountId: text("account_id"),
+  amount: decimal("amount", { precision: 12, scale: 2 }),
+  stage: text("stage"),
+  probability: integer("probability"),
+  closeDate: timestamp("close_date"),
+  type: text("type"),
+  description: text("description"),
+  leadSource: text("lead_source"),
+  ownerId: text("owner_id"),
+  ownerName: text("owner_name"),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const telarusAccountsTable = pgTable("telarus_accounts", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  name: text("name").notNull(),
+  industry: text("industry"),
+  phone: text("phone"),
+  website: text("website"),
+  billingStreet: text("billing_street"),
+  billingCity: text("billing_city"),
+  billingState: text("billing_state"),
+  billingPostalCode: text("billing_postal_code"),
+  billingCountry: text("billing_country"),
+  employeeCount: integer("employee_count"),
+  annualRevenue: decimal("annual_revenue", { precision: 14, scale: 2 }),
+  type: text("type"),
+  description: text("description"),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const telarusContactsTable = pgTable("telarus_contacts", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  firstName: text("first_name"),
+  lastName: text("last_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  mobilePhone: text("mobile_phone"),
+  title: text("title"),
+  department: text("department"),
+  accountId: text("account_id"),
+  accountName: text("account_name"),
+  mailingCity: text("mailing_city"),
+  mailingState: text("mailing_state"),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const telarusOrdersTable = pgTable("telarus_orders", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  name: text("name").notNull(),
+  accountId: text("account_id"),
+  accountName: text("account_name"),
+  status: text("status"),
+  orderAmount: decimal("order_amount", { precision: 12, scale: 2 }),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  contractId: text("contract_id"),
+  type: text("type"),
+  description: text("description"),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const telarusQuotesTable = pgTable("telarus_quotes", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  name: text("name").notNull(),
+  opportunityId: text("opportunity_id"),
+  opportunityName: text("opportunity_name"),
+  accountId: text("account_id"),
+  accountName: text("account_name"),
+  status: text("status"),
+  totalPrice: decimal("total_price", { precision: 12, scale: 2 }),
+  expirationDate: timestamp("expiration_date"),
+  description: text("description"),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const telarusActivitiesTable = pgTable("telarus_activities", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  subject: text("subject").notNull(),
+  type: text("type"),
+  status: text("status"),
+  priority: text("priority"),
+  description: text("description"),
+  accountId: text("account_id"),
+  accountName: text("account_name"),
+  whoId: text("who_id"),
+  whoName: text("who_name"),
+  whatId: text("what_id"),
+  whatName: text("what_name"),
+  activityDate: timestamp("activity_date"),
+  durationMinutes: integer("duration_minutes"),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const telarusTasksTable = pgTable("telarus_tasks", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").notNull().unique(),
+  subject: text("subject").notNull(),
+  status: text("status"),
+  priority: text("priority"),
+  description: text("description"),
+  whoId: text("who_id"),
+  whoName: text("who_name"),
+  whatId: text("what_id"),
+  whatName: text("what_name"),
+  ownerId: text("owner_id"),
+  ownerName: text("owner_name"),
+  activityDate: timestamp("activity_date"),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  rawData: text("raw_data").notNull().default("{}"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertPartnerSchema = createInsertSchema(partnersTable).omit({ id: true, createdAt: true, updatedAt: true, tier: true, status: true, totalDeals: true, totalRevenue: true, ytdRevenue: true, approvedAt: true });
 export const insertDealSchema = createInsertSchema(partnerDealsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
 export const insertLeadSchema = createInsertSchema(partnerLeadsTable).omit({ id: true, createdAt: true, assignedAt: true, partnerId: true });
@@ -300,3 +445,10 @@ export type TsdDealMapping = typeof tsdDealMappingsTable.$inferSelect;
 export type TsdVendorMapping = typeof tsdVendorMappingsTable.$inferSelect;
 export type TsdDealPushLog = typeof tsdDealPushLogsTable.$inferSelect;
 export type TsdProduct = typeof tsdProductsTable.$inferSelect;
+export type TelarusOpportunity = typeof telarusOpportunitiesTable.$inferSelect;
+export type TelarusAccount = typeof telarusAccountsTable.$inferSelect;
+export type TelarusContact = typeof telarusContactsTable.$inferSelect;
+export type TelarusOrder = typeof telarusOrdersTable.$inferSelect;
+export type TelarusQuote = typeof telarusQuotesTable.$inferSelect;
+export type TelarusActivity = typeof telarusActivitiesTable.$inferSelect;
+export type TelarusTask = typeof telarusTasksTable.$inferSelect;

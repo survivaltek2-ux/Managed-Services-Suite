@@ -2371,6 +2371,20 @@ function TsdIntegrationsTab({
     } catch { toast({ title: "Error triggering sync", variant: "destructive" }); setSyncing(null); }
   };
 
+  const handleTelarusSync = async (entity: string) => {
+    setSyncing(`telarus:${entity}`);
+    try {
+      const res = await fetch(`/api/admin/telarus/sync/${entity}`, { method: "POST", headers: headers() });
+      if (res.ok) {
+        toast({ title: `Telarus ${entity} sync triggered` });
+        setTimeout(() => { refresh(); setSyncing(null); }, 2000);
+      } else {
+        toast({ title: "Failed to trigger sync", variant: "destructive" });
+        setSyncing(null);
+      }
+    } catch { toast({ title: "Error triggering sync", variant: "destructive" }); setSyncing(null); }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -2539,9 +2553,47 @@ function TsdIntegrationsTab({
                 )}
 
                 {(cfg.lastLeadSyncAt || cfg.lastCommissionSyncAt) && (
-                  <div className="text-xs text-muted-foreground mt-3 flex gap-4">
+                  <div className="text-xs text-muted-foreground mt-3 flex flex-wrap gap-4">
                     {cfg.lastLeadSyncAt && <span>Last lead sync: {new Date(cfg.lastLeadSyncAt).toLocaleString()}</span>}
                     {cfg.lastCommissionSyncAt && <span>Last commission sync: {new Date(cfg.lastCommissionSyncAt).toLocaleString()}</span>}
+                  </div>
+                )}
+
+                {provider === "telarus" && cfg.enabled && (
+                  <div className="mt-4 border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium">Salesforce Data Sync</p>
+                      <Button size="sm" variant="outline" disabled={syncing === "telarus:all"} onClick={() => handleTelarusSync("all")}>
+                        {syncing === "telarus:all" ? <Loader2 size={13} className="mr-1 animate-spin" /> : <RefreshCw size={13} className="mr-1" />}
+                        Sync All
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {[
+                        { key: "opportunities", label: "Opportunities", ts: cfg.lastOpportunitySyncAt },
+                        { key: "accounts",      label: "Accounts",      ts: cfg.lastAccountSyncAt },
+                        { key: "contacts",      label: "Contacts",      ts: cfg.lastContactSyncAt },
+                        { key: "orders",        label: "Orders",        ts: cfg.lastOrderSyncAt },
+                        { key: "quotes",        label: "Quotes",        ts: cfg.lastQuoteSyncAt },
+                        { key: "activities",    label: "Activities",    ts: cfg.lastActivitySyncAt },
+                        { key: "tasks",         label: "Tasks",         ts: cfg.lastTaskSyncAt },
+                      ].map(({ key, label, ts }) => (
+                        <div key={key} className="flex items-center justify-between bg-muted/30 rounded px-2 py-1.5">
+                          <div>
+                            <span className="font-medium">{label}</span>
+                            <span className="block text-muted-foreground">{ts ? new Date(ts).toLocaleString() : "Never synced"}</span>
+                          </div>
+                          <button
+                            disabled={syncing === `telarus:${key}`}
+                            onClick={() => handleTelarusSync(key)}
+                            className="text-blue-600 hover:text-blue-800 disabled:opacity-50 ml-2"
+                            title={`Sync ${label}`}
+                          >
+                            {syncing === `telarus:${key}` ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
