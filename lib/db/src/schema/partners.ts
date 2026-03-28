@@ -60,6 +60,7 @@ export const partnerDealsTable = pgTable("partner_deals", {
   closedAt: timestamp("closed_at"),
   notes: text("notes"),
   tsdTargets: text("tsd_targets").notNull().default("[]"),
+  vendorSelections: text("vendor_selections").notNull().default("[]"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

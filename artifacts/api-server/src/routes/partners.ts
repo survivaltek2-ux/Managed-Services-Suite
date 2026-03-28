@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable } from "@workspace/db";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
@@ -201,6 +201,7 @@ router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res
       ...d,
       products: JSON.parse(d.products),
       tsdTargets: JSON.parse(d.tsdTargets || "[]"),
+      vendorSelections: JSON.parse(d.vendorSelections || "[]"),
     })));
   } catch (err) {
     console.error(err);
@@ -210,7 +211,7 @@ router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res
 
 router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const { title, customerName, customerEmail, customerPhone, description, products, estimatedValue, stage, expectedCloseDate, notes, tsdTargets } = req.body;
+    const { title, customerName, customerEmail, customerPhone, description, products, vendorSelections, estimatedValue, stage, expectedCloseDate, notes, tsdTargets } = req.body;
     if (!title || !customerName) {
       res.status(400).json({ error: "validation_error", message: "title and customerName are required" });
       return;
@@ -222,6 +223,7 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
       customerEmail: customerEmail || null, customerPhone: customerPhone || null,
       description: description || null,
       products: JSON.stringify(products || []),
+      vendorSelections: JSON.stringify(Array.isArray(vendorSelections) ? vendorSelections : []),
       estimatedValue: estimatedValue || null,
       stage: stage || "prospect",
       expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
@@ -275,7 +277,7 @@ router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, re
       Promise.all(pushPromises).catch(err => console.error("[TSD] Push batch error:", err));
     }
 
-    res.status(201).json({ ...deal, products: JSON.parse(deal.products), tsdTargets: confirmedTsdTargets });
+    res.status(201).json({ ...deal, products: JSON.parse(deal.products), tsdTargets: confirmedTsdTargets, vendorSelections: JSON.parse(deal.vendorSelections || "[]") });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to register deal" });
@@ -483,6 +485,30 @@ router.get("/partner/tsd-products", requirePartnerAuth, async (_req: PartnerRequ
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load product catalog" });
+  }
+});
+
+// ─── Vendors (Telarus) ────────────────────────────────────────────────────────
+
+router.get("/partner/vendors", requirePartnerAuth, async (_req: PartnerRequest, res: Response) => {
+  try {
+    const vendors = await db.select({
+      id: telarusVendorsTable.id,
+      externalId: telarusVendorsTable.externalId,
+      name: telarusVendorsTable.name,
+      accountType: telarusVendorsTable.accountType,
+      industry: telarusVendorsTable.industry,
+      website: telarusVendorsTable.website,
+      partnerType: telarusVendorsTable.partnerType,
+      isActive: telarusVendorsTable.isActive,
+    })
+      .from(telarusVendorsTable)
+      .where(eq(telarusVendorsTable.isActive, true))
+      .orderBy(asc(telarusVendorsTable.name));
+    res.json(vendors);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load vendors" });
   }
 });
 

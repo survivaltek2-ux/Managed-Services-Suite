@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAuthHeaders } from "./use-auth";
 
+export interface Vendor {
+  id: number;
+  externalId: string;
+  name: string;
+  accountType: string | null;
+  industry: string | null;
+  website: string | null;
+  partnerType: string | null;
+  isActive: boolean;
+}
+
+export interface VendorSelection {
+  vendorId: string;
+  vendorName: string;
+  services: string[];
+}
+
 export interface TsdSyncLog {
   id: number;
   dealId: number;
@@ -22,11 +39,23 @@ export interface Deal {
   customerName: string;
   customerEmail: string;
   products: string[];
+  vendorSelections: VendorSelection[];
   estimatedValue: string | number;
   status: "registered" | "in_progress" | "won" | "lost" | "expired";
   stage: "prospect" | "qualification" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
   tsdTargets: string[];
   createdAt: string;
+}
+
+export function useVendors() {
+  return useQuery<Vendor[]>({
+    queryKey: ["/api/partner/vendors"],
+    queryFn: async () => {
+      const res = await fetch("/api/partner/vendors", { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error("Failed to fetch vendors");
+      return res.json();
+    },
+  });
 }
 
 export function useDeals() {

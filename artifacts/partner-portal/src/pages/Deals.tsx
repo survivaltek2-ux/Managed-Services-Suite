@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import {
-  useDeals, useCreateDeal, useResolveTsdMatches, useDealTsdLogs, useRetryTsdPush,
-  type Deal, type TsdMatch, type TsdSyncLog,
+  useDeals, useCreateDeal, useResolveTsdMatches, useDealTsdLogs, useRetryTsdPush, useVendors,
+  type Deal, type TsdMatch, type TsdSyncLog, type Vendor, type VendorSelection,
 } from "@/hooks/use-deals";
 import { useTsdProducts, type TsdProduct } from "@/hooks/use-tsd-products";
 import { formatCurrency } from "@/lib/utils";
 import {
   Plus, Search, List, Columns3, X, ChevronDown, Filter, ChevronRight,
-  RefreshCw, CheckCircle, AlertCircle, Clock, ArrowLeft,
+  RefreshCw, CheckCircle, AlertCircle, Clock, ArrowLeft, Building2, Tag,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -127,7 +127,7 @@ export default function Deals() {
                       {expandedDealId === deal.id && (
                         <tr key={`${deal.id}-detail`}>
                           <td colSpan={8} className="p-0">
-                            <DealTsdDetail dealId={deal.id} tsdTargets={deal.tsdTargets} />
+                            <DealTsdDetail dealId={deal.id} tsdTargets={deal.tsdTargets} vendorSelections={deal.vendorSelections} />
                           </td>
                         </tr>
                       )}
@@ -161,12 +161,17 @@ export default function Deals() {
                           <span className="text-sm font-bold">{formatCurrency(deal.estimatedValue)}</span>
                           <StatusBadge status={deal.status} />
                         </div>
+                        {deal.vendorSelections && deal.vendorSelections.length > 0 && (
+                          <div className="mb-1.5">
+                            <VendorBadges vendorSelections={deal.vendorSelections} />
+                          </div>
+                        )}
                         {deal.tsdTargets && deal.tsdTargets.length > 0 && (
                           <TsdRoutingBadges tsdTargets={deal.tsdTargets} />
                         )}
                         {expandedDealId === deal.id && (
                           <div className="mt-2 border-t pt-2">
-                            <DealTsdDetail dealId={deal.id} tsdTargets={deal.tsdTargets} />
+                            <DealTsdDetail dealId={deal.id} tsdTargets={deal.tsdTargets} vendorSelections={deal.vendorSelections} />
                           </div>
                         )}
                       </div>
@@ -200,7 +205,7 @@ function TsdRoutingBadges({ tsdTargets }: { tsdTargets: string[] }) {
   );
 }
 
-function DealTsdDetail({ dealId, tsdTargets }: { dealId: number; tsdTargets: string[] }) {
+function DealTsdDetail({ dealId, tsdTargets, vendorSelections }: { dealId: number; tsdTargets: string[]; vendorSelections?: VendorSelection[] }) {
   const { data: logs = [], isLoading, refetch } = useDealTsdLogs(dealId);
   const { mutateAsync: retryPush, isPending: isRetrying } = useRetryTsdPush();
 
@@ -214,6 +219,12 @@ function DealTsdDetail({ dealId, tsdTargets }: { dealId: number; tsdTargets: str
 
   return (
     <div className="bg-[#f8f8f8] border-t border-[#e5e5e5] px-6 py-3" onClick={e => e.stopPropagation()}>
+      {vendorSelections && vendorSelections.length > 0 && (
+        <div className="mb-3">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Vendors &amp; Services</span>
+          <VendorBadges vendorSelections={vendorSelections} />
+        </div>
+      )}
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">TSD Push Status</span>
         {hasFailed && (
@@ -295,7 +306,169 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`sf-badge ${map[status] || 'sf-badge-default'} capitalize`}>{status.replace('_', ' ')}</span>;
 }
 
+function VendorBadges({ vendorSelections }: { vendorSelections: VendorSelection[] }) {
+  if (!vendorSelections || vendorSelections.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {vendorSelections.map(v => (
+        <span key={v.vendorId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#f3f3f3] border border-[#d8dde6] text-xs rounded-full text-foreground">
+          <Building2 className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+          <span>{v.vendorName}</span>
+          {v.services.length > 0 && (
+            <span className="text-muted-foreground">· {v.services.join(", ")}</span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 type ModalStep = "details" | "tsd-confirm";
+
+function VendorSelector({
+  selected,
+  onChange,
+}: {
+  selected: VendorSelection[];
+  onChange: (selections: VendorSelection[]) => void;
+}) {
+  const { data: vendors = [], isLoading } = useVendors();
+  const [search, setSearch] = useState("");
+  const [serviceInputs, setServiceInputs] = useState<Record<string, string>>({});
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return vendors;
+    return vendors.filter(v =>
+      v.name.toLowerCase().includes(q) ||
+      (v.industry || "").toLowerCase().includes(q) ||
+      (v.accountType || "").toLowerCase().includes(q)
+    );
+  }, [vendors, search]);
+
+  const isSelected = (v: Vendor) => selected.some(s => s.vendorId === v.externalId);
+
+  const toggleVendor = (v: Vendor) => {
+    if (isSelected(v)) {
+      onChange(selected.filter(s => s.vendorId !== v.externalId));
+    } else {
+      onChange([...selected, { vendorId: v.externalId, vendorName: v.name, services: [] }]);
+    }
+  };
+
+  const addService = (vendorId: string) => {
+    const raw = (serviceInputs[vendorId] || "").trim();
+    if (!raw) return;
+    const tags = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    onChange(selected.map(s =>
+      s.vendorId === vendorId
+        ? { ...s, services: [...new Set([...s.services, ...tags])] }
+        : s
+    ));
+    setServiceInputs(prev => ({ ...prev, [vendorId]: "" }));
+  };
+
+  const removeService = (vendorId: string, service: string) => {
+    onChange(selected.map(s =>
+      s.vendorId === vendorId
+        ? { ...s, services: s.services.filter(x => x !== service) }
+        : s
+    ));
+  };
+
+  if (isLoading) {
+    return <div className="text-xs text-muted-foreground py-4 text-center">Loading vendors...</div>;
+  }
+
+  if (!vendors.length) {
+    return <div className="text-xs text-muted-foreground py-4 text-center">No vendors synced yet. Sync from Telarus in the Admin panel.</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search vendors and carriers..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="sf-input pl-8 text-sm"
+        />
+        {search && (
+          <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      <div className="border border-border rounded max-h-64 overflow-y-auto divide-y divide-border">
+        {filtered.length === 0 ? (
+          <div className="text-center py-6 text-xs text-muted-foreground">No vendors match your search.</div>
+        ) : (
+          filtered.map(v => {
+            const sel = selected.find(s => s.vendorId === v.externalId);
+            const checked = !!sel;
+            return (
+              <div key={v.externalId} className="p-2.5">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 mt-0.5 rounded text-[#0176d3] focus:ring-[#0176d3] flex-shrink-0"
+                    checked={checked}
+                    onChange={() => toggleVendor(v)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-medium text-foreground">{v.name}</span>
+                      {v.industry && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-[#f3f3f3] text-muted-foreground rounded-full">{v.industry}</span>
+                      )}
+                    </div>
+                  </div>
+                </label>
+                {checked && sel && (
+                  <div className="mt-2 ml-5 space-y-1.5">
+                    {sel.services.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {sel.services.map(svc => (
+                          <span key={svc} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3]/10 text-[#0176d3] text-xs rounded-full">
+                            <Tag className="w-2.5 h-2.5" />
+                            {svc}
+                            <button type="button" onClick={() => removeService(v.externalId, svc)} className="hover:text-red-500 ml-0.5">
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        placeholder="Add services (e.g. MPLS, SD-WAN) and press Enter"
+                        value={serviceInputs[v.externalId] || ""}
+                        onChange={e => setServiceInputs(prev => ({ ...prev, [v.externalId]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addService(v.externalId); } }}
+                        className="sf-input text-xs py-1 flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addService(v.externalId)}
+                        className="sf-btn sf-btn-neutral text-xs px-2 py-1"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ProductSelector({ selected, onChange }: { selected: string[]; onChange: (products: string[]) => void }) {
   const { data: catalog, isLoading } = useTsdProducts();
@@ -436,7 +609,9 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
   const { mutateAsync: resolveTsdMatches, isPending: isResolving } = useResolveTsdMatches();
   const [step, setStep] = useState<ModalStep>("details");
   const [formData, setFormData] = useState({
-    title: "", customerName: "", customerEmail: "", estimatedValue: "", products: [] as string[],
+    title: "", customerName: "", customerEmail: "", estimatedValue: "",
+    products: [] as string[],
+    vendorSelections: [] as VendorSelection[],
   });
   const [tsdMatches, setTsdMatches] = useState<TsdMatch[]>([]);
   const [selectedTsds, setSelectedTsds] = useState<string[]>([]);
@@ -464,6 +639,7 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
     await createDeal({
       ...formData,
       products: formData.products,
+      vendorSelections: formData.vendorSelections,
       estimatedValue: parseFloat(formData.estimatedValue) || 0,
       tsdTargets: selectedTsds,
     });
@@ -518,6 +694,19 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">Estimated Value ($) *</label>
                 <input className="sf-input" type="number" min="0" step="0.01" value={formData.estimatedValue} onChange={e => setFormData({ ...formData, estimatedValue: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5" />
+                  Vendors / Carriers
+                  {formData.vendorSelections.length > 0 && (
+                    <span className="ml-1 text-[#0176d3] normal-case font-normal">{formData.vendorSelections.length} selected</span>
+                  )}
+                </label>
+                <VendorSelector
+                  selected={formData.vendorSelections}
+                  onChange={vendorSelections => setFormData({ ...formData, vendorSelections })}
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">
