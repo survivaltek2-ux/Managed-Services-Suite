@@ -16,12 +16,20 @@ async function getEnabledConfigs(provider?: TsdProvider): Promise<TsdConfig[]> {
   return db.select().from(tsdConfigsTable).where(eq(tsdConfigsTable.enabled, true));
 }
 
-function resolveCredential(provider: TsdProvider, dbCredRef: string | null): string | null {
+function resolveCredential(provider: TsdProvider, dbCredRef: string | null, dbUsername: string | null = null, dbPassword: string | null = null): string | null {
   const envCred = resolveCredentialRef(provider);
   if (envCred) return envCred;
+  const envUsername = process.env[`${provider.toUpperCase()}_USERNAME`];
+  const envPassword = process.env[`${provider.toUpperCase()}_PASSWORD`];
+  if (envUsername && envPassword) return `${envUsername}::${envPassword}`;
   if (dbCredRef) {
     const decrypted = safeDecryptSecret(dbCredRef);
     return decrypted || null;
+  }
+  if (dbUsername && dbPassword) {
+    const decryptedUsername = safeDecryptSecret(dbUsername);
+    const decryptedPassword = safeDecryptSecret(dbPassword);
+    return `${decryptedUsername}::${decryptedPassword}`;
   }
   return null;
 }
@@ -71,7 +79,7 @@ export async function pushDealToTSDs(deal: {
   })();
 
   for (const cfg of configs) {
-    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef);
+    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
     if (!credRef) {
       await logSync({
         provider: cfg.provider as TsdProvider,
@@ -131,7 +139,7 @@ export async function syncLeadsFromTSDs(provider?: TsdProvider): Promise<void> {
   const configs = await getEnabledConfigs(provider);
 
   for (const cfg of configs) {
-    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef);
+    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
     if (!credRef) continue;
 
     try {
@@ -211,7 +219,7 @@ export async function syncCommissionsFromTSDs(provider?: TsdProvider): Promise<v
   const configs = await getEnabledConfigs(provider);
 
   for (const cfg of configs) {
-    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef);
+    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
     if (!credRef) continue;
 
     try {

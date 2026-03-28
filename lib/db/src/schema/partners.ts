@@ -224,6 +224,8 @@ export const tsdConfigsTable = pgTable("tsd_configs", {
   provider: tsdProviderEnum("provider").notNull().unique(),
   enabled: boolean("enabled").notNull().default(false),
   credentialRef: text("credential_ref"),
+  username: text("username"),
+  password: text("password"),
   webhookSecret: text("webhook_secret"),
   lastLeadSyncAt: timestamp("last_lead_sync_at"),
   lastCommissionSyncAt: timestamp("last_commission_sync_at"),

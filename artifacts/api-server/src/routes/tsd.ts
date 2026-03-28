@@ -14,20 +14,31 @@ const router: IRouter = Router();
 const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
 const TSD_LIST = TSD_IDS.map(id => ({ id, label: TSD_LABELS[id] }));
 
-function credentialStatus(provider: TsdProvider, dbCredRef: string | null): {
+function credentialStatus(provider: TsdProvider, dbCredRef: string | null, dbUsername: string | null, dbPassword: string | null): {
   hasCredential: boolean;
   credentialSource: "env" | "db" | null;
 } {
   const envCred = resolveCredentialRef(provider);
   if (envCred) return { hasCredential: true, credentialSource: "env" };
-  if (dbCredRef) return { hasCredential: true, credentialSource: "db" };
+  const envUsername = process.env[`${provider.toUpperCase()}_USERNAME`];
+  const envPassword = process.env[`${provider.toUpperCase()}_PASSWORD`];
+  if (envUsername && envPassword) return { hasCredential: true, credentialSource: "env" };
+  if (dbCredRef || (dbUsername && dbPassword)) return { hasCredential: true, credentialSource: "db" };
   return { hasCredential: false, credentialSource: null };
 }
 
-function resolveCredential(provider: TsdProvider, dbCredRef: string | null): string | null {
+function resolveCredential(provider: TsdProvider, dbCredRef: string | null, dbUsername: string | null, dbPassword: string | null): { type: "api_key" | "username_password"; value: string } | null {
   const envCred = resolveCredentialRef(provider);
-  if (envCred) return envCred;
-  if (dbCredRef) return safeDecryptSecret(dbCredRef);
+  if (envCred) return { type: "api_key", value: envCred };
+  const envUsername = process.env[`${provider.toUpperCase()}_USERNAME`];
+  const envPassword = process.env[`${provider.toUpperCase()}_PASSWORD`];
+  if (envUsername && envPassword) return { type: "username_password", value: `${envUsername}::${envPassword}` };
+  if (dbCredRef) return { type: "api_key", value: safeDecryptSecret(dbCredRef) };
+  if (dbUsername && dbPassword) {
+    const decryptedUsername = safeDecryptSecret(dbUsername);
+    const decryptedPassword = safeDecryptSecret(dbPassword);
+    return { type: "username_password", value: `${decryptedUsername}::${decryptedPassword}` };
+  }
   return null;
 }
 
@@ -45,14 +56,14 @@ router.get("/admin/tsd/configs", requireAuth, requireAdmin, async (_req: AuthReq
   try {
     const configs = await db.select().from(tsdConfigsTable).orderBy(tsdConfigsTable.provider);
     const result = configs.map(c => {
-      const { hasCredential, credentialSource } = credentialStatus(c.provider as TsdProvider, c.credentialRef);
+      const { hasCredential, credentialSource } = credentialStatus(c.provider as TsdProvider, c.credentialRef, c.username, c.password);
       return {
         id: c.id,
         provider: c.provider,
         enabled: c.enabled,
         hasCredential,
         credentialSource,
-        hasDbCredential: !!c.credentialRef,
+        hasDbCredential: !!c.credentialRef || (!!c.username && !!c.password),
         hasWebhookSecret: webhookSecretStatus(c.provider as TsdProvider, c.webhookSecret),
         lastLeadSyncAt: c.lastLeadSyncAt,
         lastCommissionSyncAt: c.lastCommissionSyncAt,
@@ -75,7 +86,7 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
       return;
     }
 
-    const { enabled, credentialRef, webhookSecret } = req.body;
+    const { enabled, credentialRef, username, password, webhookSecret } = req.body;
 
     const existing = await db.select().from(tsdConfigsTable)
       .where(eq(tsdConfigsTable.provider, provider as TsdProvider)).limit(1);
@@ -84,6 +95,12 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
     if (typeof enabled === "boolean") updateData.enabled = enabled;
     if (credentialRef && credentialRef !== "" && !credentialRef.includes("****")) {
       updateData.credentialRef = encryptOrThrow(credentialRef);
+    }
+    if (username && username !== "" && !username.includes("****")) {
+      updateData.username = encryptOrThrow(username);
+    }
+    if (password && password !== "" && !password.includes("****")) {
+      updateData.password = encryptOrThrow(password);
     }
     if (webhookSecret !== undefined && webhookSecret !== "" && !webhookSecret.includes("****")) {
       updateData.webhookSecret = encryptOrThrow(webhookSecret);
@@ -95,6 +112,8 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
         provider: provider as TsdProvider,
         enabled: typeof enabled === "boolean" ? enabled : false,
         credentialRef: credentialRef && !credentialRef.includes("****") ? encryptOrThrow(credentialRef) : null,
+        username: username && !username.includes("****") ? encryptOrThrow(username) : null,
+        password: password && !password.includes("****") ? encryptOrThrow(password) : null,
         webhookSecret: webhookSecret && !webhookSecret.includes("****") ? encryptOrThrow(webhookSecret) : null,
       }).returning();
       savedConfig = created;
@@ -106,14 +125,14 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
       savedConfig = updated;
     }
 
-    const { hasCredential, credentialSource } = credentialStatus(provider as TsdProvider, savedConfig.credentialRef);
+    const { hasCredential, credentialSource } = credentialStatus(provider as TsdProvider, savedConfig.credentialRef, savedConfig.username, savedConfig.password);
     res.json({
       id: savedConfig.id,
       provider: savedConfig.provider,
       enabled: savedConfig.enabled,
       hasCredential,
       credentialSource,
-      hasDbCredential: !!savedConfig.credentialRef,
+      hasDbCredential: !!savedConfig.credentialRef || (!!savedConfig.username && !!savedConfig.password),
       hasWebhookSecret: webhookSecretStatus(provider as TsdProvider, savedConfig.webhookSecret),
       lastLeadSyncAt: savedConfig.lastLeadSyncAt,
       lastCommissionSyncAt: savedConfig.lastCommissionSyncAt,
@@ -135,13 +154,13 @@ router.post("/admin/tsd/configs/:provider/test", requireAuth, requireAdmin, asyn
     const [cfg] = await db.select().from(tsdConfigsTable)
       .where(eq(tsdConfigsTable.provider, provider as TsdProvider)).limit(1);
 
-    const credRef = resolveCredential(provider as TsdProvider, cfg?.credentialRef || null);
-    if (!credRef) {
-      res.json({ ok: false, error: `No credentials configured. Set ${provider.toUpperCase()}_API_KEY env var or enter credentials in the admin UI.` });
+    const cred = resolveCredential(provider as TsdProvider, cfg?.credentialRef || null, cfg?.username || null, cfg?.password || null);
+    if (!cred) {
+      res.json({ ok: false, error: `No credentials configured. Set ${provider.toUpperCase()}_API_KEY env var or ${provider.toUpperCase()}_USERNAME/${provider.toUpperCase()}_PASSWORD env vars, or enter credentials in the admin UI.` });
       return;
     }
 
-    const connector = createTsdConnector(provider as TsdProvider, credRef);
+    const connector = createTsdConnector(provider as TsdProvider, cred.value);
     const result = await connector.testConnection();
     res.json(result);
   } catch (err) {
