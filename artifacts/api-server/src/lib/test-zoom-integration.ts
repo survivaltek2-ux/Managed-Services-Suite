@@ -22,11 +22,83 @@ async function test() {
       return;
     }
 
-    console.log("\n📞 TEST 2: Zoom Authentication");
+    console.log("\n📞 TEST 2: Zoom Authentication & Message Fetching");
+    
+    try {
+      const accessToken = await (async () => {
+        const response = await fetch("https://zoom.us/oauth/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${Buffer.from(`${zoomAccountId}:${zoomClientSecret}`).toString("base64")}`,
+          },
+          body: new URLSearchParams({
+            grant_type: "client_credentials",
+            scope: "sms:read",
+          }),
+        });
+        
+        if (!response.ok) {
+          console.log(`  ❌ OAuth token failed: ${response.status}`);
+          throw new Error(`OAuth failed: ${response.status}`);
+        }
+        
+        const data = await response.json() as any;
+        console.log(`  ✓ Zoom OAuth successful`);
+        return data.access_token;
+      })();
+
+      const endpoints = [
+        `https://api.zoom.us/v1/sms/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
+        `https://api.zoom.us/v2/sms/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
+        `https://api.zoom.us/v1/phone/sms/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
+        `https://api.zoom.us/v1/sms?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
+        `https://api.zoom.us/v1/phone/sms?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
+      ];
+
+      let msgResponse;
+      let msgData;
+      for (const endpoint of endpoints) {
+        console.log(`  ℹ Trying endpoint: ${endpoint.split('?')[0]}...`);
+        msgResponse = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        
+        console.log(`    Response: ${msgResponse.status}`);
+        
+        if (msgResponse.status !== 403) {
+          try {
+            msgData = await msgResponse.json() as any;
+            console.log(`  ✓ SMS messages API response: ${msgResponse.status}`);
+            break;
+          } catch {
+            console.log(`    Response: ${msgResponse.status} (not JSON)`);
+          }
+        }
+      }
+
+      if (msgData) {
+        console.log(`  ℹ Messages response:`, JSON.stringify(msgData, null, 2).substring(0, 500));
+      } else {
+        console.log(`  ⚠ Could not fetch messages from any endpoint`);
+      }
+
+      if (msgData.messages && msgData.messages.length > 0) {
+        console.log(`  ✓ Found ${msgData.messages.length} messages`);
+        msgData.messages.slice(0, 3).forEach((msg: any, i: number) => {
+          console.log(`    [${i}] From: ${msg.from}, Body: ${msg.body?.substring(0, 50)}...`);
+        });
+      } else {
+        console.log(`  ⚠ No messages found`);
+      }
+    } catch (err) {
+      console.log(`  ❌ Message fetch error:`, err);
+    }
+
     const code = await fetchAndUpdateTelarusMfaCode();
 
     if (code) {
-      console.log(`  ✓ Successfully fetched MFA code: ${code}`);
+      console.log(`  ✓ Successfully extracted MFA code: ${code}`);
 
       const [cfg] = await db
         .select()
