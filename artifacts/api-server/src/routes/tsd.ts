@@ -64,6 +64,7 @@ router.get("/admin/tsd/configs", requireAuth, requireAdmin, async (_req: AuthReq
         hasCredential,
         credentialSource,
         hasDbCredential: !!c.credentialRef || (!!c.username && !!c.password),
+        hasSecurityToken: !!(c.securityToken || process.env[`${c.provider.toUpperCase()}_SECURITY_TOKEN`]),
         hasWebhookSecret: webhookSecretStatus(c.provider as TsdProvider, c.webhookSecret),
         lastLeadSyncAt: c.lastLeadSyncAt,
         lastCommissionSyncAt: c.lastCommissionSyncAt,
@@ -86,7 +87,7 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
       return;
     }
 
-    const { enabled, credentialRef, username, password, mfaPhone, mfaCode, webhookSecret } = req.body;
+    const { enabled, credentialRef, username, password, mfaPhone, mfaCode, securityToken, webhookSecret } = req.body;
 
     const existing = await db.select().from(tsdConfigsTable)
       .where(eq(tsdConfigsTable.provider, provider as TsdProvider)).limit(1);
@@ -108,6 +109,9 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
     if (mfaCode !== undefined && mfaCode !== "" && !mfaCode.includes("****")) {
       updateData.mfaCode = encryptOrThrow(mfaCode);
     }
+    if (securityToken !== undefined && securityToken !== "" && !securityToken.includes("****")) {
+      updateData.securityToken = encryptOrThrow(securityToken);
+    }
     if (webhookSecret !== undefined && webhookSecret !== "" && !webhookSecret.includes("****")) {
       updateData.webhookSecret = encryptOrThrow(webhookSecret);
     }
@@ -122,6 +126,7 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
         password: password && !password.includes("****") ? encryptOrThrow(password) : null,
         mfaPhone: mfaPhone && !mfaPhone.includes("****") ? encryptOrThrow(mfaPhone) : null,
         mfaCode: mfaCode && !mfaCode.includes("****") ? encryptOrThrow(mfaCode) : null,
+        securityToken: securityToken && !securityToken.includes("****") ? encryptOrThrow(securityToken) : null,
         webhookSecret: webhookSecret && !webhookSecret.includes("****") ? encryptOrThrow(webhookSecret) : null,
       }).returning();
       savedConfig = created;
@@ -141,6 +146,7 @@ router.put("/admin/tsd/configs/:provider", requireAuth, requireAdmin, async (req
       hasCredential,
       credentialSource,
       hasDbCredential: !!savedConfig.credentialRef || (!!savedConfig.username && !!savedConfig.password),
+      hasSecurityToken: !!(savedConfig.securityToken || process.env[`${provider.toUpperCase()}_SECURITY_TOKEN`]),
       hasWebhookSecret: webhookSecretStatus(provider as TsdProvider, savedConfig.webhookSecret),
       lastLeadSyncAt: savedConfig.lastLeadSyncAt,
       lastCommissionSyncAt: savedConfig.lastCommissionSyncAt,
@@ -176,9 +182,13 @@ router.post("/admin/tsd/configs/:provider/test", requireAuth, requireAdmin, asyn
         username,
         password,
         agentId: process.env.TELARUS_AGENT_ID || undefined,
+        securityToken: process.env.TELARUS_SECURITY_TOKEN || undefined,
       };
       if (cfg?.mfaCode) {
         credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+      }
+      if (cfg?.securityToken && !credentials.securityToken) {
+        credentials.securityToken = safeDecryptSecret(cfg.securityToken) || undefined;
       }
       connector = createTsdConnectorWithAuth(provider, credentials);
     } else {

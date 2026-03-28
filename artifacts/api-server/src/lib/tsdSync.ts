@@ -34,9 +34,13 @@ function buildConnectorForConfig(cfg: TsdConfig): TsdConnector | null {
       password: envPassword,
       agentId: process.env[`${provider.toUpperCase()}_AGENT_ID`] || undefined,
       partnerId: process.env[`${provider.toUpperCase()}_PARTNER_ID`] || undefined,
+      securityToken: process.env[`${provider.toUpperCase()}_SECURITY_TOKEN`] || undefined,
     };
     if (provider === "telarus" && cfg.mfaCode) {
       credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+    }
+    if (provider === "telarus" && cfg.securityToken && !credentials.securityToken) {
+      credentials.securityToken = safeDecryptSecret(cfg.securityToken) || undefined;
     }
     return createTsdConnectorWithAuth(provider, credentials);
   }
@@ -56,9 +60,13 @@ function buildConnectorForConfig(cfg: TsdConfig): TsdConnector | null {
         password: decryptedPassword,
         agentId: process.env[`${provider.toUpperCase()}_AGENT_ID`] || undefined,
         partnerId: process.env[`${provider.toUpperCase()}_PARTNER_ID`] || undefined,
+        securityToken: process.env[`${provider.toUpperCase()}_SECURITY_TOKEN`] || undefined,
       };
       if (provider === "telarus" && cfg.mfaCode) {
         credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+      }
+      if (provider === "telarus" && cfg.securityToken) {
+        credentials.securityToken = safeDecryptSecret(cfg.securityToken) || credentials.securityToken;
       }
       return createTsdConnectorWithAuth(provider, credentials);
     }

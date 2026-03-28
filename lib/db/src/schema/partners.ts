@@ -228,6 +228,7 @@ export const tsdConfigsTable = pgTable("tsd_configs", {
   password: text("password"),
   mfaPhone: text("mfa_phone"),
   mfaCode: text("mfa_code"),
+  securityToken: text("security_token"),
   webhookSecret: text("webhook_secret"),
   lastLeadSyncAt: timestamp("last_lead_sync_at"),
   lastCommissionSyncAt: timestamp("last_commission_sync_at"),

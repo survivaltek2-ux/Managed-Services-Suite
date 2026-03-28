@@ -8,7 +8,8 @@
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "puppeteer": "^24.40.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -2,8 +2,8 @@ import crypto from "crypto";
 import type { TsdConnector, TsdDeal, TsdLead, TsdCommission, TsdWebhookEvent, TsdPushResult, TsdLoginResult, TsdAuthCredentials } from "../types.js";
 import { withRetry } from "../utils.js";
 
-const TELARUS_BASE_URL = "https://api.telarus.com/v2";
-const TELARUS_AUTH_URL = "https://api.telarus.com/v2/auth";
+const SALESFORCE_SOAP_LOGIN_URL = "https://login.salesforce.com/services/Soap/u/59.0";
+const SALESFORCE_API_VERSION = "v59.0";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
@@ -38,146 +38,141 @@ function verifyHmacSignature(rawBody: string, signature: string, secret: string)
   );
 }
 
+function extractXmlValue(xml: string, tag: string): string {
+  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+  return match ? match[1].trim() : "";
+}
+
+function buildSoapLoginEnvelope(username: string, password: string): string {
+  const escaped = (s: string) =>
+    s.replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">
+  <soapenv:Body>
+    <urn:login>
+      <urn:username>${escaped(username)}</urn:username>
+      <urn:password>${escaped(password)}</urn:password>
+    </urn:login>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+interface SalesforceSession {
+  sessionId: string;
+  serverUrl: string;
+  instanceUrl: string;
+  expiresAt: number;
+}
+
 export class TelarusAdapter implements TsdConnector {
   readonly provider = "telarus" as const;
   private credentials: TsdAuthCredentials;
-  private sessionToken: string | null = null;
-  private sessionExpiresAt: number = 0;
+  private session: SalesforceSession | null = null;
 
   constructor(credentials: TsdAuthCredentials) {
     this.credentials = credentials;
+
     if (credentials.type === "api_key" && credentials.apiKey) {
-      this.sessionToken = credentials.apiKey;
-      this.sessionExpiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000;
+      this.session = {
+        sessionId: credentials.apiKey,
+        serverUrl: "https://api.telarus.com/v2",
+        instanceUrl: "https://api.telarus.com",
+        expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+      };
     }
   }
 
   isAuthenticated(): boolean {
-    return !!this.sessionToken && Date.now() < this.sessionExpiresAt;
+    return !!this.session && Date.now() < this.session.expiresAt;
   }
 
-  private get headers(): Record<string, string> {
-    const h: Record<string, string> = {
+  private get sfHeaders(): Record<string, string> {
+    return {
+      "Authorization": `Bearer ${this.session?.sessionId || ""}`,
       "Content-Type": "application/json",
       "Accept": "application/json",
     };
+  }
 
-    if (this.sessionToken) {
-      if (this.credentials.type === "api_key") {
-        h["X-API-Key"] = this.sessionToken;
-        if (this.credentials.agentId) {
-          h["X-Agent-Id"] = this.credentials.agentId;
-        }
-      } else {
-        h["Authorization"] = `Bearer ${this.sessionToken}`;
-      }
-    }
-
-    return h;
+  private get instanceUrl(): string {
+    return this.session?.instanceUrl || "";
   }
 
   async login(): Promise<TsdLoginResult> {
     if (this.credentials.type === "api_key") {
-      this.sessionToken = this.credentials.apiKey || null;
-      this.sessionExpiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000;
-      return { success: true, sessionToken: this.sessionToken || undefined };
+      return { success: true, sessionToken: this.credentials.apiKey };
     }
 
     if (!this.credentials.username || !this.credentials.password) {
-      return { success: false, error: "Username and password are required for Telarus login" };
+      return { success: false, error: "Username and password are required for Telarus/Salesforce login" };
     }
 
+    const passwordWithToken = this.credentials.securityToken
+      ? `${this.credentials.password}${this.credentials.securityToken}`
+      : this.credentials.password;
+
+    const soapBody = buildSoapLoginEnvelope(this.credentials.username, passwordWithToken);
+
     try {
-      const loginRes = await withRetry(() =>
-        fetch(`${TELARUS_AUTH_URL}/login`, {
+      console.log("[Telarus] Attempting Salesforce SOAP login...");
+
+      const res = await withRetry(() =>
+        fetch(SALESFORCE_SOAP_LOGIN_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify({
-            username: this.credentials.username,
-            password: this.credentials.password,
-          }),
+          headers: {
+            "Content-Type": "text/xml; charset=utf-8",
+            "SOAPAction": "login",
+          },
+          body: soapBody,
         }),
         1,
         2000
       );
 
-      if (!loginRes.ok) {
-        const errorText = await loginRes.text().catch(() => "");
-        if (loginRes.status === 401) {
-          return { success: false, error: "Invalid username or password" };
+      const responseText = await res.text();
+
+      if (!res.ok || responseText.includes("soapenv:Fault") || responseText.includes(":Fault")) {
+        const faultString = extractXmlValue(responseText, "faultstring");
+        const exceptionCode = extractXmlValue(responseText, "sf:exceptionCode") ||
+          extractXmlValue(responseText, "exceptionCode");
+
+        if (exceptionCode === "INVALID_LOGIN" || faultString.toLowerCase().includes("invalid login")) {
+          return { success: false, error: "Invalid username, password, or security token" };
         }
-        return { success: false, error: `Login failed (HTTP ${loginRes.status}): ${errorText}` };
+
+        if (exceptionCode === "LOGIN_MUST_USE_SECURITY_TOKEN") {
+          return { success: false, error: "Security token required. Append your Salesforce Security Token to the password, or configure it separately." };
+        }
+
+        return { success: false, error: `Salesforce login failed: ${faultString || exceptionCode || "Unknown error"}` };
       }
 
-      const loginData = asRecord(await loginRes.json().catch(() => ({})));
+      const sessionId = extractXmlValue(responseText, "sessionId");
+      const serverUrlRaw = extractXmlValue(responseText, "serverUrl");
 
-      const needsMfa = loginData.mfa_required === true ||
-        loginData.requires_mfa === true ||
-        loginData.status === "mfa_required" ||
-        loginData.challenge === "sms";
-
-      if (needsMfa) {
-        console.log("[Telarus] MFA required, checking for stored code...");
-
-        if (!this.credentials.mfaCode) {
-          return {
-            success: false,
-            requiresMfa: true,
-            mfaMethod: "sms",
-            error: "MFA code required. Waiting for SMS code via Zoom webhook.",
-          };
-        }
-
-        const mfaToken = str(loginData.mfa_token) || str(loginData.session_token) || str(loginData.token);
-
-        const mfaRes = await withRetry(() =>
-          fetch(`${TELARUS_AUTH_URL}/mfa/verify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({
-              mfa_token: mfaToken,
-              code: this.credentials.mfaCode,
-              session_token: mfaToken,
-            }),
-          }),
-          1,
-          2000
-        );
-
-        if (!mfaRes.ok) {
-          const errorText = await mfaRes.text().catch(() => "");
-          return { success: false, error: `MFA verification failed (HTTP ${mfaRes.status}): ${errorText}` };
-        }
-
-        const mfaData = asRecord(await mfaRes.json().catch(() => ({})));
-        const token = str(mfaData.access_token) || str(mfaData.token) || str(mfaData.session_token);
-
-        if (!token) {
-          return { success: false, error: "MFA succeeded but no session token returned" };
-        }
-
-        this.sessionToken = token;
-        const expiresIn = typeof mfaData.expires_in === "number" ? mfaData.expires_in : 3600;
-        this.sessionExpiresAt = Date.now() + expiresIn * 1000;
-
-        console.log("[Telarus] MFA login successful, session expires in", expiresIn, "seconds");
-        return { success: true, sessionToken: token };
+      if (!sessionId) {
+        return { success: false, error: "No session ID returned from Salesforce SOAP login" };
       }
 
-      const token = str(loginData.access_token) || str(loginData.token) || str(loginData.session_token);
-      if (!token) {
-        return { success: false, error: "Login succeeded but no session token returned" };
-      }
+      const instanceUrl = serverUrlRaw.match(/^(https:\/\/[^/]+)/)?.[1] || "";
 
-      this.sessionToken = token;
-      const expiresIn = typeof loginData.expires_in === "number" ? loginData.expires_in : 3600;
-      this.sessionExpiresAt = Date.now() + expiresIn * 1000;
+      this.session = {
+        sessionId,
+        serverUrl: serverUrlRaw,
+        instanceUrl,
+        expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+      };
 
-      console.log("[Telarus] Login successful (no MFA), session expires in", expiresIn, "seconds");
-      return { success: true, sessionToken: token };
+      console.log(`[Telarus] Salesforce login successful. Instance: ${instanceUrl}`);
+      return { success: true, sessionToken: sessionId };
 
     } catch (err) {
-      return { success: false, error: `Login error: ${err instanceof Error ? err.message : String(err)}` };
+      return { success: false, error: `Salesforce login error: ${err instanceof Error ? err.message : String(err)}` };
     }
   }
 
@@ -190,36 +185,126 @@ export class TelarusAdapter implements TsdConnector {
     }
   }
 
-  async testConnection(): Promise<{ ok: boolean; error?: string; requiresMfa?: boolean }> {
-    try {
-      if (this.credentials.type === "username_password") {
-        const loginResult = await this.login();
-        if (!loginResult.success) {
-          return {
-            ok: false,
-            error: loginResult.error,
-            requiresMfa: loginResult.requiresMfa,
-          };
-        }
-      }
+  private async sfQuery(soql: string): Promise<unknown[]> {
+    await this.ensureAuthenticated();
 
-      const res = await withRetry(() =>
-        fetch(`${TELARUS_BASE_URL}/status`, { headers: this.headers })
+    const url = `${this.instanceUrl}/services/data/${SALESFORCE_API_VERSION}/query/?q=${encodeURIComponent(soql)}`;
+    const res = await withRetry(() => fetch(url, { headers: this.sfHeaders }));
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.warn(`[Telarus] SOQL query failed (${res.status}): ${errText.slice(0, 200)}`);
+      return [];
+    }
+
+    const data = asRecord(await res.json().catch(() => ({})));
+    return asArray(data.records);
+  }
+
+  private async sfQueryAll(soql: string): Promise<unknown[]> {
+    await this.ensureAuthenticated();
+
+    let url: string | null =
+      `${this.instanceUrl}/services/data/${SALESFORCE_API_VERSION}/query/?q=${encodeURIComponent(soql)}`;
+    const allRecords: unknown[] = [];
+
+    while (url) {
+      const res = await fetch(url, { headers: this.sfHeaders });
+      if (!res.ok) break;
+
+      const data = asRecord(await res.json().catch(() => ({})));
+      allRecords.push(...asArray(data.records));
+
+      const nextUrl = strOrUndef(data.nextRecordsUrl);
+      url = nextUrl ? `${this.instanceUrl}${nextUrl}` : null;
+    }
+
+    return allRecords;
+  }
+
+  private async sfCreate(objectName: string, fields: Record<string, unknown>): Promise<{ id?: string; success: boolean; error?: string }> {
+    await this.ensureAuthenticated();
+
+    const url = `${this.instanceUrl}/services/data/${SALESFORCE_API_VERSION}/sobjects/${objectName}`;
+    const res = await withRetry(() =>
+      fetch(url, {
+        method: "POST",
+        headers: this.sfHeaders,
+        body: JSON.stringify(fields),
+      })
+    );
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => [{ message: "Unknown error" }]);
+      const errMsg = Array.isArray(errBody) ? errBody.map((e: { message?: string }) => e.message).join("; ") : String(errBody);
+      return { success: false, error: `Salesforce create ${objectName} failed: ${errMsg}` };
+    }
+
+    const data = asRecord(await res.json().catch(() => ({})));
+    return { success: true, id: str(data.id) };
+  }
+
+  async testConnection(): Promise<{ ok: boolean; error?: string; requiresMfa?: boolean }> {
+    if (this.credentials.type === "api_key") {
+      return { ok: true };
+    }
+
+    const loginResult = await this.login();
+    if (!loginResult.success) {
+      return { ok: false, error: loginResult.error };
+    }
+
+    try {
+      const res = await fetch(
+        `${this.instanceUrl}/services/data/${SALESFORCE_API_VERSION}/`,
+        { headers: this.sfHeaders }
       );
-      if (res.status === 401 || res.status === 403) {
-        return { ok: false, error: "Authentication failed — invalid credentials or expired session" };
-      }
       if (res.ok) return { ok: true };
-      return { ok: false, error: `HTTP ${res.status}` };
+      return { ok: false, error: `API check failed: HTTP ${res.status}` };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
   async pushDeal(deal: TsdDeal): Promise<TsdPushResult> {
+    if (this.credentials.type === "api_key") {
+      return this.pushDealLegacyApi(deal);
+    }
+
     try {
       await this.ensureAuthenticated();
 
+      const leadFields: Record<string, unknown> = {
+        LastName: deal.customerName.split(" ").slice(-1)[0] || deal.customerName,
+        FirstName: deal.customerName.split(" ").slice(0, -1).join(" ") || undefined,
+        Company: deal.customerName,
+        Email: deal.customerEmail || undefined,
+        Phone: deal.customerPhone || undefined,
+        Description: [
+          deal.description,
+          deal.products?.length ? `Products: ${deal.products.join(", ")}` : undefined,
+          deal.estimatedValue ? `Estimated Value: $${deal.estimatedValue}` : undefined,
+          `Partner Deal: ${deal.title}`,
+        ].filter(Boolean).join("\n\n"),
+        LeadSource: "Partner Referral",
+        Status: "Open - Not Contacted",
+      };
+
+      const result = await this.sfCreate("Lead", leadFields);
+
+      if (result.success) {
+        console.log(`[Telarus] Created Salesforce Lead: ${result.id}`);
+        return { success: true, externalId: result.id };
+      }
+
+      return { success: false, error: result.error };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  private async pushDealLegacyApi(deal: TsdDeal): Promise<TsdPushResult> {
+    try {
       const body = {
         name: deal.title,
         customer: {
@@ -235,9 +320,12 @@ export class TelarusAdapter implements TsdConnector {
       };
 
       const res = await withRetry(() =>
-        fetch(`${TELARUS_BASE_URL}/deals`, {
+        fetch(`https://api.telarus.com/v2/deals`, {
           method: "POST",
-          headers: this.headers,
+          headers: {
+            "X-API-Key": this.session?.sessionId || "",
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(body),
         })
       );
@@ -255,19 +343,52 @@ export class TelarusAdapter implements TsdConnector {
   }
 
   async pullLeads(since?: Date): Promise<TsdLead[]> {
-    try {
-      await this.ensureAuthenticated();
+    if (this.credentials.type === "api_key") {
+      return this.pullLeadsLegacyApi(since);
+    }
 
+    try {
+      const sinceClause = since ? ` AND LastModifiedDate >= ${since.toISOString()}` : "";
+      const soql = `SELECT Id, Company, FirstName, LastName, Email, Phone, Status, LeadSource, Description, Industry FROM Lead WHERE LeadSource = 'Partner Referral'${sinceClause} ORDER BY LastModifiedDate DESC LIMIT 200`;
+
+      const records = await this.sfQueryAll(soql);
+
+      return records.map((r) => {
+        const rec = asRecord(r);
+        const firstName = str(rec.FirstName);
+        const lastName = str(rec.LastName);
+        const fullName = `${firstName} ${lastName}`.trim() || str(rec.Company) || "Unknown";
+
+        return {
+          externalId: str(rec.Id),
+          companyName: str(rec.Company) || "Unknown",
+          contactName: fullName,
+          email: strOrUndef(rec.Email),
+          phone: strOrUndef(rec.Phone),
+          source: "telarus",
+          interest: strOrUndef(rec.Industry) || strOrUndef(rec.Description)?.slice(0, 100),
+          status: str(rec.Status) || "new",
+        } satisfies TsdLead;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullLeads error:", err);
+      return [];
+    }
+  }
+
+  private async pullLeadsLegacyApi(since?: Date): Promise<TsdLead[]> {
+    try {
       const params = new URLSearchParams();
       if (since) params.set("modified_after", since.toISOString());
       if (this.credentials.agentId) params.set("agent_id", this.credentials.agentId);
 
       const res = await withRetry(() =>
-        fetch(`${TELARUS_BASE_URL}/leads?${params}`, { headers: this.headers })
+        fetch(`https://api.telarus.com/v2/leads?${params}`, {
+          headers: { "X-API-Key": this.session?.sessionId || "" },
+        })
       );
 
       if (!res.ok) return [];
-
       const data = asRecord(await res.json().catch(() => ({})));
       const leads = asArray(data.results ?? data.leads);
 
@@ -290,19 +411,71 @@ export class TelarusAdapter implements TsdConnector {
   }
 
   async pullCommissions(since?: Date): Promise<TsdCommission[]> {
-    try {
-      await this.ensureAuthenticated();
+    if (this.credentials.type === "api_key") {
+      return this.pullCommissionsLegacyApi(since);
+    }
 
+    try {
+      const sinceClause = since ? ` AND LastModifiedDate >= ${since.toISOString()}` : "";
+
+      const customObjNames = ["Commission__c", "Partner_Commission__c", "Agent_Commission__c"];
+      let records: unknown[] = [];
+      let foundObject = "";
+
+      for (const objName of customObjNames) {
+        try {
+          const testRecords = await this.sfQuery(
+            `SELECT Id FROM ${objName} LIMIT 1`
+          );
+          if (testRecords.length >= 0) {
+            foundObject = objName;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      if (foundObject) {
+        const soql = `SELECT Id, Amount__c, Status__c, Opportunity__c, Description__c, Payment_Date__c, Period_Start__c, Period_End__c FROM ${foundObject}${sinceClause ? ` WHERE${sinceClause}` : ""} ORDER BY LastModifiedDate DESC LIMIT 200`;
+        records = await this.sfQueryAll(soql).catch(() => []);
+      } else {
+        const oppSoql = `SELECT Id, Amount, StageName, CloseDate, Description, Name FROM Opportunity WHERE RecordType.Name LIKE '%Commission%'${sinceClause} LIMIT 200`;
+        records = await this.sfQueryAll(oppSoql).catch(() => []);
+      }
+
+      return records.map((r) => {
+        const rec = asRecord(r);
+        return {
+          externalId: str(rec.Id),
+          dealReference: strOrUndef(rec.Opportunity__c ?? rec.OpportunityId),
+          amount: str(rec.Amount__c ?? rec.Amount) || "0",
+          status: str(rec.Status__c ?? rec.StageName) || "pending",
+          description: strOrUndef(rec.Description__c ?? rec.Description ?? rec.Name),
+          paidAt: typeof rec.Payment_Date__c === "string" ? new Date(rec.Payment_Date__c) : undefined,
+          periodStart: typeof rec.Period_Start__c === "string" ? new Date(rec.Period_Start__c) : undefined,
+          periodEnd: typeof rec.Period_End__c === "string" ? new Date(rec.Period_End__c) : undefined,
+        } satisfies TsdCommission;
+      });
+    } catch (err) {
+      console.error("[Telarus] pullCommissions error:", err);
+      return [];
+    }
+  }
+
+  private async pullCommissionsLegacyApi(since?: Date): Promise<TsdCommission[]> {
+    try {
       const params = new URLSearchParams();
       if (since) params.set("modified_after", since.toISOString());
       if (this.credentials.agentId) params.set("agent_id", this.credentials.agentId);
 
       const res = await withRetry(() =>
-        fetch(`${TELARUS_BASE_URL}/commissions?${params}`, { headers: this.headers })
+        fetch(`https://api.telarus.com/v2/commissions?${params}`, {
+          headers: { "X-API-Key": this.session?.sessionId || "" },
+        })
       );
 
       if (!res.ok) return [];
-
       const data = asRecord(await res.json().catch(() => ({})));
       const commissions = asArray(data.results ?? data.commissions);
 

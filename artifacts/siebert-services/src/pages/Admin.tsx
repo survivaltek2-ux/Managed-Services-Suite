@@ -2296,6 +2296,9 @@ function TsdIntegrationsTab({
 }) {
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
   const [credInput, setCredInput] = useState("");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [securityTokenInput, setSecurityTokenInput] = useState("");
   const [webhookInput, setWebhookInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
@@ -2323,7 +2326,13 @@ function TsdIntegrationsTab({
     setSaving(true);
     try {
       const body: any = {};
-      if (credInput && !credInput.includes("****")) body.credentialRef = credInput;
+      if (provider === "telarus") {
+        if (usernameInput && !usernameInput.includes("****")) body.username = usernameInput;
+        if (passwordInput && !passwordInput.includes("****")) body.password = passwordInput;
+        if (securityTokenInput && !securityTokenInput.includes("****")) body.securityToken = securityTokenInput;
+      } else {
+        if (credInput && !credInput.includes("****")) body.credentialRef = credInput;
+      }
       if (webhookInput && !webhookInput.includes("****")) body.webhookSecret = webhookInput;
       const res = await fetch(`/api/admin/tsd/configs/${provider}`, {
         method: "PUT", headers: headers(),
@@ -2333,6 +2342,9 @@ function TsdIntegrationsTab({
         refresh();
         setEditingProvider(null);
         setCredInput("");
+        setUsernameInput("");
+        setPasswordInput("");
+        setSecurityTokenInput("");
         setWebhookInput("");
         toast({ title: "Credentials saved" });
       } else {
@@ -2389,9 +2401,19 @@ function TsdIntegrationsTab({
                       <p className="text-xs text-muted-foreground capitalize">{provider}</p>
                     </div>
                     {cfg.hasCredential ? (
-                      <Badge className="text-xs bg-green-50 text-green-700 border border-green-200">API key set</Badge>
+                      <Badge className="text-xs bg-green-50 text-green-700 border border-green-200">
+                        {provider === "telarus" ? "Credentials set" : "API key set"}
+                      </Badge>
                     ) : (
-                      <Badge className="text-xs bg-amber-50 text-amber-700 border border-amber-200">No API key</Badge>
+                      <Badge className="text-xs bg-amber-50 text-amber-700 border border-amber-200">
+                        {provider === "telarus" ? "No credentials" : "No API key"}
+                      </Badge>
+                    )}
+                    {provider === "telarus" && cfg.hasSecurityToken && (
+                      <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200">Security token set</Badge>
+                    )}
+                    {provider === "telarus" && !cfg.hasSecurityToken && cfg.hasCredential && (
+                      <Badge className="text-xs bg-orange-50 text-orange-700 border border-orange-200">No security token</Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -2421,6 +2443,9 @@ function TsdIntegrationsTab({
                   <Button size="sm" variant="outline" onClick={() => {
                     setEditingProvider(isEditingThis ? null : provider);
                     setCredInput("");
+                    setUsernameInput("");
+                    setPasswordInput("");
+                    setSecurityTokenInput("");
                     setWebhookInput("");
                   }}>
                     <KeyRound size={14} className="mr-1" />
@@ -2430,33 +2455,86 @@ function TsdIntegrationsTab({
 
                 {!cfg.hasCredential && (
                   <div className="mb-3 p-3 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                    No API credentials configured. Enter them below or set the <code className="font-mono bg-amber-100 px-1 rounded">{provider.toUpperCase()}_API_KEY</code> environment variable (env var takes precedence).
+                    {provider === "telarus"
+                      ? <>No credentials configured. Enter your Telarus/Salesforce username, password, and security token below.</>
+                      : <>No API credentials configured. Enter them below or set the <code className="font-mono bg-amber-100 px-1 rounded">{provider.toUpperCase()}_API_KEY</code> environment variable (env var takes precedence).</>
+                    }
                   </div>
                 )}
 
                 {isEditingThis && (
                   <div className="bg-muted/40 rounded-lg p-4 space-y-3 border">
                     <p className="text-xs text-muted-foreground font-medium">
-                      Credentials are masked after saving and never shown again.
+                      Credentials are encrypted and masked after saving and never shown again.
                       {cfg.credentialSource === "env" && " Currently using env var — DB value would be overridden by env var."}
                     </p>
-                    <div className="space-y-1">
-                      <Label className="text-xs">
-                        API Key / Credential
-                        {provider === "telarus" ? " (format: apiKey::agentId)" : provider === "intelisys" ? " (format: apiKey::partnerId)" : ""}
-                      </Label>
-                      <Input
-                        type="password"
-                        placeholder={cfg.hasCredential ? "Enter new value to replace (leave blank to keep existing)" : "Enter API key"}
-                        value={credInput}
-                        onChange={e => setCredInput(e.target.value)}
-                        className="font-mono text-sm"
-                        autoComplete="new-password"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Env var <code className="font-mono text-xs">{provider.toUpperCase()}_API_KEY</code> takes precedence over this field.
-                      </p>
-                    </div>
+
+                    {provider === "telarus" ? (
+                      <>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Telarus Portal Username (email)</Label>
+                          <Input
+                            type="email"
+                            placeholder={cfg.hasDbCredential ? "Leave blank to keep existing" : "yourname@company.com"}
+                            value={usernameInput}
+                            onChange={e => setUsernameInput(e.target.value)}
+                            className="text-sm"
+                            autoComplete="new-password"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Env var <code className="font-mono text-xs">TELARUS_USERNAME</code> takes precedence.
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Telarus Portal Password</Label>
+                          <Input
+                            type="password"
+                            placeholder={cfg.hasDbCredential ? "Leave blank to keep existing" : "Enter password"}
+                            value={passwordInput}
+                            onChange={e => setPasswordInput(e.target.value)}
+                            className="font-mono text-sm"
+                            autoComplete="new-password"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">
+                            Salesforce Security Token
+                            {cfg.hasSecurityToken && <span className="ml-2 text-green-600 font-normal">(already set)</span>}
+                          </Label>
+                          <Input
+                            type="password"
+                            placeholder={cfg.hasSecurityToken ? "Leave blank to keep existing" : "Enter security token (from Salesforce profile settings)"}
+                            value={securityTokenInput}
+                            onChange={e => setSecurityTokenInput(e.target.value)}
+                            className="font-mono text-sm"
+                            autoComplete="new-password"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Required for API access. In Salesforce: <em>Settings → Reset My Security Token</em>.
+                            Env var <code className="font-mono text-xs">TELARUS_SECURITY_TOKEN</code> takes precedence.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          API Key / Credential
+                          {provider === "intelisys" ? " (format: apiKey::partnerId)" : ""}
+                        </Label>
+                        <Input
+                          type="password"
+                          placeholder={cfg.hasCredential ? "Enter new value to replace (leave blank to keep existing)" : "Enter API key"}
+                          value={credInput}
+                          onChange={e => setCredInput(e.target.value)}
+                          className="font-mono text-sm"
+                          autoComplete="new-password"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Env var <code className="font-mono text-xs">{provider.toUpperCase()}_API_KEY</code> takes precedence over this field.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-1">
                       <Label className="text-xs">Webhook Secret (for signature verification)</Label>
                       <Input
@@ -2472,7 +2550,15 @@ function TsdIntegrationsTab({
                       </p>
                     </div>
                     <p className="text-xs text-muted-foreground">Webhook URL: <code className="bg-muted px-1 rounded text-xs">/api/webhooks/tsd/{provider}</code></p>
-                    <Button size="sm" onClick={() => handleSaveCreds(provider)} disabled={saving || (!credInput && !webhookInput)}>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSaveCreds(provider)}
+                      disabled={saving || (
+                        provider === "telarus"
+                          ? (!usernameInput && !passwordInput && !securityTokenInput && !webhookInput)
+                          : (!credInput && !webhookInput)
+                      )}
+                    >
                       {saving ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />}
                       Save Credentials
                     </Button>

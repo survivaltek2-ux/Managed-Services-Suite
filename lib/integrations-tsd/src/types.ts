@@ -8,6 +8,7 @@ export interface TsdAuthCredentials {
   username?: string;
   password?: string;
   mfaCode?: string;
+  securityToken?: string;
 }
 
 export interface TsdDeal {
