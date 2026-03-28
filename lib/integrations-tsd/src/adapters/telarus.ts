@@ -135,11 +135,14 @@ export class TelarusAdapter implements TsdConnector {
       );
 
       const responseText = await res.text();
+      console.log(`[Telarus] SOAP response status: ${res.status}, contains fault: ${responseText.includes("Fault")}`);
 
       if (!res.ok || responseText.includes("soapenv:Fault") || responseText.includes(":Fault")) {
         const faultString = extractXmlValue(responseText, "faultstring");
         const exceptionCode = extractXmlValue(responseText, "sf:exceptionCode") ||
           extractXmlValue(responseText, "exceptionCode");
+
+        console.log(`[Telarus] Login error - code: ${exceptionCode}, message: ${faultString}`);
 
         if (exceptionCode === "INVALID_LOGIN" || faultString.toLowerCase().includes("invalid login")) {
           return { success: false, error: "Invalid username, password, or security token" };
