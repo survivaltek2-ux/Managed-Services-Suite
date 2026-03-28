@@ -34,7 +34,7 @@ async function test() {
           },
           body: new URLSearchParams({
             grant_type: "client_credentials",
-            scope: "sms:read",
+            scope: "sms:read sms:write phone:read",
           }),
         });
         
@@ -45,51 +45,73 @@ async function test() {
         
         const data = await response.json() as any;
         console.log(`  ✓ Zoom OAuth successful`);
+        console.log(`  ℹ Token expires in: ${data.expires_in}s`);
         return data.access_token;
       })();
 
+      console.log("\n📱 TEST 2a: List Zoom Phone Numbers");
+      const phoneListResponse = await fetch("https://api.zoom.us/v1/phone/numbers", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      console.log(`  Response: ${phoneListResponse.status}`);
+      if (phoneListResponse.ok) {
+        const phoneData = await phoneListResponse.json() as any;
+        console.log(`  ℹ Available phone numbers:`, phoneData);
+      } else {
+        const errorText = await phoneListResponse.text();
+        console.log(`  ⚠ Error:`, errorText.substring(0, 200));
+      }
+
+      console.log("\n💬 TEST 2b: Try SMS Endpoints");
       const endpoints = [
         `https://api.zoom.us/v1/sms/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
-        `https://api.zoom.us/v2/sms/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
         `https://api.zoom.us/v1/phone/sms/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
-        `https://api.zoom.us/v1/sms?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
-        `https://api.zoom.us/v1/phone/sms?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
+        `https://api.zoom.us/v1/sms/${encodeURIComponent(zoomPhoneNumber)}/messages?page_size=10`,
+        `https://api.zoom.us/v1/phone/numbers/${encodeURIComponent(zoomPhoneNumber)}/messages?page_size=10`,
+        `https://api.zoom.us/v1/phone/messages?phone_number=${encodeURIComponent(zoomPhoneNumber)}&page_size=10`,
       ];
 
       let msgResponse;
       let msgData;
+      let workingEndpoint = null;
+      
       for (const endpoint of endpoints) {
-        console.log(`  ℹ Trying endpoint: ${endpoint.split('?')[0]}...`);
+        const cleanEndpoint = endpoint.split('?')[0];
         msgResponse = await fetch(endpoint, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         
-        console.log(`    Response: ${msgResponse.status}`);
+        console.log(`  Endpoint: ${cleanEndpoint}`);
+        console.log(`    Status: ${msgResponse.status}`);
         
-        if (msgResponse.status !== 403) {
-          try {
-            msgData = await msgResponse.json() as any;
-            console.log(`  ✓ SMS messages API response: ${msgResponse.status}`);
+        try {
+          msgData = await msgResponse.json() as any;
+          if (msgResponse.status === 200 || msgResponse.status === 201) {
+            console.log(`  ✓ SUCCESS: ${cleanEndpoint}`);
+            workingEndpoint = cleanEndpoint;
             break;
-          } catch {
-            console.log(`    Response: ${msgResponse.status} (not JSON)`);
+          } else {
+            console.log(`    Error: ${msgData.message || msgData.error || JSON.stringify(msgData).substring(0, 100)}`);
           }
+        } catch (e) {
+          const text = await msgResponse.text();
+          console.log(`    Not JSON: ${text.substring(0, 150)}`);
         }
       }
 
-      if (msgData) {
-        console.log(`  ℹ Messages response:`, JSON.stringify(msgData, null, 2).substring(0, 500));
+      if (workingEndpoint) {
+        console.log(`\n  ✓ Found working endpoint: ${workingEndpoint}`);
+        if (msgData?.messages && msgData.messages.length > 0) {
+          console.log(`  ✓ Found ${msgData.messages.length} messages`);
+          msgData.messages.slice(0, 3).forEach((msg: any, i: number) => {
+            console.log(`    [${i}] From: ${msg.from}, Body: ${msg.body?.substring(0, 50)}...`);
+          });
+        } else {
+          console.log(`  ⚠ No messages in response`);
+        }
       } else {
-        console.log(`  ⚠ Could not fetch messages from any endpoint`);
-      }
-
-      if (msgData.messages && msgData.messages.length > 0) {
-        console.log(`  ✓ Found ${msgData.messages.length} messages`);
-        msgData.messages.slice(0, 3).forEach((msg: any, i: number) => {
-          console.log(`    [${i}] From: ${msg.from}, Body: ${msg.body?.substring(0, 50)}...`);
-        });
-      } else {
-        console.log(`  ⚠ No messages found`);
+        console.log(`\n  ❌ Could not find working endpoint`);
+        console.log(`  Please check: https://developers.zoom.us/docs/api/rest/reference/sms-api/`);
       }
     } catch (err) {
       console.log(`  ❌ Message fetch error:`, err);
