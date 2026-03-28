@@ -1,12 +1,9 @@
 import type { TsdConnector, TsdProvider, TsdAuthCredentials } from "./types.js";
-import { AvantAdapter } from "./adapters/avant.js";
 import { TelarusAdapter } from "./adapters/telarus.js";
 import { IntelisysAdapter } from "./adapters/intelisys.js";
 
 export function createTsdConnector(provider: TsdProvider, credentialRef: string): TsdConnector {
   switch (provider) {
-    case "avant":
-      return new AvantAdapter(credentialRef);
     case "telarus": {
       const [apiKey, agentId] = credentialRef.split("::");
       return new TelarusAdapter({ type: "api_key", apiKey, agentId });
@@ -22,8 +19,6 @@ export function createTsdConnector(provider: TsdProvider, credentialRef: string)
 
 export function createTsdConnectorWithAuth(provider: TsdProvider, credentials: TsdAuthCredentials): TsdConnector {
   switch (provider) {
-    case "avant":
-      return new AvantAdapter(credentials.apiKey || "");
     case "telarus":
       return new TelarusAdapter(credentials);
     case "intelisys":
@@ -38,8 +33,6 @@ export function createTsdConnectorWithAuth(provider: TsdProvider, credentials: T
 
 export function resolveCredentialRef(provider: TsdProvider): string | null {
   switch (provider) {
-    case "avant":
-      return process.env.AVANT_API_KEY || null;
     case "telarus": {
       const key = process.env.TELARUS_API_KEY;
       const agentId = process.env.TELARUS_AGENT_ID || "";

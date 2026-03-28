@@ -1970,9 +1970,8 @@ function ActivityTab({ activities }: { activities: any[] }) {
 
 // ─── TSD Product Catalog Section ─────────────────────────────────────────────
 
-const TSD_PROVIDERS_LIST = ["avant", "telarus", "intelisys"];
+const TSD_PROVIDERS_LIST = ["telarus", "intelisys"];
 const TSD_PROVIDER_DISPLAY: Record<string, string> = {
-  avant: "Avant",
   telarus: "Telarus",
   intelisys: "Intelisys",
 };
@@ -2273,7 +2272,6 @@ function ProductCatalogSection({
 // ─── TSD Integrations Tab ────────────────────────────────────────────────────
 
 const TSD_PROVIDER_LABELS: Record<string, string> = {
-  avant: "Avant Communications",
   telarus: "Telarus",
   intelisys: "Intelisys",
 };
@@ -2305,7 +2303,7 @@ function TsdIntegrationsTab({
   const [syncing, setSyncing] = useState<string | null>(null);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
 
-  const allProviders = ["avant", "telarus", "intelisys"];
+  const allProviders = ["telarus", "intelisys"];
 
   const getConfig = (p: string) => configs.find((c: any) => c.provider === p) || { provider: p, enabled: false };
 
@@ -2944,7 +2942,6 @@ function PartnerManagementTab({ partners, refresh, headers }: { partners: any[];
 }
 
 const TSD_OPTIONS = [
-  { id: "avant", label: "Avant" },
   { id: "telarus", label: "Telarus" },
   { id: "intelisys", label: "Intelisys" },
 ];

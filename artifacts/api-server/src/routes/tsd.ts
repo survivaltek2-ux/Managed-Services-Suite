@@ -11,7 +11,7 @@ import { pushDeal, TSD_IDS, TSD_LABELS, type TsdId } from "../lib/tsd-adapter.js
 
 const router: IRouter = Router();
 
-const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
+const TSD_PROVIDERS: TsdProvider[] = ["telarus", "intelisys"];
 const TSD_LIST = TSD_IDS.map(id => ({ id, label: TSD_LABELS[id] }));
 
 function credentialStatus(provider: TsdProvider, dbCredRef: string | null, dbUsername: string | null, dbPassword: string | null): {

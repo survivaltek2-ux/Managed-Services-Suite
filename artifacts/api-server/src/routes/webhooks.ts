@@ -8,7 +8,7 @@ import { safeDecryptSecret } from "../lib/tsdSecrets.js";
 
 const router: IRouter = Router();
 
-const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
+const TSD_PROVIDERS: TsdProvider[] = ["telarus", "intelisys"];
 
 function resolveWebhookSecret(provider: TsdProvider, dbSecret: string | null): string | null {
   const envKey = `${provider.toUpperCase()}_WEBHOOK_SECRET`;
@@ -65,7 +65,6 @@ router.post("/webhooks/tsd/:provider", async (req: Request, res: Response) => {
     req.headers["x-hub-signature-256"] ||
     req.headers["x-telarus-signature"] ||
     req.headers["x-intelisys-signature"] ||
-    req.headers["x-avant-signature"] ||
     req.headers["x-signature"] ||
     ""
   ) as string;

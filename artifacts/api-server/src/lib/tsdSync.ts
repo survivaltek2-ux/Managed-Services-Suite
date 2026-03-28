@@ -7,7 +7,7 @@ import { safeJsonStringify } from "@workspace/integrations-tsd";
 import { safeDecryptSecret, getSyncInterval } from "./tsdSecrets.js";
 import { clearMfaCode } from "./zoomSms.js";
 
-const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
+const TSD_PROVIDERS: TsdProvider[] = ["telarus", "intelisys"];
 
 async function getEnabledConfigs(provider?: TsdProvider): Promise<TsdConfig[]> {
   if (provider) {

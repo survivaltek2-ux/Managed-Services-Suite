@@ -1,4 +1,4 @@
-export type TsdProvider = "avant" | "telarus" | "intelisys";
+export type TsdProvider = "telarus" | "intelisys";
 
 export interface TsdAuthCredentials {
   type: "api_key" | "username_password";
