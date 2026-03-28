@@ -1,6 +1,4 @@
-import nodemailer from "nodemailer";
-import Mailgun from "mailgun.js";
-import FormData from "form-data";
+import { MailerSend, EmailParams, Recipient } from "mailersend";
 import { db, siteSettingsTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 
@@ -10,18 +8,10 @@ function esc(str: string | null | undefined): string {
 }
 
 const EMAIL_KEYS = [
-  "mailgun_api_key", "mailgun_domain",
-  "smtp_host", "smtp_port", "smtp_user", "smtp_pass",
   "smtp_from_email", "smtp_from_name", "notification_email",
 ];
 
 interface EmailConfig {
-  mailgunApiKey: string;
-  mailgunDomain: string;
-  host: string;
-  port: number;
-  user: string;
-  pass: string;
   fromEmail: string;
   fromName: string;
   notificationEmail: string;
@@ -36,12 +26,6 @@ async function loadEmailConfig(): Promise<EmailConfig> {
   if (_configCache && now - _configCacheAt < CONFIG_TTL_MS) return _configCache;
 
   const envDefaults: EmailConfig = {
-    mailgunApiKey: process.env.MAILGUN_API_KEY || "",
-    mailgunDomain: process.env.MAILGUN_DOMAIN || "",
-    host: process.env.SMTP_HOST || "smtp.mailgun.org",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
     fromEmail: process.env.SMTP_FROM_EMAIL || "notifications@siebertrservices.com",
     fromName: process.env.SMTP_FROM_NAME || "Siebert Services",
     notificationEmail: process.env.NOTIFICATION_EMAIL || "sales@siebertrservices.com",
@@ -53,12 +37,6 @@ async function loadEmailConfig(): Promise<EmailConfig> {
     for (const r of rows) map[r.key] = r.value;
 
     _configCache = {
-      mailgunApiKey: map["mailgun_api_key"] || envDefaults.mailgunApiKey,
-      mailgunDomain: map["mailgun_domain"] || envDefaults.mailgunDomain,
-      host: map["smtp_host"] || envDefaults.host,
-      port: parseInt(map["smtp_port"] || String(envDefaults.port)),
-      user: map["smtp_user"] || envDefaults.user,
-      pass: map["smtp_pass"] || envDefaults.pass,
       fromEmail: map["smtp_from_email"] || envDefaults.fromEmail,
       fromName: map["smtp_from_name"] || envDefaults.fromName,
       notificationEmail: map["notification_email"] || envDefaults.notificationEmail,
@@ -76,41 +54,28 @@ export function invalidateSmtpCache() {
   _configCacheAt = 0;
 }
 
-async function sendViaMailgun(cfg: EmailConfig, to: string, subject: string, html: string): Promise<void> {
-  const mg = new Mailgun(FormData);
-  const client = mg.client({ username: "api", key: cfg.mailgunApiKey });
-  const fromAddress = cfg.fromEmail || `noreply@${cfg.mailgunDomain}`;
-  const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
-  await client.messages.create(cfg.mailgunDomain, {
-    from: fromDisplay,
-    to: [to],
-    subject,
-    html,
-  });
-}
-
-async function sendViaSmtp(cfg: EmailConfig, to: string, subject: string, html: string): Promise<void> {
-  const transport = nodemailer.createTransport({
-    host: cfg.host,
-    port: cfg.port,
-    secure: cfg.port === 465,
-    auth: { user: cfg.user, pass: cfg.pass },
-  });
-  const fromAddress = cfg.fromEmail || cfg.user;
-  const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
-  await transport.sendMail({ from: fromDisplay, to, subject, html });
-}
-
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  
+  if (!apiKey) {
+    console.error(`[Email] MailerSend API key not configured`);
+    return false;
+  }
+
   try {
-    if (cfg.user && cfg.pass) {
-      await sendViaSmtp(cfg, to, subject, html);
-      console.log(`[Email/SMTP] Sent to ${to}: "${subject}"`);
-    } else {
-      console.log(`[Email] Not configured — skipped email to ${to.split("@")[1]}: "${subject}"`);
-      return false;
-    }
+    const mailerSend = new MailerSend({ api_key: apiKey });
+    
+    const recipients: Recipient[] = [{ email: to }];
+    const params = new EmailParams()
+      .setFrom({ email: cfg.fromEmail, name: cfg.fromName })
+      .setTo(recipients)
+      .setReplyTo({ email: cfg.fromEmail, name: cfg.fromName })
+      .setSubject(subject)
+      .setHtml(html);
+
+    await mailerSend.email.send(params);
+    console.log(`[Email] Sent to ${to}: "${subject}"`);
     return true;
   } catch (err) {
     console.error(`[Email] Failed to send to ${to}:`, err);
@@ -119,33 +84,25 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 }
 
 export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const cfg = await loadEmailConfig();
-  if (cfg.mailgunApiKey && cfg.mailgunDomain) {
-    try {
-      const mg = new Mailgun(FormData);
-      const client = mg.client({ username: "api", key: cfg.mailgunApiKey });
-      await client.domains.get(cfg.mailgunDomain);
-      return { ok: true, provider: "mailgun" };
-    } catch (err: any) {
-      const msg = err?.details || err?.message || "Mailgun API error";
-      return { ok: false, provider: "mailgun", error: msg };
-    }
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  if (!apiKey) {
+    return { ok: false, error: "MailerSend API key not configured" };
   }
-  if (cfg.user && cfg.pass) {
-    try {
-      const transport = nodemailer.createTransport({
-        host: cfg.host,
-        port: cfg.port,
-        secure: cfg.port === 465,
-        auth: { user: cfg.user, pass: cfg.pass },
-      });
-      await transport.verify();
-      return { ok: true, provider: "smtp" };
-    } catch (err: any) {
-      return { ok: false, provider: "smtp", error: err?.message || "Connection failed" };
-    }
+
+  try {
+    const mailerSend = new MailerSend({ api_key: apiKey });
+    const recipients: Recipient[] = [{ email: "test@example.com" }];
+    const params = new EmailParams()
+      .setFrom({ email: "test@siebertrservices.com" })
+      .setTo(recipients)
+      .setSubject("Test")
+      .setHtml("<p>Test</p>");
+
+    await mailerSend.email.send(params);
+    return { ok: true, provider: "mailersend" };
+  } catch (err: any) {
+    return { ok: false, provider: "mailersend", error: err?.message || "Connection failed" };
   }
-  return { ok: false, error: "No email provider configured. Add a Mailgun API key or SMTP credentials." };
 }
 
 export async function getSmtpSettings(): Promise<{
@@ -158,18 +115,19 @@ export async function getSmtpSettings(): Promise<{
   fromEmail: string;
   fromName: string;
   notificationEmail: string;
-  activeProvider: "mailgun" | "smtp" | "none";
+  activeProvider: "mailersend" | "none";
 }> {
   const cfg = await loadEmailConfig();
-  const activeProvider = cfg.mailgunApiKey && cfg.mailgunDomain ? "mailgun"
-    : cfg.user && cfg.pass ? "smtp" : "none";
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  const activeProvider = apiKey ? "mailersend" : "none";
+  
   return {
-    mailgunApiKeySet: !!cfg.mailgunApiKey,
-    mailgunDomain: cfg.mailgunDomain,
-    host: cfg.host,
-    port: cfg.port,
-    user: cfg.user,
-    passSet: !!cfg.pass,
+    mailgunApiKeySet: false,
+    mailgunDomain: "",
+    host: "",
+    port: 0,
+    user: "",
+    passSet: !!apiKey,
     fromEmail: cfg.fromEmail,
     fromName: cfg.fromName,
     notificationEmail: cfg.notificationEmail,
@@ -454,7 +412,10 @@ export async function sendClientTicketNotification(ticket: {
   description: string;
   priority: string;
   category: string;
-}, userEmail: string, userName?: string) {
+}, client: {
+  name: string;
+  email: string;
+}) {
   const cfg = await loadEmailConfig();
   const priorityColors: Record<string, string> = {
     urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
@@ -471,37 +432,34 @@ export async function sendClientTicketNotification(ticket: {
           <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Subject</td><td style="padding: 8px 0; font-weight: 600;">${esc(ticket.subject)}</td></tr>
           <tr><td style="padding: 8px 0; color: #706e6b;">Priority</td><td style="padding: 8px 0;"><span style="color: ${pColor}; font-weight: 600; text-transform: uppercase;">${esc(ticket.priority)}</span></td></tr>
           <tr><td style="padding: 8px 0; color: #706e6b;">Category</td><td style="padding: 8px 0; text-transform: capitalize;">${esc(ticket.category)}</td></tr>
-          <tr><td style="padding: 8px 0; color: #706e6b;">Submitted By</td><td style="padding: 8px 0;">${esc(userName || "Client")} (${esc(userEmail)})</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Description</td><td style="padding: 8px 0;">${esc(ticket.description)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Client</td><td style="padding: 8px 0;">${esc(client.name)} (${esc(client.email)})</td></tr>
         </table>
-        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
-        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Description:</p>
-        <p style="font-size: 14px; margin: 0; white-space: pre-wrap;">${esc(ticket.description)}</p>
-        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services client portal.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services Client Portal.</p>
       </div>
     </div>
   `;
 
-  const confirmHtml = `
+  const clientHtml = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
-        <h1 style="color: #fff; margin: 0; font-size: 18px;">Support Ticket Submitted</h1>
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Support Ticket Received</h1>
       </div>
       <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
-        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(userName || "there")},</p>
-        <p style="font-size: 14px; margin: 0 0 16px;">We've received your support ticket and our team is on it.</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(client.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">We've received your support ticket and our team will review it shortly.</p>
         <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
           <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Subject</td><td style="padding: 10px 12px; font-weight: 600;">${esc(ticket.subject)}</td></tr>
           <tr><td style="padding: 10px 12px; color: #706e6b;">Priority</td><td style="padding: 10px 12px;"><span style="color: ${pColor}; font-weight: 600; text-transform: uppercase;">${esc(ticket.priority)}</span></td></tr>
-          <tr><td style="padding: 10px 12px; color: #706e6b;">Category</td><td style="padding: 10px 12px; text-transform: capitalize;">${esc(ticket.category)}</td></tr>
         </table>
-        <p style="font-size: 14px; margin: 16px 0 0;">You can view the status of your ticket by logging into your account.</p>
+        <p style="font-size: 14px; margin: 16px 0 0;">You can track the status and add updates to your ticket in the Client Portal under Support.</p>
         <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Support Team</p>
       </div>
     </div>
   `;
 
   await Promise.all([
-    sendEmail(cfg.notificationEmail, `New Client Ticket: ${esc(ticket.subject)}`, adminHtml),
-    sendEmail(userEmail, `Support Ticket Submitted: ${ticket.subject}`, confirmHtml),
+    sendEmail(cfg.notificationEmail, `New Client Ticket: ${esc(ticket.subject)} — ${esc(client.name)}`, adminHtml),
+    sendEmail(client.email, `Support Ticket Received: ${ticket.subject}`, clientHtml),
   ]);
 }
