@@ -930,21 +930,18 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Estimated Monthly Value ($) <span className="text-red-400">*</span>
+                  Estimated Monthly Value <span className="text-red-400">*</span>
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                  <input
-                    className="sf-input pl-7"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.estimatedValue}
-                    onChange={e => setFormData({ ...formData, estimatedValue: e.target.value })}
-                    required
-                  />
-                </div>
+                <input
+                  className="sf-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 2500.00"
+                  value={formData.estimatedValue}
+                  onChange={e => setFormData({ ...formData, estimatedValue: e.target.value })}
+                  required
+                />
               </div>
             </form>
           )}
