@@ -2412,9 +2412,6 @@ function TsdIntegrationsTab({
                     {provider === "telarus" && cfg.hasSecurityToken && (
                       <Badge className="text-xs bg-blue-50 text-blue-700 border border-blue-200">Security token set</Badge>
                     )}
-                    {provider === "telarus" && !cfg.hasSecurityToken && cfg.hasCredential && (
-                      <Badge className="text-xs bg-orange-50 text-orange-700 border border-orange-200">No security token</Badge>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -2499,19 +2496,19 @@ function TsdIntegrationsTab({
                         <div className="space-y-1">
                           <Label className="text-xs">
                             Salesforce Security Token
+                            <span className="ml-1 text-muted-foreground font-normal">(optional)</span>
                             {cfg.hasSecurityToken && <span className="ml-2 text-green-600 font-normal">(already set)</span>}
                           </Label>
                           <Input
                             type="password"
-                            placeholder={cfg.hasSecurityToken ? "Leave blank to keep existing" : "Enter security token (from Salesforce profile settings)"}
+                            placeholder={cfg.hasSecurityToken ? "Leave blank to keep existing" : "Leave blank if not required"}
                             value={securityTokenInput}
                             onChange={e => setSecurityTokenInput(e.target.value)}
                             className="font-mono text-sm"
                             autoComplete="new-password"
                           />
                           <p className="text-xs text-muted-foreground">
-                            Required for API access. In Salesforce: <em>Settings → Reset My Security Token</em>.
-                            Env var <code className="font-mono text-xs">TELARUS_SECURITY_TOKEN</code> takes precedence.
+                            Only needed if your Salesforce org requires it for API access. Env var <code className="font-mono text-xs">TELARUS_SECURITY_TOKEN</code> takes precedence.
                           </p>
                         </div>
                       </>
