@@ -434,6 +434,7 @@ export const telarusVendorsTable = pgTable("telarus_vendors", {
   numberOfEmployees: integer("number_of_employees"),
   annualRevenue: decimal("annual_revenue", { precision: 14, scale: 2 }),
   isActive: boolean("is_active").notNull().default(true),
+  products: text("products").notNull().default("[]"),
   rawData: text("raw_data").notNull().default("{}"),
   syncedAt: timestamp("synced_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

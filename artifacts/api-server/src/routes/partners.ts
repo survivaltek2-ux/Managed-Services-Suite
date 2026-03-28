@@ -492,7 +492,7 @@ router.get("/partner/tsd-products", requirePartnerAuth, async (_req: PartnerRequ
 
 router.get("/partner/vendors", requirePartnerAuth, async (_req: PartnerRequest, res: Response) => {
   try {
-    const vendors = await db.select({
+    const rows = await db.select({
       id: telarusVendorsTable.id,
       externalId: telarusVendorsTable.externalId,
       name: telarusVendorsTable.name,
@@ -501,10 +501,12 @@ router.get("/partner/vendors", requirePartnerAuth, async (_req: PartnerRequest, 
       website: telarusVendorsTable.website,
       partnerType: telarusVendorsTable.partnerType,
       isActive: telarusVendorsTable.isActive,
+      products: telarusVendorsTable.products,
     })
       .from(telarusVendorsTable)
       .where(eq(telarusVendorsTable.isActive, true))
       .orderBy(asc(telarusVendorsTable.name));
+    const vendors = rows.map(v => ({ ...v, products: JSON.parse(v.products || "[]") }));
     res.json(vendors);
   } catch (err) {
     console.error(err);

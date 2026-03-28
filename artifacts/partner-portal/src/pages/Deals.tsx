@@ -8,7 +8,7 @@ import { useTsdProducts, type TsdProduct } from "@/hooks/use-tsd-products";
 import { formatCurrency } from "@/lib/utils";
 import {
   Plus, Search, List, Columns3, X, ChevronDown, Filter, ChevronRight,
-  RefreshCw, CheckCircle, AlertCircle, Clock, ArrowLeft, Building2, Tag,
+  RefreshCw, CheckCircle, AlertCircle, Clock, ArrowLeft, Building2, Tag, Check,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -334,7 +334,7 @@ function VendorSelector({
 }) {
   const { data: vendors = [], isLoading } = useVendors();
   const [search, setSearch] = useState("");
-  const [serviceInputs, setServiceInputs] = useState<Record<string, string>>({});
+  const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -342,7 +342,8 @@ function VendorSelector({
     return vendors.filter(v =>
       v.name.toLowerCase().includes(q) ||
       (v.industry || "").toLowerCase().includes(q) ||
-      (v.accountType || "").toLowerCase().includes(q)
+      (v.accountType || "").toLowerCase().includes(q) ||
+      v.products.some(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
     );
   }, [vendors, search]);
 
@@ -356,8 +357,21 @@ function VendorSelector({
     }
   };
 
-  const addService = (vendorId: string) => {
-    const raw = (serviceInputs[vendorId] || "").trim();
+  const toggleService = (vendorId: string, serviceName: string) => {
+    onChange(selected.map(s =>
+      s.vendorId === vendorId
+        ? {
+            ...s,
+            services: s.services.includes(serviceName)
+              ? s.services.filter(x => x !== serviceName)
+              : [...s.services, serviceName],
+          }
+        : s
+    ));
+  };
+
+  const addCustomService = (vendorId: string) => {
+    const raw = (customInputs[vendorId] || "").trim();
     if (!raw) return;
     const tags = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
     onChange(selected.map(s =>
@@ -365,7 +379,7 @@ function VendorSelector({
         ? { ...s, services: [...new Set([...s.services, ...tags])] }
         : s
     ));
-    setServiceInputs(prev => ({ ...prev, [vendorId]: "" }));
+    setCustomInputs(prev => ({ ...prev, [vendorId]: "" }));
   };
 
   const removeService = (vendorId: string, service: string) => {
@@ -390,7 +404,7 @@ function VendorSelector({
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search vendors and carriers..."
+          placeholder="Search vendors, carriers, or products..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="sf-input pl-8 text-sm"
@@ -402,15 +416,23 @@ function VendorSelector({
         )}
       </div>
 
-      <div className="border border-border rounded max-h-64 overflow-y-auto divide-y divide-border">
+      <div className="border border-border rounded max-h-96 overflow-y-auto divide-y divide-border">
         {filtered.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">No vendors match your search.</div>
         ) : (
           filtered.map(v => {
             const sel = selected.find(s => s.vendorId === v.externalId);
             const checked = !!sel;
+            // Group products by category
+            const grouped = v.products.reduce<Record<string, typeof v.products>>((acc, p) => {
+              if (!acc[p.category]) acc[p.category] = [];
+              acc[p.category].push(p);
+              return acc;
+            }, {});
+            const categories = Object.keys(grouped).sort();
+
             return (
-              <div key={v.externalId} className="p-2.5">
+              <div key={v.externalId} className={`p-2.5 transition-colors ${checked ? "bg-[#f0f7ff]" : ""}`}>
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -421,43 +443,95 @@ function VendorSelector({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm font-medium text-foreground">{v.name}</span>
-                      {v.industry && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-[#f3f3f3] text-muted-foreground rounded-full">{v.industry}</span>
+                      {categories.length > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-[#0176d3]/10 text-[#0176d3] rounded-full">{categories[0]}</span>
+                      )}
+                      {categories.length > 1 && (
+                        <span className="text-[10px] text-muted-foreground">+{categories.length - 1} more</span>
                       )}
                     </div>
-                  </div>
-                </label>
-                {checked && sel && (
-                  <div className="mt-2 ml-5 space-y-1.5">
-                    {sel.services.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {sel.services.map(svc => (
-                          <span key={svc} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3]/10 text-[#0176d3] text-xs rounded-full">
-                            <Tag className="w-2.5 h-2.5" />
-                            {svc}
-                            <button type="button" onClick={() => removeService(v.externalId, svc)} className="hover:text-red-500 ml-0.5">
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </span>
-                        ))}
+                    {!checked && v.products.length > 0 && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                        {v.products.slice(0, 4).map(p => p.name).join(" · ")}
+                        {v.products.length > 4 && ` · +${v.products.length - 4} more`}
                       </div>
                     )}
-                    <div className="flex gap-1">
-                      <input
-                        type="text"
-                        placeholder="Add services (e.g. MPLS, SD-WAN) and press Enter"
-                        value={serviceInputs[v.externalId] || ""}
-                        onChange={e => setServiceInputs(prev => ({ ...prev, [v.externalId]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addService(v.externalId); } }}
-                        className="sf-input text-xs py-1 flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => addService(v.externalId)}
-                        className="sf-btn sf-btn-neutral text-xs px-2 py-1"
-                      >
-                        Add
-                      </button>
+                  </div>
+                </label>
+
+                {checked && sel && (
+                  <div className="mt-3 ml-5 space-y-3">
+                    {/* Selected services summary */}
+                    {sel.services.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Selected Products/Services</div>
+                        <div className="flex flex-wrap gap-1">
+                          {sel.services.map(svc => (
+                            <span key={svc} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0176d3] text-white text-xs rounded-full">
+                              <Tag className="w-2.5 h-2.5" />
+                              {svc}
+                              <button type="button" onClick={() => removeService(v.externalId, svc)} className="hover:text-red-200 ml-0.5">
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Clickable product catalog */}
+                    {categories.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Available Products — click to select</div>
+                        {categories.map(cat => (
+                          <div key={cat}>
+                            <div className="text-[10px] text-muted-foreground mb-1 font-medium">{cat}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {grouped[cat].map(p => {
+                                const isActive = sel.services.includes(p.name);
+                                return (
+                                  <button
+                                    key={p.name}
+                                    type="button"
+                                    title={p.description}
+                                    onClick={() => toggleService(v.externalId, p.name)}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                                      isActive
+                                        ? "bg-[#0176d3] text-white border-[#0176d3]"
+                                        : "bg-white text-foreground border-border hover:border-[#0176d3] hover:text-[#0176d3]"
+                                    }`}
+                                  >
+                                    {isActive && <Check className="w-2.5 h-2.5" />}
+                                    {p.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {/* Custom service input */}
+                    <div>
+                      <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Add Custom Service</div>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          placeholder="Type a custom service and press Enter"
+                          value={customInputs[v.externalId] || ""}
+                          onChange={e => setCustomInputs(prev => ({ ...prev, [v.externalId]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomService(v.externalId); } }}
+                          className="sf-input text-xs py-1 flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => addCustomService(v.externalId)}
+                          className="sf-btn sf-btn-neutral text-xs px-2 py-1"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

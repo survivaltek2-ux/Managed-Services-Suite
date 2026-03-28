@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAuthHeaders } from "./use-auth";
 
+export interface VendorProduct {
+  name: string;
+  category: string;
+  description?: string;
+}
+
 export interface Vendor {
   id: number;
   externalId: string;
@@ -10,6 +16,7 @@ export interface Vendor {
   website: string | null;
   partnerType: string | null;
   isActive: boolean;
+  products: VendorProduct[];
 }
 
 export interface VendorSelection {
