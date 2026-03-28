@@ -403,6 +403,71 @@ export async function sendQuoteRequestNotification(quote: {
   ]);
 }
 
+export async function sendTrainingRequestNotification(request: {
+  vendorName: string;
+  topic: string;
+  preferredDate?: string | null;
+  attendeeCount: number;
+  contactName: string;
+  contactEmail: string;
+  notes?: string | null;
+}, partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}) {
+  const cfg = await loadEmailConfig();
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Training Request</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Vendor</td><td style="padding: 8px 0; font-weight: 600;">${esc(request.vendorName)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Topic / Focus</td><td style="padding: 8px 0;">${esc(request.topic)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Preferred Date</td><td style="padding: 8px 0;">${esc(request.preferredDate || "Not specified")}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Attendees</td><td style="padding: 8px 0;">${request.attendeeCount}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Contact</td><td style="padding: 8px 0;">${esc(request.contactName)} (${esc(request.contactEmail)})</td></tr>
+        </table>
+        ${request.notes ? `<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" /><p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Notes:</p><p style="font-size: 14px; margin: 0; white-space: pre-wrap;">${esc(request.notes)}</p>` : ""}
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Partner Company</td><td style="padding: 8px 0;">${esc(partner.companyName)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Contact</td><td style="padding: 8px 0;">${esc(partner.contactName)} (${esc(partner.email)})</td></tr>
+        </table>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services Partner Portal.</p>
+      </div>
+    </div>
+  `;
+
+  const partnerHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Training Request Received</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(request.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">We've received your training request and our team will coordinate with the vendor and follow up shortly.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Vendor</td><td style="padding: 10px 12px; font-weight: 600;">${esc(request.vendorName)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Topic / Focus</td><td style="padding: 10px 12px;">${esc(request.topic)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Preferred Date</td><td style="padding: 10px 12px;">${esc(request.preferredDate || "Not specified")}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Attendees</td><td style="padding: 10px 12px;">${request.attendeeCount}</td></tr>
+        </table>
+        <p style="font-size: 14px; margin: 16px 0 0;">Our team will reach out to you at ${esc(request.contactEmail)} to confirm details and scheduling.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Partner Team</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(cfg.notificationEmail, `New Training Request: ${esc(request.vendorName)} — ${esc(partner.companyName)}`, adminHtml),
+    sendEmail(request.contactEmail, `Training Request Received: ${esc(request.vendorName)} — ${esc(request.topic)}`, partnerHtml),
+  ]);
+}
+
 export async function sendLoginCode(email: string, code: string, type: "user" | "partner") {
   const portalName = type === "partner" ? "Partner Portal" : "Admin Portal";
   const html = `

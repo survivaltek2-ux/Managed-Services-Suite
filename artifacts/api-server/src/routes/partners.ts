@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable } from "@workspace/db";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
-import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "../lib/email.js";
+import { sendDealSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
@@ -1160,6 +1160,73 @@ router.post("/partner/admin/client-tickets/:id/messages", requirePartnerAdmin, a
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to send message" });
+  }
+});
+
+// ─── Training Requests ────────────────────────────────────────────────────────
+
+router.post("/training-requests", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { vendorName, topic, preferredDate, attendeeCount, contactName, contactEmail, notes } = req.body;
+
+    if (!vendorName || typeof vendorName !== "string" || vendorName.trim().length === 0) {
+      res.status(400).json({ error: "validation_error", message: "vendorName is required" });
+      return;
+    }
+    if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
+      res.status(400).json({ error: "validation_error", message: "topic is required" });
+      return;
+    }
+    if (!contactName || typeof contactName !== "string" || contactName.trim().length === 0) {
+      res.status(400).json({ error: "validation_error", message: "contactName is required" });
+      return;
+    }
+    if (!contactEmail || typeof contactEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      res.status(400).json({ error: "validation_error", message: "A valid contactEmail is required" });
+      return;
+    }
+
+    const parsedAttendeeCount = attendeeCount !== undefined ? parseInt(String(attendeeCount), 10) : 1;
+    if (isNaN(parsedAttendeeCount) || parsedAttendeeCount < 1 || parsedAttendeeCount > 10000) {
+      res.status(400).json({ error: "validation_error", message: "attendeeCount must be a positive integer" });
+      return;
+    }
+
+    const [request] = await db.insert(trainingRequestsTable).values({
+      partnerId: req.partnerId!,
+      vendorName: vendorName.trim(),
+      topic: topic.trim(),
+      preferredDate: preferredDate ? String(preferredDate).trim() : null,
+      attendeeCount: parsedAttendeeCount,
+      contactName: contactName.trim(),
+      contactEmail: contactEmail.trim().toLowerCase(),
+      notes: notes ? String(notes).trim() : null,
+    }).returning();
+
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (partner) {
+      sendTrainingRequestNotification(
+        {
+          vendorName: request.vendorName,
+          topic: request.topic,
+          preferredDate: request.preferredDate,
+          attendeeCount: request.attendeeCount,
+          contactName: request.contactName,
+          contactEmail: request.contactEmail,
+          notes: request.notes,
+        },
+        {
+          companyName: partner.companyName,
+          contactName: partner.contactName,
+          email: partner.email,
+        }
+      ).catch(err => console.error("[Email] Training request notification error:", err));
+    }
+
+    res.status(201).json(request);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to submit training request" });
   }
 });
 

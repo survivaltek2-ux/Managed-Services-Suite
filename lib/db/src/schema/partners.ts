@@ -455,6 +455,26 @@ export const insertTsdConfigSchema = createInsertSchema(tsdConfigsTable).omit({ 
 export const insertTsdSyncLogSchema = createInsertSchema(tsdSyncLogsTable).omit({ id: true, createdAt: true });
 export const insertTsdProductSchema = createInsertSchema(tsdProductsTable).omit({ id: true, createdAt: true, updatedAt: true });
 
+export const trainingRequestStatusEnum = pgEnum("training_request_status", ["pending", "scheduled", "completed", "cancelled"]);
+
+export const trainingRequestsTable = pgTable("training_requests", {
+  id: serial("id").primaryKey(),
+  partnerId: integer("partner_id").notNull().references(() => partnersTable.id),
+  vendorName: text("vendor_name").notNull(),
+  topic: text("topic").notNull(),
+  preferredDate: text("preferred_date"),
+  attendeeCount: integer("attendee_count").notNull().default(1),
+  contactName: text("contact_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  notes: text("notes"),
+  status: trainingRequestStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertTrainingRequestSchema = createInsertSchema(trainingRequestsTable).omit({ id: true, createdAt: true, updatedAt: true, partnerId: true, status: true });
+export type TrainingRequest = typeof trainingRequestsTable.$inferSelect;
+
 export type Partner = typeof partnersTable.$inferSelect;
 export type PartnerDeal = typeof partnerDealsTable.$inferSelect;
 export type PartnerLead = typeof partnerLeadsTable.$inferSelect;
