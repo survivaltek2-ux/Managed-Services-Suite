@@ -936,18 +936,34 @@ function AddDealModal({ onClose }: { onClose: () => void }) {
                     <p className="text-xs text-muted-foreground">Est. Monthly Value</p>
                     <p className="font-semibold text-green-700">${parseFloat(formData.estimatedValue || "0").toLocaleString()}</p>
                   </div>
-                  {formData.vendorSelections.length > 0 && (
+                  {formData.vendorSelections.length > 0 ? (
                     <div className="col-span-2">
-                      <p className="text-xs text-muted-foreground mb-1">Vendors & Carriers</p>
-                      <div className="flex flex-wrap gap-1">
+                      <p className="text-xs text-muted-foreground mb-2 font-semibold">Vendors & Carriers ({formData.vendorSelections.length})</p>
+                      <div className="space-y-2">
                         {formData.vendorSelections.map(v => (
-                          <span key={v.vendorId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#f0f7ff] border border-[#bfdbfe] text-xs text-[#1d4ed8] rounded-full">
-                            <Building2 className="w-2.5 h-2.5" />
-                            {v.vendorName}
-                            {v.services.length > 0 && <span className="text-[#6b7280]"> · {v.services.slice(0,2).join(", ")}{v.services.length > 2 ? ` +${v.services.length - 2}` : ""}</span>}
-                          </span>
+                          <div key={v.vendorId} className="p-2 bg-[#f0f7ff] border border-[#bfdbfe] rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Building2 className="w-3.5 h-3.5 text-[#0176d3]" />
+                              <p className="font-semibold text-sm text-[#0176d3]">{v.vendorName}</p>
+                              {v.services.length > 0 && (
+                                <span className="ml-auto text-[10px] bg-[#0176d3] text-white px-2 py-0.5 rounded-full font-medium">{v.services.length} product{v.services.length !== 1 ? "s" : ""}</span>
+                              )}
+                            </div>
+                            {v.services.length > 0 && (
+                              <div className="flex flex-wrap gap-1 ml-5">
+                                {v.services.map(svc => (
+                                  <span key={svc} className="text-[10px] px-2 py-0.5 bg-white border border-[#0176d3] text-[#0176d3] rounded-full">{svc}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
+                    </div>
+                  ) : (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1 font-semibold">Vendors & Carriers</p>
+                      <p className="text-xs text-[#9ca3af] italic">No vendors selected</p>
                     </div>
                   )}
                   {formData.products.length > 0 && (
