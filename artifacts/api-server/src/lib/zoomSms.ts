@@ -1,59 +1,25 @@
+import crypto from "crypto";
 import { db, tsdConfigsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { encryptSecret } from "./tsdSecrets.js";
 
-const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID || "";
-const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET || "";
-const ZOOM_PHONE_NUMBER = process.env.ZOOM_PHONE_NUMBER || "";
+const ZOOM_WEBHOOK_SECRET = process.env.ZOOM_WEBHOOK_SECRET || "";
 
-interface ZoomTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-interface ZoomSmsMessage {
-  id: string;
-  body: string;
-  from: string;
-  to: string;
-  created_at: string;
-}
-
-let cachedAccessToken: { token: string; expiresAt: number } | null = null;
-
-async function getZoomAccessToken(): Promise<string> {
-  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now()) {
-    return cachedAccessToken.token;
-  }
-
-  try {
-    const response = await fetch("https://zoom.us/oauth/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(`${ZOOM_ACCOUNT_ID}:${ZOOM_CLIENT_SECRET}`).toString("base64")}`,
-      },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        scope: "sms:read",
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Zoom auth failed: ${response.status}`);
-    }
-
-    const data = (await response.json()) as ZoomTokenResponse;
-    cachedAccessToken = {
-      token: data.access_token,
-      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+interface ZoomWebhookPayload {
+  event: string;
+  payload: {
+    plainToken?: string;
+    account_id?: string;
+    object?: {
+      id?: string;
+      from?: { phone_number?: string };
+      to?: { phone_number?: string };
+      message?: string;
+      body?: string;
+      date_time?: string;
     };
-    return data.access_token;
-  } catch (err) {
-    console.error("[Zoom SMS] Token fetch failed:", err);
-    throw err;
-  }
+  };
+  event_ts?: number;
 }
 
 function extractMfaCode(message: string): string | null {
@@ -62,6 +28,7 @@ function extractMfaCode(message: string): string | null {
     /code[:\s]+(\d{6})/i,
     /verification[:\s]+(\d{6})/i,
     /mfa[:\s]+(\d{6})/i,
+    /\b(\d{4})\b/,
   ];
 
   for (const pattern of codePatterns) {
@@ -71,63 +38,66 @@ function extractMfaCode(message: string): string | null {
   return null;
 }
 
-export async function fetchAndUpdateTelarusMfaCode(): Promise<string | null> {
+export function verifyZoomWebhook(plainToken: string): { plainToken: string; encryptedToken: string } {
+  const encryptedToken = crypto
+    .createHmac("sha256", ZOOM_WEBHOOK_SECRET)
+    .update(plainToken)
+    .digest("hex");
+
+  return { plainToken, encryptedToken };
+}
+
+export async function handleSmsReceived(payload: ZoomWebhookPayload): Promise<string | null> {
   try {
-    if (!ZOOM_ACCOUNT_ID || !ZOOM_CLIENT_SECRET || !ZOOM_PHONE_NUMBER) {
-      console.warn("[Zoom SMS] Zoom credentials not configured");
+    const obj = payload.payload?.object;
+    const messageBody = obj?.message || obj?.body || "";
+
+    if (!messageBody) {
+      console.log("[Zoom SMS] No message body in webhook payload");
       return null;
     }
 
-    const accessToken = await getZoomAccessToken();
+    console.log(`[Zoom SMS] Received SMS from ${obj?.from?.phone_number || "unknown"}: ${messageBody.substring(0, 50)}...`);
 
-    const response = await fetch(
-      `https://api.zoom.us/v1/sms/messages?phone_number=${encodeURIComponent(ZOOM_PHONE_NUMBER)}&page_size=10`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
-
-    if (!response.ok) {
-      console.error("[Zoom SMS] Failed to fetch messages:", response.status);
+    const code = extractMfaCode(messageBody);
+    if (!code) {
+      console.log("[Zoom SMS] No MFA code found in message");
       return null;
     }
 
-    const data = (await response.json()) as { messages?: ZoomSmsMessage[] };
-    const messages = data.messages || [];
+    console.log(`[Zoom SMS] Extracted MFA code: ${code}`);
 
-    for (const msg of messages) {
-      const code = extractMfaCode(msg.body);
-      if (code) {
-        const [cfg] = await db
-          .select()
-          .from(tsdConfigsTable)
-          .where(eq(tsdConfigsTable.provider, "telarus"))
-          .limit(1);
+    const [cfg] = await db
+      .select()
+      .from(tsdConfigsTable)
+      .where(eq(tsdConfigsTable.provider, "telarus"))
+      .limit(1);
 
-        if (cfg) {
-          const encryptedCode = encryptSecret(code);
-          await db
-            .update(tsdConfigsTable)
-            .set({ mfaCode: encryptedCode, updatedAt: new Date() })
-            .where(eq(tsdConfigsTable.id, cfg.id));
+    if (cfg) {
+      const encryptedCode = encryptSecret(code);
+      await db
+        .update(tsdConfigsTable)
+        .set({ mfaCode: encryptedCode, updatedAt: new Date() })
+        .where(eq(tsdConfigsTable.id, cfg.id));
 
-          console.log("[Zoom SMS] Updated Telarus MFA code");
-          return code;
-        }
-      }
+      console.log("[Zoom SMS] Updated Telarus MFA code in database");
+      return code;
+    } else {
+      console.warn("[Zoom SMS] No Telarus config found to update");
+      return code;
     }
-
-    console.log("[Zoom SMS] No MFA code found in recent messages");
-    return null;
   } catch (err) {
-    console.error("[Zoom SMS] Error:", err);
+    console.error("[Zoom SMS] Error handling SMS webhook:", err);
     return null;
   }
 }
 
-export async function refreshTelarusMfaBeforeSync(): Promise<void> {
-  const code = await fetchAndUpdateTelarusMfaCode();
-  if (!code) {
-    console.warn("[Zoom SMS] Could not refresh Telarus MFA code - sync may fail");
-  }
+export async function hasRecentMfaCode(): Promise<boolean> {
+  const [cfg] = await db
+    .select()
+    .from(tsdConfigsTable)
+    .where(eq(tsdConfigsTable.provider, "telarus"))
+    .limit(1);
+
+  return !!(cfg?.mfaCode);
 }

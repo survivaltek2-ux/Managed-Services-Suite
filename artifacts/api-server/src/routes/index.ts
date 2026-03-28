@@ -12,6 +12,7 @@ import openaiRouter from "./openai";
 import documentsRouter from "./documents";
 import tsdRouter from "./tsd";
 import webhooksRouter from "./webhooks";
+import zoomWebhookRouter from "./zoomWebhook";
 import invoicesRouter from "./invoices";
 import reportsRouter from "./reports";
 
@@ -30,6 +31,7 @@ router.use(openaiRouter);
 router.use(documentsRouter);
 router.use(tsdRouter);
 router.use(webhooksRouter);
+router.use(zoomWebhookRouter);
 router.use(invoicesRouter);
 router.use(reportsRouter);
 

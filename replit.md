@@ -179,15 +179,33 @@ Two-way integration with Technology Solution Distributors.
 - `lib/integrations-tsd/` — Provider adapters (AvantAdapter, TelarusAdapter, IntelisysAdapter), factory, types, utils
 - `artifacts/api-server/src/lib/tsdSync.ts` — Core sync logic: deal push, lead/commission pull, scheduler
 - `artifacts/api-server/src/lib/tsdSecrets.ts` — AES-256-GCM encryption for DB-stored credentials
+- `artifacts/api-server/src/lib/zoomSms.ts` — Zoom Phone SMS webhook handler for Telarus MFA code auto-extraction
 - `artifacts/api-server/src/routes/tsd.ts` — Admin API routes
-- `artifacts/api-server/src/routes/webhooks.ts` — Inbound webhook handling
+- `artifacts/api-server/src/routes/webhooks.ts` — Inbound TSD webhook handling
+- `artifacts/api-server/src/routes/zoomWebhook.ts` — Zoom Phone SMS webhook endpoint
+
+**Authentication Methods:**
+- API key (env var or DB-stored, encrypted)
+- Username/password (env var or DB-stored, encrypted) — `tsd_configs.username`, `tsd_configs.password`
+- SMS-based MFA (Telarus) — `tsd_configs.mfa_phone`, `tsd_configs.mfa_code`; auto-updated via Zoom Phone webhook
+
+**Zoom SMS MFA Integration (Telarus):**
+- Telarus uses SMS-based MFA for authentication
+- Zoom Phone receives SMS at `+1-845-908-0123`
+- Webhook endpoint `POST /api/webhooks/zoom/sms` receives `phone.sms_received` events from Zoom
+- MFA codes are auto-extracted from SMS body and stored encrypted in `tsd_configs.mfa_code`
+- Before Telarus sync, system checks for stored MFA code availability
 
 **Required Environment Variables:**
 - `TSD_SECRETS_KEY` — 64-char hex (32-byte) key for AES-256-GCM encryption of DB-stored secrets (**required**, auto-generated)
 - `AVANT_API_KEY` — Avant API key (optional; can be entered via admin UI instead)
-- `TELARUS_API_KEY` + `TELARUS_AGENT_ID` — Telarus credentials
+- `TELARUS_USERNAME` + `TELARUS_PASSWORD` — Telarus credentials (username/password auth)
 - `INTELISYS_API_KEY` + `INTELISYS_PARTNER_ID` — Intelisys credentials
 - `AVANT_WEBHOOK_SECRET` / `TELARUS_WEBHOOK_SECRET` / `INTELISYS_WEBHOOK_SECRET` — Webhook HMAC secrets (optional; overrides DB values)
+- `ZOOM_ACCOUNT_ID` — Zoom Server-to-Server OAuth account ID
+- `ZOOM_CLIENT_SECRET` — Zoom Server-to-Server OAuth client secret
+- `ZOOM_PHONE_NUMBER` — Zoom Phone number receiving Telarus MFA SMS (+1-845-908-0123)
+- `ZOOM_WEBHOOK_SECRET` — Secret token for verifying Zoom webhook payloads
 - `TSD_LEAD_SYNC_INTERVAL_MINUTES` — Lead sync interval (default: 15)
 - `TSD_COMMISSION_SYNC_INTERVAL_MINUTES` — Commission sync interval (default: 60)
 

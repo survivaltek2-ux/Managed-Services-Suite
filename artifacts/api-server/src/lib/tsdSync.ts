@@ -5,7 +5,7 @@ import { createTsdConnector, resolveCredentialRef } from "@workspace/integration
 import type { TsdProvider } from "@workspace/integrations-tsd";
 import { safeJsonStringify } from "@workspace/integrations-tsd";
 import { safeDecryptSecret, getSyncInterval } from "./tsdSecrets.js";
-import { refreshTelarusMfaBeforeSync } from "./zoomSms.js";
+import { hasRecentMfaCode } from "./zoomSms.js";
 
 const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
 
@@ -141,7 +141,10 @@ export async function syncLeadsFromTSDs(provider?: TsdProvider): Promise<void> {
 
   for (const cfg of configs) {
     if (cfg.provider === "telarus") {
-      await refreshTelarusMfaBeforeSync();
+      const hasMfa = await hasRecentMfaCode();
+      if (!hasMfa) {
+        console.warn("[TSD] Telarus MFA code not available — waiting for SMS webhook");
+      }
     }
 
     const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
@@ -225,7 +228,10 @@ export async function syncCommissionsFromTSDs(provider?: TsdProvider): Promise<v
 
   for (const cfg of configs) {
     if (cfg.provider === "telarus") {
-      await refreshTelarusMfaBeforeSync();
+      const hasMfa = await hasRecentMfaCode();
+      if (!hasMfa) {
+        console.warn("[TSD] Telarus MFA code not available — waiting for SMS webhook");
+      }
     }
 
     const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
