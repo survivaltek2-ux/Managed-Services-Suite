@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, partnerMdfRequestsTable } from "@workspace/db";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, partnerMdfRequestsTable, ticketsTable, ticketMessagesTable, usersTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum } from "drizzle-orm";
-import { requirePartnerAuth, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
+import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendTicketSubmittedNotification } from "../lib/email.js";
 
@@ -32,7 +32,7 @@ router.post("/partner/auth/register", async (req, res) => {
       annualRevenue: annualRevenue || null, address: address || null,
       city: city || null, state: state || null, zip: zip || null,
     }).returning();
-    const token = generatePartnerToken(partner.id);
+    const token = generatePartnerToken(partner.id, partner.isAdmin);
     res.status(201).json({ token, partner: sanitizePartner(partner) });
   } catch (err) {
     console.error("Partner register error:", err);
@@ -57,7 +57,7 @@ router.post("/partner/auth/login", async (req, res) => {
       res.status(401).json({ error: "unauthorized", message: "Invalid credentials" });
       return;
     }
-    const token = generatePartnerToken(partner.id);
+    const token = generatePartnerToken(partner.id, partner.isAdmin);
     res.json({ token, partner: sanitizePartner(partner) });
   } catch (err) {
     console.error("Partner login error:", err);
@@ -884,6 +884,109 @@ router.put("/admin/partner/mdf/:id", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update MDF request" });
+  }
+});
+
+// ─── Partner Admin: Client Ticket Management ──────────────────────────────────
+
+router.get("/partner/admin/client-tickets", requirePartnerAdmin, async (_req: PartnerRequest, res: Response) => {
+  try {
+    const tickets = await db
+      .select({
+        id: ticketsTable.id,
+        subject: ticketsTable.subject,
+        description: ticketsTable.description,
+        priority: ticketsTable.priority,
+        status: ticketsTable.status,
+        category: ticketsTable.category,
+        createdAt: ticketsTable.createdAt,
+        updatedAt: ticketsTable.updatedAt,
+        userId: ticketsTable.userId,
+        clientName: usersTable.name,
+        clientEmail: usersTable.email,
+        clientCompany: usersTable.company,
+      })
+      .from(ticketsTable)
+      .leftJoin(usersTable, eq(ticketsTable.userId, usersTable.id))
+      .orderBy(desc(ticketsTable.createdAt));
+    res.json(tickets);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load client tickets" });
+  }
+});
+
+router.get("/partner/admin/client-tickets/:id", requirePartnerAdmin, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [ticket] = await db
+      .select({
+        id: ticketsTable.id,
+        subject: ticketsTable.subject,
+        description: ticketsTable.description,
+        priority: ticketsTable.priority,
+        status: ticketsTable.status,
+        category: ticketsTable.category,
+        createdAt: ticketsTable.createdAt,
+        updatedAt: ticketsTable.updatedAt,
+        userId: ticketsTable.userId,
+        clientName: usersTable.name,
+        clientEmail: usersTable.email,
+        clientCompany: usersTable.company,
+      })
+      .from(ticketsTable)
+      .leftJoin(usersTable, eq(ticketsTable.userId, usersTable.id))
+      .where(eq(ticketsTable.id, id))
+      .limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+    const messages = await db.select().from(ticketMessagesTable)
+      .where(eq(ticketMessagesTable.ticketId, id))
+      .orderBy(ticketMessagesTable.createdAt);
+    res.json({ ...ticket, messages });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load ticket" });
+  }
+});
+
+router.put("/partner/admin/client-tickets/:id", requirePartnerAdmin, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { status } = req.body;
+    const updates: any = { updatedAt: new Date() };
+    if (status) updates.status = status;
+    const [ticket] = await db.update(ticketsTable).set(updates).where(eq(ticketsTable.id, id)).returning();
+    res.json(ticket);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update ticket" });
+  }
+});
+
+router.post("/partner/admin/client-tickets/:id/messages", requirePartnerAdmin, async (req: PartnerRequest, res: Response) => {
+  try {
+    const ticketId = parseInt(req.params.id as string);
+    const { message } = req.body;
+    if (!message) { res.status(400).json({ error: "validation_error", message: "message is required" }); return; }
+
+    const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, ticketId)).limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+
+    const [msg] = await db.insert(ticketMessagesTable).values({
+      ticketId,
+      senderType: "admin",
+      senderName: "Siebert Services",
+      message,
+    }).returning();
+
+    if (ticket.status === "open") {
+      await db.update(ticketsTable).set({ status: "in_progress", updatedAt: new Date() }).where(eq(ticketsTable.id, ticketId));
+    }
+
+    res.status(201).json(msg);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to send message" });
   }
 });
 

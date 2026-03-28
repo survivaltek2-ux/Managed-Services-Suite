@@ -36,6 +36,7 @@ export const partnersTable = pgTable("partners", {
   ytdRevenue: decimal("ytd_revenue", { precision: 12, scale: 2 }).notNull().default("0"),
   ssoProvider: text("sso_provider"),
   ssoId: text("sso_id"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

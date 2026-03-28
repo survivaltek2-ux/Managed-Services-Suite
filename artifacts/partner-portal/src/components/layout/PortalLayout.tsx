@@ -18,12 +18,13 @@ import {
   HelpCircle,
   Settings,
   Menu,
-  X
+  X,
+  Users
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/deals", label: "Deals", icon: Handshake },
   { href: "/leads", label: "Leads", icon: Target },
@@ -33,6 +34,10 @@ const NAV_ITEMS = [
   { href: "/support", label: "Support", icon: Headphones },
   { href: "/mdf", label: "MDF", icon: TrendingUp },
   { href: "/announcements", label: "News", icon: Bell },
+];
+
+const ADMIN_NAV_ITEMS = [
+  { href: "/client-tickets", label: "Client Tickets", icon: Users },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +50,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const isPending = user.status === "pending";
+  const NAV_ITEMS = user.isAdmin ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS] : BASE_NAV_ITEMS;
   const currentTab = NAV_ITEMS.find(i => location === i.href) || NAV_ITEMS[0];
 
   return (

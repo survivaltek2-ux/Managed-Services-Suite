@@ -5,6 +5,7 @@ const PARTNER_JWT_SECRET = process.env.JWT_SECRET || "siebert-services-secret-ke
 
 export interface PartnerRequest extends Request {
   partnerId?: number;
+  partnerIsAdmin?: boolean;
 }
 
 export function requirePartnerAuth(req: PartnerRequest, res: Response, next: NextFunction) {
@@ -16,14 +17,25 @@ export function requirePartnerAuth(req: PartnerRequest, res: Response, next: Nex
 
   const token = authHeader.substring(7);
   try {
-    const payload = jwt.verify(token, PARTNER_JWT_SECRET) as { partnerId: number };
+    const payload = jwt.verify(token, PARTNER_JWT_SECRET) as { partnerId: number; isAdmin?: boolean };
     req.partnerId = payload.partnerId;
+    req.partnerIsAdmin = payload.isAdmin === true;
     next();
   } catch {
     res.status(401).json({ error: "unauthorized", message: "Invalid or expired token" });
   }
 }
 
-export function generatePartnerToken(partnerId: number): string {
-  return jwt.sign({ partnerId }, PARTNER_JWT_SECRET, { expiresIn: "30d" });
+export function requirePartnerAdmin(req: PartnerRequest, res: Response, next: NextFunction) {
+  requirePartnerAuth(req, res, () => {
+    if (!req.partnerIsAdmin) {
+      res.status(403).json({ error: "forbidden", message: "Admin access required" });
+      return;
+    }
+    next();
+  });
+}
+
+export function generatePartnerToken(partnerId: number, isAdmin = false): string {
+  return jwt.sign({ partnerId, isAdmin }, PARTNER_JWT_SECRET, { expiresIn: "30d" });
 }

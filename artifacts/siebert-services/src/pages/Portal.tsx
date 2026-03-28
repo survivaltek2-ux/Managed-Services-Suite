@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLogin, useRegister, useListTickets, useCreateTicket, TicketInputPriority, TicketInputCategory } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, Input, Button, Label, Textarea, Badge } from "@/components/ui";
@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
   Lock, LogOut, TicketIcon, PlusCircle, AlertCircle,
-  FileText, ClipboardList, ExternalLink, Clock, CheckCircle2, XCircle, Eye, Send
+  FileText, ClipboardList, ExternalLink, Clock, CheckCircle2, XCircle, Eye, Send, X, ChevronRight, MessageSquare
 } from "lucide-react";
 
 
@@ -56,6 +56,13 @@ export default function Portal() {
   const [myQuotes, setMyQuotes] = useState<any[] | null>(null);
   const [myProposals, setMyProposals] = useState<any[] | null>(null);
   const [quotesLoading, setQuotesLoading] = useState(false);
+
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [ticketDetail, setTicketDetail] = useState<any | null>(null);
+  const [ticketDetailLoading, setTicketDetailLoading] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [replyLoading, setReplyLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -107,6 +114,42 @@ export default function Portal() {
     finally { setQuotesLoading(false); }
   };
 
+
+  const handleTicketClick = async (ticket: any) => {
+    setSelectedTicket(ticket);
+    setTicketDetail(null);
+    setTicketDetailLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/tickets/${ticket.id}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTicketDetail(data);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      }
+    } catch { /* silent */ }
+    finally { setTicketDetailLoading(false); }
+  };
+
+  const handleReply = async () => {
+    if (!replyMessage.trim() || !selectedTicket) return;
+    setReplyLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/tickets/${selectedTicket.id}/messages`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: replyMessage.trim() })
+      });
+      if (res.ok) {
+        const msg = await res.json();
+        setTicketDetail((prev: any) => prev ? { ...prev, messages: [...(prev.messages || []), msg] } : prev);
+        setReplyMessage("");
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      }
+    } catch { /* silent */ }
+    finally { setReplyLoading(false); }
+  };
 
   const { toast } = useToast();
   const loginMutation = useLogin();
@@ -360,11 +403,12 @@ export default function Portal() {
                 </CardContent>
               </Card>
             ) : (
+              <>
               <div className="grid grid-cols-1 gap-4">
                 {tickets.map(t => (
-                  <Card key={t.id} className="hover:shadow-md transition-shadow">
+                  <Card key={t.id} className="hover:shadow-md transition-shadow cursor-pointer border hover:border-primary/30" onClick={() => handleTicketClick(t)}>
                     <CardContent className="p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="space-y-1">
+                      <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-bold text-muted-foreground">#{t.id}</span>
                           <h3 className="font-bold text-navy text-lg">{t.subject}</h3>
@@ -379,11 +423,75 @@ export default function Portal() {
                       <div className="flex flex-row sm:flex-col items-center sm:items-end gap-3 shrink-0">
                         <Badge variant={getPriorityColor(t.priority) as any} className="capitalize">{t.priority} Priority</Badge>
                         <Badge variant={t.status === "closed" || t.status === "resolved" ? "secondary" : "outline"} className="capitalize bg-white">{t.status.replace("_", " ")}</Badge>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
+
+              {/* Ticket Detail Panel */}
+              {selectedTicket && (
+                <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-start sm:justify-end" onClick={e => e.target === e.currentTarget && setSelectedTicket(null)}>
+                  <div className="w-full sm:max-w-lg sm:h-full bg-white rounded-t-2xl sm:rounded-none shadow-2xl flex flex-col max-h-[90vh] sm:max-h-full">
+                    <div className="p-4 border-b flex items-start justify-between gap-3 bg-gray-50 rounded-t-2xl sm:rounded-none">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-xs font-bold text-muted-foreground">#{selectedTicket.id}</span>
+                          <Badge variant={getPriorityColor(selectedTicket.priority) as any} className="capitalize text-xs">{selectedTicket.priority}</Badge>
+                          <Badge variant={selectedTicket.status === "closed" || selectedTicket.status === "resolved" ? "secondary" : "outline"} className="capitalize text-xs">{selectedTicket.status.replace("_", " ")}</Badge>
+                        </div>
+                        <h3 className="font-bold text-navy">{selectedTicket.subject}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(selectedTicket.createdAt), "MMM dd, yyyy")}</p>
+                      </div>
+                      <button onClick={() => setSelectedTicket(null)} className="text-muted-foreground hover:text-foreground p-1"><X className="w-5 h-5" /></button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                      <div className="bg-gray-50 border rounded-xl p-3 text-sm">
+                        <p className="text-xs text-muted-foreground font-semibold uppercase mb-1.5">Your original message</p>
+                        <p className="whitespace-pre-wrap">{selectedTicket.description}</p>
+                      </div>
+
+                      {ticketDetailLoading ? (
+                        <div className="flex justify-center py-6"><div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+                      ) : ticketDetail?.messages?.length === 0 ? (
+                        <div className="text-center py-6 text-sm text-muted-foreground flex flex-col items-center gap-2">
+                          <MessageSquare className="w-8 h-8 text-muted-foreground/30" />
+                          <p>No replies yet — we'll get back to you soon.</p>
+                        </div>
+                      ) : (
+                        ticketDetail?.messages?.map((msg: any) => (
+                          <div key={msg.id} className={`flex ${msg.senderType === "client" ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] rounded-xl p-3 text-sm ${msg.senderType === "client" ? "bg-primary text-white" : "bg-gray-100 text-foreground"}`}>
+                              <p className={`text-xs font-semibold mb-1 ${msg.senderType === "client" ? "text-white/70" : "text-muted-foreground"}`}>{msg.senderName}</p>
+                              <p className="whitespace-pre-wrap">{msg.message}</p>
+                              <p className={`text-[10px] mt-1.5 ${msg.senderType === "client" ? "text-white/60" : "text-muted-foreground"}`}>{format(new Date(msg.createdAt), "MMM d, h:mm a")}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {selectedTicket.status !== "closed" && (
+                      <div className="p-3 border-t bg-gray-50 flex gap-2">
+                        <Input
+                          placeholder="Add a reply..."
+                          value={replyMessage}
+                          onChange={e => setReplyMessage(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleReply()}
+                          className="flex-1"
+                        />
+                        <Button size="sm" onClick={handleReply} disabled={replyLoading || !replyMessage.trim()}>
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </>
         )}

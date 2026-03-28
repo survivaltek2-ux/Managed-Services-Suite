@@ -19,6 +19,7 @@ export interface PartnerUser {
   status: "pending" | "approved" | "rejected" | "suspended";
   totalDeals: number;
   ytdRevenue: string | number;
+  isAdmin: boolean;
 }
 
 export function useAuth() {
