@@ -1,11 +1,11 @@
 import { db, tsdConfigsTable, tsdSyncLogsTable, partnerLeadsTable, partnerCommissionsTable, partnersTable, tsdDealMappingsTable } from "@workspace/db";
 import type { TsdConfig } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { createTsdConnector, resolveCredentialRef } from "@workspace/integrations-tsd";
-import type { TsdProvider } from "@workspace/integrations-tsd";
+import { createTsdConnector, createTsdConnectorWithAuth, resolveCredentialRef } from "@workspace/integrations-tsd";
+import type { TsdProvider, TsdConnector, TsdAuthCredentials } from "@workspace/integrations-tsd";
 import { safeJsonStringify } from "@workspace/integrations-tsd";
 import { safeDecryptSecret, getSyncInterval } from "./tsdSecrets.js";
-import { hasRecentMfaCode } from "./zoomSms.js";
+import { clearMfaCode } from "./zoomSms.js";
 
 const TSD_PROVIDERS: TsdProvider[] = ["avant", "telarus", "intelisys"];
 
@@ -17,21 +17,53 @@ async function getEnabledConfigs(provider?: TsdProvider): Promise<TsdConfig[]> {
   return db.select().from(tsdConfigsTable).where(eq(tsdConfigsTable.enabled, true));
 }
 
-function resolveCredential(provider: TsdProvider, dbCredRef: string | null, dbUsername: string | null = null, dbPassword: string | null = null): string | null {
+function buildConnectorForConfig(cfg: TsdConfig): TsdConnector | null {
+  const provider = cfg.provider as TsdProvider;
+
   const envCred = resolveCredentialRef(provider);
-  if (envCred) return envCred;
+  if (envCred) {
+    return createTsdConnector(provider, envCred);
+  }
+
   const envUsername = process.env[`${provider.toUpperCase()}_USERNAME`];
   const envPassword = process.env[`${provider.toUpperCase()}_PASSWORD`];
-  if (envUsername && envPassword) return `${envUsername}::${envPassword}`;
-  if (dbCredRef) {
-    const decrypted = safeDecryptSecret(dbCredRef);
-    return decrypted || null;
+  if (envUsername && envPassword) {
+    const credentials: TsdAuthCredentials = {
+      type: "username_password",
+      username: envUsername,
+      password: envPassword,
+      agentId: process.env[`${provider.toUpperCase()}_AGENT_ID`] || undefined,
+      partnerId: process.env[`${provider.toUpperCase()}_PARTNER_ID`] || undefined,
+    };
+    if (provider === "telarus" && cfg.mfaCode) {
+      credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+    }
+    return createTsdConnectorWithAuth(provider, credentials);
   }
-  if (dbUsername && dbPassword) {
-    const decryptedUsername = safeDecryptSecret(dbUsername);
-    const decryptedPassword = safeDecryptSecret(dbPassword);
-    return `${decryptedUsername}::${decryptedPassword}`;
+
+  if (cfg.credentialRef) {
+    const decrypted = safeDecryptSecret(cfg.credentialRef);
+    if (decrypted) return createTsdConnector(provider, decrypted);
   }
+
+  if (cfg.username && cfg.password) {
+    const decryptedUsername = safeDecryptSecret(cfg.username);
+    const decryptedPassword = safeDecryptSecret(cfg.password);
+    if (decryptedUsername && decryptedPassword) {
+      const credentials: TsdAuthCredentials = {
+        type: "username_password",
+        username: decryptedUsername,
+        password: decryptedPassword,
+        agentId: process.env[`${provider.toUpperCase()}_AGENT_ID`] || undefined,
+        partnerId: process.env[`${provider.toUpperCase()}_PARTNER_ID`] || undefined,
+      };
+      if (provider === "telarus" && cfg.mfaCode) {
+        credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+      }
+      return createTsdConnectorWithAuth(provider, credentials);
+    }
+  }
+
   return null;
 }
 
@@ -80,8 +112,8 @@ export async function pushDealToTSDs(deal: {
   })();
 
   for (const cfg of configs) {
-    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
-    if (!credRef) {
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector) {
       await logSync({
         provider: cfg.provider as TsdProvider,
         direction: "outbound",
@@ -94,7 +126,6 @@ export async function pushDealToTSDs(deal: {
     }
 
     try {
-      const connector = createTsdConnector(cfg.provider as TsdProvider, credRef);
       const result = await connector.pushDeal({
         title: deal.title,
         customerName: deal.customerName,
@@ -140,18 +171,28 @@ export async function syncLeadsFromTSDs(provider?: TsdProvider): Promise<void> {
   const configs = await getEnabledConfigs(provider);
 
   for (const cfg of configs) {
-    if (cfg.provider === "telarus") {
-      const hasMfa = await hasRecentMfaCode();
-      if (!hasMfa) {
-        console.warn("[TSD] Telarus MFA code not available — waiting for SMS webhook");
-      }
-    }
-
-    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
-    if (!credRef) continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector) continue;
 
     try {
-      const connector = createTsdConnector(cfg.provider as TsdProvider, credRef);
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const loginResult = await connector.login();
+        if (!loginResult.success) {
+          console.warn(`[TSD] ${cfg.provider} login failed: ${loginResult.error}`);
+          await logSync({
+            provider: cfg.provider as TsdProvider,
+            direction: "inbound",
+            entityType: "lead",
+            status: "failure",
+            errorMessage: `Authentication failed: ${loginResult.error}`,
+          });
+          continue;
+        }
+        if (cfg.provider === "telarus") {
+          await clearMfaCode();
+        }
+      }
+
       const since = cfg.lastLeadSyncAt || undefined;
       const leads = await connector.pullLeads(since ?? undefined);
 
@@ -227,18 +268,28 @@ export async function syncCommissionsFromTSDs(provider?: TsdProvider): Promise<v
   const configs = await getEnabledConfigs(provider);
 
   for (const cfg of configs) {
-    if (cfg.provider === "telarus") {
-      const hasMfa = await hasRecentMfaCode();
-      if (!hasMfa) {
-        console.warn("[TSD] Telarus MFA code not available — waiting for SMS webhook");
-      }
-    }
-
-    const credRef = resolveCredential(cfg.provider as TsdProvider, cfg.credentialRef, cfg.username, cfg.password);
-    if (!credRef) continue;
+    const connector = buildConnectorForConfig(cfg);
+    if (!connector) continue;
 
     try {
-      const connector = createTsdConnector(cfg.provider as TsdProvider, credRef);
+      if (connector.login && !connector.isAuthenticated?.()) {
+        const loginResult = await connector.login();
+        if (!loginResult.success) {
+          console.warn(`[TSD] ${cfg.provider} login failed: ${loginResult.error}`);
+          await logSync({
+            provider: cfg.provider as TsdProvider,
+            direction: "inbound",
+            entityType: "commission",
+            status: "failure",
+            errorMessage: `Authentication failed: ${loginResult.error}`,
+          });
+          continue;
+        }
+        if (cfg.provider === "telarus") {
+          await clearMfaCode();
+        }
+      }
+
       const since = cfg.lastCommissionSyncAt || undefined;
       const commissions = await connector.pullCommissions(since ?? undefined);
 

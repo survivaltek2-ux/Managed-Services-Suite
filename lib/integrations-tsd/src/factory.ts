@@ -1,4 +1,4 @@
-import type { TsdConnector, TsdProvider } from "./types.js";
+import type { TsdConnector, TsdProvider, TsdAuthCredentials } from "./types.js";
 import { AvantAdapter } from "./adapters/avant.js";
 import { TelarusAdapter } from "./adapters/telarus.js";
 import { IntelisysAdapter } from "./adapters/intelisys.js";
@@ -9,12 +9,28 @@ export function createTsdConnector(provider: TsdProvider, credentialRef: string)
       return new AvantAdapter(credentialRef);
     case "telarus": {
       const [apiKey, agentId] = credentialRef.split("::");
-      return new TelarusAdapter({ apiKey, agentId });
+      return new TelarusAdapter({ type: "api_key", apiKey, agentId });
     }
     case "intelisys": {
       const [apiKey, partnerId] = credentialRef.split("::");
       return new IntelisysAdapter({ apiKey, partnerId });
     }
+    default:
+      throw new Error(`Unknown TSD provider: ${provider}`);
+  }
+}
+
+export function createTsdConnectorWithAuth(provider: TsdProvider, credentials: TsdAuthCredentials): TsdConnector {
+  switch (provider) {
+    case "avant":
+      return new AvantAdapter(credentials.apiKey || "");
+    case "telarus":
+      return new TelarusAdapter(credentials);
+    case "intelisys":
+      return new IntelisysAdapter({
+        apiKey: credentials.apiKey || "",
+        partnerId: credentials.partnerId,
+      });
     default:
       throw new Error(`Unknown TSD provider: ${provider}`);
   }

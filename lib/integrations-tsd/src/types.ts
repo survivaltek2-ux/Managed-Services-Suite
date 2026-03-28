@@ -1,5 +1,15 @@
 export type TsdProvider = "avant" | "telarus" | "intelisys";
 
+export interface TsdAuthCredentials {
+  type: "api_key" | "username_password";
+  apiKey?: string;
+  agentId?: string;
+  partnerId?: string;
+  username?: string;
+  password?: string;
+  mfaCode?: string;
+}
+
 export interface TsdDeal {
   externalId?: string;
   title: string;
@@ -47,11 +57,21 @@ export interface TsdPushResult {
   error?: string;
 }
 
+export interface TsdLoginResult {
+  success: boolean;
+  sessionToken?: string;
+  requiresMfa?: boolean;
+  mfaMethod?: string;
+  error?: string;
+}
+
 export interface TsdConnector {
   provider: TsdProvider;
   pushDeal(deal: TsdDeal): Promise<TsdPushResult>;
   pullLeads(since?: Date): Promise<TsdLead[]>;
   pullCommissions(since?: Date): Promise<TsdCommission[]>;
   handleWebhook(rawBody: string, signature: string, secret: string): Promise<TsdWebhookEvent>;
-  testConnection(): Promise<{ ok: boolean; error?: string }>;
+  testConnection(): Promise<{ ok: boolean; error?: string; requiresMfa?: boolean }>;
+  login?(): Promise<TsdLoginResult>;
+  isAuthenticated?(): boolean;
 }

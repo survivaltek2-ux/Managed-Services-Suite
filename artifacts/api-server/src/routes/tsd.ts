@@ -3,8 +3,8 @@ import { db, tsdConfigsTable, tsdSyncLogsTable, tsdVendorMappingsTable, tsdDealP
 import { eq, and, desc, inArray, asc } from "drizzle-orm";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, type PartnerRequest } from "../middlewares/partnerAuth.js";
-import { resolveCredentialRef, createTsdConnector } from "@workspace/integrations-tsd";
-import type { TsdProvider } from "@workspace/integrations-tsd";
+import { resolveCredentialRef, createTsdConnector, createTsdConnectorWithAuth } from "@workspace/integrations-tsd";
+import type { TsdProvider, TsdAuthCredentials } from "@workspace/integrations-tsd";
 import { syncLeadsFromTSDs, syncCommissionsFromTSDs } from "../lib/tsdSync.js";
 import { encryptSecret, safeDecryptSecret } from "../lib/tsdSecrets.js";
 import { pushDeal, TSD_IDS, TSD_LABELS, type TsdId } from "../lib/tsd-adapter.js";
@@ -168,7 +168,23 @@ router.post("/admin/tsd/configs/:provider/test", requireAuth, requireAdmin, asyn
       return;
     }
 
-    const connector = createTsdConnector(provider as TsdProvider, cred.value);
+    let connector;
+    if (cred.type === "username_password" && provider === "telarus") {
+      const [username, password] = cred.value.split("::");
+      const credentials: TsdAuthCredentials = {
+        type: "username_password",
+        username,
+        password,
+        agentId: process.env.TELARUS_AGENT_ID || undefined,
+      };
+      if (cfg?.mfaCode) {
+        credentials.mfaCode = safeDecryptSecret(cfg.mfaCode) || undefined;
+      }
+      connector = createTsdConnectorWithAuth(provider, credentials);
+    } else {
+      connector = createTsdConnector(provider as TsdProvider, cred.value);
+    }
+
     const result = await connector.testConnection();
     res.json(result);
   } catch (err) {
