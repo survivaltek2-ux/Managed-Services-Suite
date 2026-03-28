@@ -166,7 +166,6 @@ export default function Quote() {
 
   const [step, setStep] = useState(1);
   const [isSuccess, setIsSuccess] = useState(false);
-
   const [selectedCats, setSelectedCats] = useState<CategoryId[]>([]);
   const [answers, setAnswers] = useState<Record<string, Record<string, any>>>({});
 

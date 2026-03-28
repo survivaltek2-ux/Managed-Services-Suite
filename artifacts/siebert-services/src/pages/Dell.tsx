@@ -270,7 +270,7 @@ export default function Dell() {
 
       {/* CTA */}
       <section className="py-24" style={{ background: `linear-gradient(135deg, #004A70 0%, ${DELL_BLUE} 100%)` }}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <h2 className="text-4xl font-display font-extrabold text-white mb-4">
               Ready to modernize your Dell infrastructure?

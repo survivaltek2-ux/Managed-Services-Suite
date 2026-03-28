@@ -22,7 +22,7 @@ export function Footer() {
               </div>
             </Link>
             <p className="text-white/70 leading-relaxed">
-              Technology Solutions. Delivered Simply. We provide enterprise-grade IT support, cloud solutions, and Zoom communications for modern businesses.
+              Your hybrid MSP — combining managed IT services with authorized reselling of enterprise technology. One partner for procurement, deployment, management, and support.
             </p>
             <div className="inline-block px-4 py-2 bg-white/5 border border-white/10 rounded-lg">
               <span className="text-sm font-bold text-primary flex items-center gap-2">
@@ -39,14 +39,14 @@ export function Footer() {
               {[
                 { label: 'Home', href: '/' },
                 { label: 'Services', href: '/services' },
+                { label: 'About Us', href: '/about' },
+                { label: 'Contact', href: '/contact' },
+                { label: 'Client Portal', href: '/portal' },
                 { label: 'Zoom Partner', href: '/zoom' },
                 { label: 'Extreme Networks', href: '/extreme-networks' },
                 { label: 'HP', href: '/hp' },
                 { label: 'Dell', href: '/dell' },
                 { label: 'Juniper Networks', href: '/juniper-networks' },
-                { label: 'About Us', href: '/about' },
-                { label: 'Contact', href: '/contact' },
-                { label: 'Client Portal', href: '/portal' },
               ].map((link) => (
                 <li key={link.label}>
                   <Link 
@@ -83,7 +83,7 @@ export function Footer() {
           {/* Newsletter */}
           <div>
             <h4 className="text-white font-display font-bold text-lg mb-6">Newsletter</h4>
-            <p className="text-white/70 mb-4">Stay updated with the latest in tech, cybersecurity, and Zoom features.</p>
+            <p className="text-white/70 mb-4">Stay updated with the latest in managed IT, cybersecurity, and vendor product news.</p>
             <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
               <Input 
                 type="email" 

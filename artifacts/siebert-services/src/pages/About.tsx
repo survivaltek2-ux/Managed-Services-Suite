@@ -17,8 +17,11 @@ export default function About() {
             <p className="text-lg text-muted-foreground leading-relaxed mb-6">
               Siebert Repair Services LLC (DBA Siebert Services) was founded with a singular mission: to demystify enterprise technology for businesses of all sizes. 
             </p>
+            <p className="text-lg text-muted-foreground leading-relaxed mb-6">
+              We believe that IT shouldn't be a roadblock or a black box. It should be the engine that drives your growth. As a hybrid MSP, we combine our own managed IT services with authorized reselling of enterprise products from top vendors — HP, Dell, Zoom, Extreme Networks, and Juniper — giving you partner-level pricing, expert deployment, and hands-on support from a single provider.
+            </p>
             <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-              We believe that IT shouldn't be a roadblock or a black box. It should be the engine that drives your growth. As a premier Managed Service Provider and reseller, we combine deep technical expertise with a commitment to human-centric support.
+              Our hybrid MSP model is simple: we bring together the best products from leading vendors with our own managed services — helpdesk, cybersecurity, cloud management, and more — so you get a complete IT solution from a single partner, backed by SLAs and 24/7 support.
             </p>
             
             <div className="grid grid-cols-2 gap-6">
@@ -49,8 +52,37 @@ export default function About() {
           </motion.div>
         </div>
 
+        {/* What We Do */}
+        <div className="mt-24 bg-navy rounded-3xl p-10 text-white shadow-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <h2 className="text-3xl font-display font-bold text-white mb-4">
+                Hybrid MSP. One partner for everything.
+              </h2>
+              <p className="text-white/70 leading-relaxed mb-6">
+                We don't just sell products — we build complete IT solutions. As a hybrid MSP, Siebert handles the full lifecycle: procurement from certified vendors, expert deployment, ongoing managed services, and SLA-backed support.
+              </p>
+            </div>
+            <div className="space-y-4">
+              {[
+                { title: "Certified Vendor Reseller", desc: "Partner-level pricing and access to HP, Dell, Zoom, Extreme Networks, and Juniper products." },
+                { title: "Managed Service Provider", desc: "24/7 helpdesk, proactive monitoring, patching, and SLA-backed support plans layered on top." },
+                { title: "Full Lifecycle Management", desc: "Procurement, deployment, ongoing management, and secure decommission — the hybrid MSP advantage." }
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-white">{item.title}</p>
+                    <p className="text-white/60 text-sm">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Values */}
-        <div className="mt-32">
+        <div className="mt-24">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-display font-bold text-navy">Our Core Values</h2>
           </div>
@@ -72,7 +104,7 @@ export default function About() {
             <Card className="bg-white border-none shadow-xl">
               <CardContent className="p-8">
                 <HeartHandshake className="w-10 h-10 text-primary mb-6" />
-                <h3 className="text-xl font-bold text-navy mb-3">Human Connection</h3>
+                <h3 className="text-xl font-bold text-navy mb-3">True Partnership</h3>
                 <p className="text-muted-foreground">Technology is complex, but our communication isn't. We speak your language and act as true partners.</p>
               </CardContent>
             </Card>

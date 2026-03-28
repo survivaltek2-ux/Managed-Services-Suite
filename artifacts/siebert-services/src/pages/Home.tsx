@@ -5,17 +5,16 @@ import { Button, Card, CardContent } from "@/components/ui";
 
 export default function Home() {
   const features = [
-    { icon: <Headphones className="w-6 h-6"/>, title: "24/7 IT Support", desc: "Round-the-clock monitoring and helpdesk for your team." },
-    { icon: <Cloud className="w-6 h-6"/>, title: "Cloud Services", desc: "Microsoft 365, AWS, and Azure migrations and management." },
-    { icon: <Shield className="w-6 h-6"/>, title: "Cybersecurity", desc: "Enterprise-grade protection against modern digital threats." },
-    { icon: <Server className="w-6 h-6"/>, title: "Infrastructure", desc: "Robust networking, firewall, and server deployments." }
+    { icon: <Headphones className="w-6 h-6"/>, title: "Managed IT & Helpdesk", desc: "24/7 monitoring, proactive maintenance, and tiered support plans with guaranteed SLAs." },
+    { icon: <Cloud className="w-6 h-6"/>, title: "Cloud Services", desc: "Microsoft 365, AWS, and Azure migrations and ongoing management — fully managed or co-managed." },
+    { icon: <Shield className="w-6 h-6"/>, title: "Cybersecurity", desc: "Enterprise-grade endpoint protection, compliance management, and threat detection." },
+    { icon: <Server className="w-6 h-6"/>, title: "Infrastructure", desc: "Networking, firewalls, and server deployments from certified vendor partners." }
   ];
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* HERO SECTION */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-navy">
-        {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
             src={`${import.meta.env.BASE_URL}images/hero-bg.png`} 
@@ -37,14 +36,14 @@ export default function Home() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                 </span>
-                Premier Technology Partner
+                Hybrid MSP & Technology Reseller
               </div>
               <h1 className="text-5xl lg:text-7xl font-display font-extrabold text-white leading-[1.1] mb-6 tracking-tight">
                 Technology Solutions. <br/>
                 <span className="text-gradient">Delivered Simply.</span>
               </h1>
               <p className="text-xl text-white/80 leading-relaxed mb-10 max-w-2xl">
-                Siebert Services is your dedicated MSP, providing enterprise-grade IT support, cybersecurity, cloud architecture, and unified communications for modern businesses.
+                Siebert Services is a hybrid MSP — combining our own managed IT services with authorized reselling of enterprise products from the industry's top vendors. One partner for procurement, deployment, management, and support.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
@@ -68,8 +67,8 @@ export default function Home() {
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">Comprehensive IT Solutions</h2>
-            <p className="text-lg text-muted-foreground">We handle the complex technology so you can focus on growing your business. From helpdesk to infrastructure, we've got you covered.</p>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">Hybrid MSP Services</h2>
+            <p className="text-lg text-muted-foreground">We pair our own managed IT services with the best products from our vendor partners — so you get a complete technology solution without the complexity. Every service backed by SLAs and 24/7 support.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -102,9 +101,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* VENDOR PARTNERS */}
+      <section className="py-20 bg-primary/5 border-y border-primary/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">Our Vendor Partners</h2>
+            <p className="text-lg text-muted-foreground">
+              As a hybrid MSP, we pair our managed services with products from the industry's leading vendors. Partner-level pricing, priority support, and expert deployment — all included.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[
+              { name: "Zoom", href: "/zoom", desc: "Certified Partner" },
+              { name: "HP", href: "/hp", desc: "Amplify Partner" },
+              { name: "Dell", href: "/dell", desc: "Partner Program" },
+              { name: "Extreme Networks", href: "/extreme-networks", desc: "Partner First" },
+              { name: "Juniper Networks", href: "/juniper-networks", desc: "Partner Advantage" }
+            ].map((vendor, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+              >
+                <Link href={vendor.href}>
+                  <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer">
+                    <h3 className="font-bold text-navy text-lg mb-1">{vendor.name}</h3>
+                    <p className="text-xs text-primary font-semibold">{vendor.desc}</p>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ZOOM PARTNER HIGHLIGHT */}
       <section className="py-24 bg-navy relative overflow-hidden">
-        {/* Background visual */}
         <div className="absolute inset-0 z-0">
           <img 
             src={`${import.meta.env.BASE_URL}images/zoom-bg.png`} 
@@ -128,7 +162,7 @@ export default function Home() {
                 Elevate your team's communication.
               </h2>
               <p className="text-lg text-white/70 mb-8 leading-relaxed">
-                As a fully certified Zoom Partner, Siebert Services provides the complete suite of Zoom products with local, white-glove support. Move beyond simple meetings to unified communications.
+                As a certified Zoom Partner, Siebert Services sells, deploys, and supports the complete Zoom suite — bundled with our managed IT services for a seamless, fully supported communications solution.
               </p>
               
               <ul className="space-y-4 mb-10">
@@ -158,7 +192,6 @@ export default function Home() {
               viewport={{ once: true }}
               className="relative hidden lg:block"
             >
-               {/* Decorative floating elements for tech feel */}
                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-blue-500/20 rounded-full blur-[100px] -z-10" />
                <div className="relative glass-dark rounded-3xl p-8 border border-white/10 shadow-2xl">
                  <div className="flex items-center gap-4 mb-6 border-b border-white/10 pb-6">
@@ -181,12 +214,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA SECTION */}
+      {/* WHY BUY FROM A RESELLER */}
       <section className="py-24 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-6">
+                Why work with a hybrid MSP?
+              </h2>
+              <p className="text-lg text-muted-foreground mb-8">
+                With Siebert, you don't just get products — you get a complete solution. We combine vendor procurement with our own managed services, so every purchase comes with expert deployment, ongoing management, and SLA-backed support.
+              </p>
+              <ul className="space-y-5">
+                {[
+                  { title: "Partner-Level Pricing", desc: "Our vendor partnerships give us access to pricing, promotions, and deal registration that you can't get buying direct." },
+                  { title: "Bundled Managed Services", desc: "Pair any hardware or software purchase with our managed IT plans — one invoice, one support number, one partner." },
+                  { title: "Expert Deployment & Migration", desc: "We don't just ship boxes. We design, configure, deploy, and migrate — with certified engineers on your project." },
+                  { title: "Ongoing Support & SLAs", desc: "After deployment, we manage and support your technology with guaranteed SLAs and 24/7 helpdesk access." }
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-4">
+                    <CheckCircle2 className="w-6 h-6 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-navy">{item.title}</span>
+                      <p className="text-muted-foreground text-sm">{item.desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-navy rounded-3xl p-8 text-white shadow-xl">
+              <h3 className="text-xl font-bold mb-6 font-display">The Hybrid MSP Advantage</h3>
+              <div className="space-y-4">
+                {[
+                  { label: "Procurement", desc: "We source hardware and software at partner pricing from HP, Dell, Zoom, and more." },
+                  { label: "Deployment", desc: "Certified engineers handle design, configuration, and installation." },
+                  { label: "Management", desc: "Ongoing monitoring, patching, and support with tiered SLA plans." },
+                  { label: "Lifecycle", desc: "From first boot to secure decommission — we manage the full lifecycle." }
+                ].map((t, i) => (
+                  <div key={i} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-white">{t.label}</p>
+                      <p className="text-white/60 text-sm">{t.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA SECTION */}
+      <section className="py-24 bg-primary/5 border-t border-primary/10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-display font-bold text-navy mb-6">Ready to upgrade your IT?</h2>
           <p className="text-xl text-muted-foreground mb-10">
-            Let's discuss how Siebert Services can streamline your technology, secure your data, and empower your workforce.
+            Let's discuss how Siebert Services can source, deploy, and manage the right technology for your business — at partner pricing with expert support.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/quote">

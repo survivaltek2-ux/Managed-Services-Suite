@@ -122,6 +122,35 @@ export default function ZoomPartner() {
           </div>
         </div>
       </section>
+
+      {/* Reseller CTA */}
+      <section className="py-20 bg-[#0B5CFF]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <div className="flex flex-col md:flex-row gap-10 items-center justify-between text-left">
+              <div className="flex-1">
+                <p className="text-white/60 text-sm font-bold uppercase tracking-widest mb-3">Certified Zoom Partner</p>
+                <h2 className="text-3xl font-display font-bold text-white mb-3">Get Zoom deployed and supported by your hybrid MSP.</h2>
+                <p className="text-white/70 leading-relaxed">
+                  Siebert handles licensing, deployment, migration, and ongoing management of Zoom products — bundled with our managed IT services for a complete communications solution.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 shrink-0">
+                <Link href="/quote">
+                  <Button className="h-12 px-8 bg-white text-[#0B5CFF] hover:bg-blue-50 font-bold">
+                    Get a Zoom Quote
+                  </Button>
+                </Link>
+                <Link href="/contact">
+                  <Button variant="outline" className="h-12 px-8 border-white/30 text-white hover:bg-white/10">
+                    Contact Us
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }
