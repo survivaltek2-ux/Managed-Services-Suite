@@ -1338,6 +1338,10 @@ function TicketsTab({ tickets, refresh, headers, exportCSV }: { tickets: any[]; 
 function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; refresh: () => void; headers: () => any; currentUserId?: number }) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "", company: "", phone: "", role: "client" });
+  const [isCreating, setIsCreating] = useState(false);
+  
   const filtered = useMemo(() => {
     if (!search) return users;
     const s = search.toLowerCase();
@@ -1360,9 +1364,85 @@ function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; re
     } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
+  const createUser = async () => {
+    if (!form.name || !form.email || !form.password || !form.company) {
+      toast({ title: "All fields are required", variant: "destructive" });
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        toast({ title: "User created successfully" });
+        setCreateOpen(false);
+        setForm({ name: "", email: "", password: "", company: "", phone: "", role: "client" });
+        refresh();
+      } else {
+        const data = await res.json();
+        toast({ title: data.message || "Failed to create user", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error creating user", variant: "destructive" });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <SearchBar value={search} onChange={setSearch} />
+      <div className="flex gap-3 items-center">
+        <div className="flex-1">
+          <SearchBar value={search} onChange={setSearch} />
+        </div>
+        <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> New User</Button>
+      </div>
+
+      {createOpen && (
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New User</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input placeholder="Full name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" placeholder="user@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Password</Label>
+                <Input type="password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Input placeholder="Company name" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone (optional)</Label>
+                <Input placeholder="Phone number" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <select className="h-9 px-3 rounded-md border text-sm bg-background w-full" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                  <option value="client">Client</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button onClick={createUser} disabled={isCreating}>{isCreating ? "Creating..." : "Create"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

@@ -4,6 +4,7 @@ import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTab
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache } from "../lib/email.js";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
@@ -522,6 +523,48 @@ router.get("/admin/users", requireAuth, requireAdmin, async (req: AuthRequest, r
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load users" });
+  }
+});
+
+router.post("/admin/users", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, email: rawEmail, password, company, phone, role } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    
+    if (!name || !email || !password || !company) {
+      res.status(400).json({ error: "validation_error", message: "name, email, password, and company are required" });
+      return;
+    }
+
+    const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (existing.length > 0) {
+      res.status(400).json({ error: "conflict", message: "An account with this email already exists" });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [user] = await db.insert(usersTable).values({
+      name,
+      email,
+      password: hashedPassword,
+      company,
+      phone: phone || null,
+      role: role || "client",
+    }).returning();
+
+    await logActivity(req.userId, "create", "user", user.id);
+    res.status(201).json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      company: user.company,
+      phone: user.phone,
+      role: user.role,
+      createdAt: user.createdAt,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create user" });
   }
 });
 
