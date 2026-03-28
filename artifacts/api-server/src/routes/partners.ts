@@ -834,6 +834,22 @@ router.put("/admin/partners/:id/tier", requireAuth, async (req, res) => {
   }
 });
 
+router.put("/admin/partners/:id/client-tickets", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { enabled } = req.body;
+    const [partner] = await db.update(partnersTable).set({ 
+      clientTicketsEnabled: typeof enabled === "boolean" ? enabled : !((await db.select({ clientTicketsEnabled: partnersTable.clientTicketsEnabled }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1))[0]?.clientTicketsEnabled),
+      updatedAt: new Date() 
+    }).where(eq(partnersTable.id, id)).returning();
+    if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
+    res.json({ clientTicketsEnabled: partner.clientTicketsEnabled });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to toggle client tickets" });
+  }
+});
+
 router.post("/admin/partners/promote/check", requireAuth, async (_req, res) => {
   try {
     const partners = await db.select({ id: partnersTable.id }).from(partnersTable);

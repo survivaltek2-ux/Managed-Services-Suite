@@ -38,6 +38,7 @@ export const partnersTable = pgTable("partners", {
   ssoProvider: text("sso_provider"),
   ssoId: text("sso_id"),
   isAdmin: boolean("is_admin").notNull().default(false),
+  clientTicketsEnabled: boolean("client_tickets_enabled").notNull().default(false),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

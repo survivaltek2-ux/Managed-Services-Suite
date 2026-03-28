@@ -51,7 +51,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const isPending = user.status === "pending";
-  const NAV_ITEMS = user.isAdmin ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS] : BASE_NAV_ITEMS;
+  const adminItems = user.isAdmin && (user as any).clientTicketsEnabled ? ADMIN_NAV_ITEMS : [];
+  const NAV_ITEMS = [...BASE_NAV_ITEMS, ...adminItems];
   const currentTab = NAV_ITEMS.find(i => location === i.href) || NAV_ITEMS[0];
 
   return (
