@@ -148,16 +148,28 @@ function TicketStatus({ status }: { status: string }) {
 function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({ subject: "", description: "", priority: "medium", category: "general" });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError("");
     try {
       const res = await fetch("/api/partner/tickets", {
         method: "POST", headers: getAuthHeaders(), body: JSON.stringify(form),
       });
-      if (res.ok) { onCreated(); onClose(); }
-    } finally { setSubmitting(false); }
+      if (res.ok) {
+        onCreated();
+        onClose();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || "Failed to submit ticket. Please try again.");
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -200,6 +212,11 @@ function CreateTicketModal({ onClose, onCreated }: { onClose: () => void; onCrea
             </div>
           </form>
         </div>
+        {error && (
+          <div className="px-4 py-2 bg-red-50 border-t border-red-200">
+            <p className="text-xs text-red-600 font-medium">{error}</p>
+          </div>
+        )}
         <div className="px-4 py-3 border-t border-[#d8dde6] bg-[#fafaf9] flex justify-end gap-2">
           <button type="button" onClick={onClose} className="sf-btn sf-btn-neutral">Cancel</button>
           <button type="submit" form="ticket-form" disabled={submitting} className="sf-btn sf-btn-primary">

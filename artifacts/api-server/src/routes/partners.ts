@@ -711,6 +711,10 @@ router.get("/partner/tickets", requirePartnerAuth, async (req: PartnerRequest, r
 });
 
 router.post("/partner/tickets", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) {
+    res.status(403).json({ error: "forbidden", message: "Admin accounts cannot submit support tickets. Please use a partner account." });
+    return;
+  }
   try {
     const { subject, description, category, priority } = req.body;
     if (!subject || !description) {
