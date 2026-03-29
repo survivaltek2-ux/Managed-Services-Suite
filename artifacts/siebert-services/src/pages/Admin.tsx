@@ -938,6 +938,7 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
 function ContactsTab({ contacts, refresh, headers, exportCSV }: { contacts: any[]; refresh: () => void; headers: () => any; exportCSV: () => void }) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [selectedContact, setSelectedContact] = useState<any>(null);
   const filtered = useMemo(() => {
     if (!search) return contacts;
     const s = search.toLowerCase();
@@ -948,47 +949,92 @@ function ContactsTab({ contacts, refresh, headers, exportCSV }: { contacts: any[
     if (!confirm("Delete?")) return;
     try {
       await fetch(`/api/admin/contacts/${id}`, { method: "DELETE", headers: headers() });
-      toast({ title: "Deleted" }); refresh();
+      toast({ title: "Deleted" }); 
+      if (selectedContact?.id === id) setSelectedContact(null);
+      refresh();
     } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
+  const handleEmail = (email: string) => {
+    window.location.href = `mailto:${email}?subject=Re: Your Inquiry`;
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between gap-4">
-        <SearchBar value={search} onChange={setSearch} />
-        <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" />Export CSV</Button>
-      </div>
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-muted-foreground text-xs uppercase">
-              <tr>
-                <th className="px-5 py-3 text-left">Date</th>
-                <th className="px-5 py-3 text-left">Name</th>
-                <th className="px-5 py-3 text-left">Email</th>
-                <th className="px-5 py-3 text-left">Company</th>
-                <th className="px-5 py-3 text-left">Service</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => (
-                <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50">
-                  <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-3 font-medium">{c.name}</td>
-                  <td className="px-5 py-3">{c.email}</td>
-                  <td className="px-5 py-3">{c.company || "-"}</td>
-                  <td className="px-5 py-3">{c.service || "-"}</td>
-                  <td className="px-5 py-3 text-right">
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(c.id)}><Trash2 className="w-4 h-4" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No contacts found.</div>}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* List */}
+      <div className="lg:col-span-1 space-y-4">
+        <div className="flex justify-between gap-2">
+          <div className="flex-1">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+          <Button variant="outline" onClick={exportCSV} size="sm"><Download className="w-4 h-4" /></Button>
         </div>
-      </Card>
+        <Card className="max-h-[600px] overflow-y-auto">
+          <div className="space-y-1">
+            {filtered.map(c => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedContact(c)}
+                className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors ${selectedContact?.id === c.id ? "bg-primary/10 border-primary" : ""}`}
+              >
+                <p className="font-medium text-sm">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{c.email}</p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(c.createdAt).toLocaleDateString()}</p>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="p-8 text-center text-xs text-muted-foreground">No contacts</div>}
+          </div>
+        </Card>
+      </div>
+
+      {/* Detail View */}
+      <div className="lg:col-span-2">
+        {selectedContact ? (
+          <Card className="h-full flex flex-col">
+            <div className="border-b p-4 flex items-start justify-between">
+              <div>
+                <h3 className="font-bold text-lg">{selectedContact.name}</h3>
+                <p className="text-sm text-muted-foreground">{selectedContact.email}</p>
+                {selectedContact.phone && <p className="text-sm text-muted-foreground">{selectedContact.phone}</p>}
+              </div>
+              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(selectedContact.id)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+              <div>
+                <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Company</p>
+                <p className="text-sm">{selectedContact.company || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Service Interest</p>
+                <p className="text-sm">{selectedContact.service || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Submitted</p>
+                <p className="text-sm">{new Date(selectedContact.createdAt).toLocaleString()}</p>
+              </div>
+              <div className="border-t pt-4">
+                <p className="text-xs uppercase font-semibold text-muted-foreground mb-2">Message</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedContact.message}</p>
+              </div>
+            </div>
+            <div className="border-t p-4 flex gap-2">
+              <Button size="sm" onClick={() => handleEmail(selectedContact.email)} className="gap-2">
+                <Mail className="w-4 h-4" /> Reply via Email
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                navigator.clipboard.writeText(`${selectedContact.email}`);
+                toast({ title: "Email copied" });
+              }}>Copy Email</Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="h-full flex items-center justify-center text-muted-foreground">
+            <p>Select a contact to view details</p>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
