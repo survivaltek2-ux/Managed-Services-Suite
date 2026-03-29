@@ -72,6 +72,10 @@ export function requirePartnerAuth(req: PartnerRequest, res: Response, next: Nex
   res.status(401).json({ error: "unauthorized", message: "Invalid token payload" });
 }
 
+export function isMainSiteAdmin(req: PartnerRequest): boolean {
+  return req.partnerId === MAIN_SITE_ADMIN_SENTINEL;
+}
+
 export function requirePartnerAdmin(req: PartnerRequest, res: Response, next: NextFunction) {
   requirePartnerAuth(req, res, () => {
     if (!req.partnerIsAdmin) {

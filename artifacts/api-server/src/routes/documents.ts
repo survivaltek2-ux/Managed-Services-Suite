@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { Response } from "express";
 import { db, documentsTable, partnersTable } from "@workspace/db";
 import { eq, and, or, isNull, desc } from "drizzle-orm";
-import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
+import { requirePartnerAuth, PartnerRequest, isMainSiteAdmin } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
@@ -47,6 +47,10 @@ router.get("/partner/documents", requirePartnerAuth, async (req: PartnerRequest,
 // ─── Partner: Upload document ─────────────────────────────────────────────────
 
 router.post("/partner/documents", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) {
+    res.status(403).json({ error: "forbidden", message: "Admin accounts cannot upload documents here. Use the admin panel instead." });
+    return;
+  }
   try {
     const { name, description, filename, mimeType, size, content, category, tags } = req.body;
     if (!name || !filename || !content) {

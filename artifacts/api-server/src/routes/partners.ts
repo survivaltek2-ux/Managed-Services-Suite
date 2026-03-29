@@ -3,16 +3,12 @@ import { Response } from "express";
 import bcrypt from "bcryptjs";
 import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
-import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
+import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
-
-function isMainSiteAdmin(req: PartnerRequest): boolean {
-  return req.partnerId === MAIN_SITE_ADMIN_SENTINEL;
-}
 
 // ─── Tier Promotion (Revenue-based) ────────────────────────────────────────────
 const TIER_THRESHOLDS = {
