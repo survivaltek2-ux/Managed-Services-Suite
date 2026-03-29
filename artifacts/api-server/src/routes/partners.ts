@@ -117,6 +117,32 @@ router.get("/partner/auth/me", requirePartnerAuth, async (req: PartnerRequest, r
   }
 });
 
+router.post("/partner/auth/change-password", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: "validation_error", message: "currentPassword and newPassword are required" });
+      return;
+    }
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (!partner) {
+      res.status(404).json({ error: "not_found", message: "Partner not found" });
+      return;
+    }
+    const valid = await bcrypt.compare(currentPassword, partner.password);
+    if (!valid) {
+      res.status(401).json({ error: "unauthorized", message: "Current password is incorrect" });
+      return;
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.update(partnersTable).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(partnersTable.id, req.partnerId!));
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to change password" });
+  }
+});
+
 router.put("/partner/profile", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
     const { companyName, contactName, phone, website, businessType, specializations, address, city, state, zip } = req.body;
