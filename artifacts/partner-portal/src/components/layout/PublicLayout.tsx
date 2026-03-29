@@ -7,7 +7,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
-        <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <div className="container mx-auto px-3 sm:px-4 h-16 sm:h-20 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group shrink-0">
             <div className="bg-primary text-white p-1 sm:p-1.5 rounded-lg group-hover:scale-105 transition-transform">
               <Building2 className="w-4 sm:w-5 h-4 sm:h-5" />
