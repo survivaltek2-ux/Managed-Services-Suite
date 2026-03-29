@@ -25,6 +25,7 @@ import AdminCommissions from "./pages/AdminCommissions";
 import AdminTsdVendorRouting from "./pages/AdminTsdVendorRouting";
 import AdminDocuments from "./pages/AdminDocuments";
 import AdminInvoices from "./pages/AdminInvoices";
+import AdminLeads from "./pages/AdminLeads";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -71,6 +72,7 @@ function Router() {
 
       {/* Admin-only Partner Management Routes */}
       <Route path="/admin/partners"><ProtectedRoute component={AdminPartners} /></Route>
+      <Route path="/admin/leads"><ProtectedRoute component={AdminLeads} /></Route>
       <Route path="/admin/commissions"><ProtectedRoute component={AdminCommissions} /></Route>
       <Route path="/admin/tsd-vendor-routing"><ProtectedRoute component={AdminTsdVendorRouting} /></Route>
       <Route path="/admin/documents"><ProtectedRoute component={AdminDocuments} /></Route>

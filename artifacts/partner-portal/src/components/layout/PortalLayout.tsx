@@ -26,7 +26,8 @@ import {
   FileText,
   RefreshCw,
   CreditCard,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ const BASE_NAV_ITEMS = [
 const ADMIN_NAV_ITEMS = [
   { href: "/client-tickets", label: "Client Tickets", icon: Users },
   { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+  { href: "/admin/leads", label: "Manage Leads", icon: AlertCircle },
   { href: "/admin/partners", label: "Partners", icon: Building2 },
   { href: "/admin/commissions", label: "Commissions (Admin)", icon: CreditCard },
   { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
