@@ -5,7 +5,7 @@ import { loginCodesTable, partnersTable } from "@workspace/db/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { generateToken, requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
-import { sendLoginCode } from "../lib/email.js";
+import { sendLoginCode, sendUserRegistrationNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -46,6 +46,11 @@ router.post("/auth/register", async (req, res) => {
         createdAt: user.createdAt,
       }
     });
+    sendUserRegistrationNotification({
+      name: user.name,
+      email: user.email,
+      company: user.company,
+    }).catch(err => console.error("[Email] User registration notification error:", err));
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "server_error", message: "Registration failed" });

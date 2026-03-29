@@ -5,7 +5,7 @@ import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourc
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
-import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification } from "../lib/email.js";
+import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
@@ -39,11 +39,18 @@ async function promotePartnerByRevenue(partnerId: number) {
     }
     
     if (newTier !== partner.tier) {
-      await db.update(partnersTable).set({
+      const [updated] = await db.update(partnersTable).set({
         tier: newTier as any,
         updatedAt: new Date(),
-      }).where(eq(partnersTable.id, partnerId));
+      }).where(eq(partnersTable.id, partnerId)).returning();
       console.log(`✓ Partner #${partnerId} promoted: ${partner.tier} → ${newTier} (YTD: $${ytd.toLocaleString()})`);
+      if (updated) {
+        sendPartnerTierChangeNotification({
+          companyName: updated.companyName,
+          contactName: updated.contactName,
+          email: updated.email,
+        }, partner.tier, newTier).catch(err => console.error("[Email] Partner auto-promotion tier notification error:", err));
+      }
     }
   } catch (err) {
     console.error("Error promoting partner:", err);
@@ -75,6 +82,11 @@ router.post("/partner/auth/register", async (req, res) => {
     }).returning();
     const token = generatePartnerToken(partner.id, partner.isAdmin);
     res.status(201).json({ token, partner: sanitizePartner(partner) });
+    sendPartnerRegistrationNotification({
+      companyName: partner.companyName,
+      contactName: partner.contactName,
+      email: partner.email,
+    }).catch(err => console.error("[Email] Partner registration notification error:", err));
   } catch (err) {
     console.error("Partner register error:", err);
     res.status(500).json({ error: "server_error", message: "Registration failed" });
@@ -847,6 +859,7 @@ router.put("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthReq
   try {
     const id = parseInt(req.params.id);
     const { companyName, contactName, email, phone, website, address, city, state, zip, country, businessType, yearsInBusiness, employeeCount, annualRevenue, specializations, tier, status } = req.body;
+    const [existing] = await db.select({ status: partnersTable.status, tier: partnersTable.tier }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
     const updates: Record<string, any> = { updatedAt: new Date() };
     if (companyName !== undefined) updates.companyName = companyName;
     if (contactName !== undefined) updates.contactName = contactName;
@@ -871,6 +884,20 @@ router.put("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthReq
     const [partner] = await db.update(partnersTable).set(updates).where(eq(partnersTable.id, id)).returning();
     if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
     res.json(sanitizePartner(partner));
+    if (status === "approved" && existing && existing.status !== "approved") {
+      sendPartnerApprovalNotification({
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }).catch(err => console.error("[Email] Partner approval notification error:", err));
+    }
+    if (tier !== undefined && existing && existing.tier !== tier) {
+      sendPartnerTierChangeNotification({
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }, existing.tier, tier).catch(err => console.error("[Email] Partner tier change notification error:", err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update partner" });
@@ -905,25 +932,42 @@ router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: Auth
   }
 });
 
-router.put("/admin/partners/:id/approve", requireAuth, async (req, res) => {
+router.put("/admin/partners/:id/approve", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    const [existing] = await db.select({ status: partnersTable.status }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
+    const wasAlreadyApproved = existing?.status === "approved";
     const [partner] = await db.update(partnersTable).set({
       status: "approved", approvedAt: new Date(), updatedAt: new Date(),
     }).where(eq(partnersTable.id, id)).returning();
     res.json(sanitizePartner(partner));
+    if (partner && !wasAlreadyApproved) {
+      sendPartnerApprovalNotification({
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }).catch(err => console.error("[Email] Partner approval notification error:", err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to approve partner" });
   }
 });
 
-router.put("/admin/partners/:id/tier", requireAuth, async (req, res) => {
+router.put("/admin/partners/:id/tier", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const { tier } = req.body;
+    const [existing] = await db.select({ tier: partnersTable.tier }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
     const [partner] = await db.update(partnersTable).set({ tier, updatedAt: new Date() }).where(eq(partnersTable.id, id)).returning();
     res.json(sanitizePartner(partner));
+    if (partner && existing && existing.tier !== tier) {
+      sendPartnerTierChangeNotification({
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }, existing.tier, tier).catch(err => console.error("[Email] Partner tier change notification error:", err));
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update tier" });

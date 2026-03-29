@@ -507,6 +507,196 @@ export async function sendTrainingRequestNotification(request: {
   ]);
 }
 
+export async function sendPartnerRegistrationNotification(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}) {
+  const cfg = await loadEmailConfig();
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Partner Registration</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">A new partner has registered and is awaiting approval.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Company</td><td style="padding: 10px 12px; font-weight: 600;">${esc(partner.companyName)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Contact</td><td style="padding: 10px 12px;">${esc(partner.contactName)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Email</td><td style="padding: 10px 12px;"><a href="mailto:${esc(partner.email)}" style="color: #0176d3;">${esc(partner.email)}</a></td></tr>
+        </table>
+        <p style="font-size: 14px; margin: 16px 0 0;">Please review and approve or reject this partner application in the admin portal.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services Partner Portal.</p>
+      </div>
+    </div>
+  `;
+
+  const partnerHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Welcome to the Siebert Services Partner Program</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Thank you for registering as a Siebert Services partner! We've received your application for <strong>${esc(partner.companyName)}</strong> and our team will review it shortly.</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">You'll receive a confirmation email once your account has been approved. In the meantime, if you have any questions, don't hesitate to reach out.</p>
+        <p style="font-size: 14px; margin: 0 0 4px;">Contact us:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:partners@siebertrservices.com" style="color: #0176d3;">partners@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Partner Team</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(cfg.notificationEmail, `New Partner Registration: ${esc(partner.companyName)}`, adminHtml),
+    sendEmail(partner.email, "Welcome to the Siebert Services Partner Program", partnerHtml),
+  ]);
+}
+
+export async function sendPartnerApprovalNotification(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}) {
+  const portalUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #2e844a); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Your Partner Account is Approved!</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Great news! Your partner account for <strong>${esc(partner.companyName)}</strong> has been approved. You can now log in to the Partner Portal to access all available resources, register deals, track commissions, and more.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(portalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">Log In to Partner Portal</a>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 4px;">Need help getting started? Contact us:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:partners@siebertrservices.com" style="color: #0176d3;">partners@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Partner Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(partner.email, "Your Siebert Services Partner Account is Approved", html);
+}
+
+export async function sendPartnerTierChangeNotification(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}, oldTier: string, newTier: string) {
+  const tierLabels: Record<string, string> = {
+    registered: "Registered",
+    silver: "Silver",
+    gold: "Gold",
+    platinum: "Platinum",
+  };
+  const tierColors: Record<string, string> = {
+    registered: "#706e6b",
+    silver: "#a8a29e",
+    gold: "#f59e0b",
+    platinum: "#7c3aed",
+  };
+  const tierBenefits: Record<string, string> = {
+    silver: "increased commission rates, priority deal support, and access to Silver-tier resources",
+    gold: "higher commission rates, dedicated account support, Gold-tier resources, and co-marketing opportunities",
+    platinum: "our top commission rates, a dedicated partner manager, Platinum-tier resources, and full co-marketing support",
+    registered: "access to the Partner Portal, deal registration, and base-tier resources",
+  };
+
+  const tierLabel = tierLabels[newTier] || newTier;
+  const tierColor = tierColors[newTier] || "#0176d3";
+  const benefits = tierBenefits[newTier] || "updated partner benefits";
+  const portalUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners";
+
+  const tierOrder = ["registered", "silver", "gold", "platinum"];
+  const isUpgrade = tierOrder.indexOf(newTier) > tierOrder.indexOf(oldTier);
+  const changeVerb = isUpgrade ? "upgraded" : "updated";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, ${tierColor}); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Your Partner Tier Has Changed</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">The partner tier for <strong>${esc(partner.companyName)}</strong> has been ${changeVerb} from <strong>${esc(tierLabels[oldTier] || oldTier)}</strong> to <strong style="color: ${tierColor};">${esc(tierLabel)}</strong> in the Siebert Services Partner Program.</p>
+        <div style="background: #f9f9f9; border-left: 4px solid ${tierColor}; padding: 14px 16px; margin: 16px 0; border-radius: 0 4px 4px 0;">
+          <p style="font-size: 14px; margin: 0 0 4px; font-weight: 600; color: ${tierColor};">${esc(tierLabel)} Tier</p>
+          <p style="font-size: 14px; margin: 0; color: #444;">Your ${esc(tierLabel)} status includes ${benefits}. Log in to the Partner Portal to explore your current benefits.</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(portalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">View Partner Portal</a>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 4px;">Questions about your tier? Contact us:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:partners@siebertrservices.com" style="color: #0176d3;">partners@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Partner Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(partner.email, `Your Siebert Services partner tier has been ${changeVerb} to ${esc(tierLabel)}`, html);
+}
+
+export async function sendUserRegistrationNotification(user: {
+  name: string;
+  email: string;
+  company: string;
+}) {
+  const cfg = await loadEmailConfig();
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New User Registration</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">A new user has registered on the Siebert Services platform.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Name</td><td style="padding: 10px 12px; font-weight: 600;">${esc(user.name)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Email</td><td style="padding: 10px 12px;"><a href="mailto:${esc(user.email)}" style="color: #0176d3;">${esc(user.email)}</a></td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Company</td><td style="padding: 10px 12px;">${esc(user.company)}</td></tr>
+        </table>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services website.</p>
+      </div>
+    </div>
+  `;
+
+  const userHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Welcome to Siebert Services</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(user.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Welcome to Siebert Services! Your account has been created and you can now log in to access your client portal, track support tickets, view proposals, and more.</p>
+        <p style="font-size: 14px; margin: 0 0 4px;">If you have any questions or need assistance, you can reach us at:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:support@siebertrservices.com" style="color: #0176d3;">support@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Team</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(cfg.notificationEmail, `New User Registration: ${esc(user.name)} — ${esc(user.company)}`, adminHtml),
+    sendEmail(user.email, "Welcome to Siebert Services", userHtml),
+  ]);
+}
+
 export async function sendLoginCode(email: string, code: string, type: "user" | "partner") {
   const portalName = type === "partner" ? "Partner Portal" : "Admin Portal";
   const html = `
