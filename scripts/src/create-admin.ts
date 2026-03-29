@@ -25,7 +25,6 @@ async function createAdmin() {
     role: "admin",
   });
   console.log(`✅ Admin user created: ${ADMIN_EMAIL}`);
-  console.log(`🔑 Password: ${ADMIN_PASSWORD}`);
   console.log(`⚠️  Please change this password after first login`);
 }
 
