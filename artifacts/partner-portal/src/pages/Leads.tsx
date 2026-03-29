@@ -174,15 +174,15 @@ export default function Leads() {
           aria-modal="true"
           onKeyDown={e => e.key === "Escape" && setShowSubmitModal(false)}
         >
-          <div className="bg-white w-full max-w-xl rounded-lg shadow-xl border border-[#d8dde6] flex flex-col">
+          <form onSubmit={handleSubmit} className="bg-white w-full max-w-xl rounded-lg shadow-xl border border-[#d8dde6] flex flex-col">
             <div className="px-6 py-4 border-b border-[#d8dde6] flex justify-between items-center">
               <h2 className="text-lg font-bold text-foreground">Submit a Lead</h2>
-              <button onClick={() => setShowSubmitModal(false)} className="text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setShowSubmitModal(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 flex-1 overflow-y-auto">
+            <div className="p-6 space-y-4 flex-1 overflow-y-auto">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name *</label>
                 <input
@@ -252,7 +252,7 @@ export default function Leads() {
                   onChange={e => setFormData({ ...formData, notes: e.target.value })}
                 />
               </div>
-            </form>
+            </div>
 
             <div className="px-6 py-4 border-t border-[#d8dde6] flex justify-end gap-2">
               <button type="button" onClick={() => setShowSubmitModal(false)} className="sf-btn sf-btn-neutral">
@@ -266,7 +266,7 @@ export default function Leads() {
                 {isSubmitting ? "Submitting..." : "Submit Lead"}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </PortalLayout>
