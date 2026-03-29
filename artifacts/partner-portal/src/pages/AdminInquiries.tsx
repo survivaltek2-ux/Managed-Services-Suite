@@ -42,7 +42,7 @@ export default function AdminInquiries() {
         contacts: "/api/admin/contacts",
         quotes: "/api/admin/quotes",
         proposals: "/api/admin/proposals",
-        tickets: "/api/admin/tickets",
+        tickets: "/api/admin/partner/tickets",
       };
       const res = await fetch(endpoints[tab], { headers });
       if (res.ok) {
@@ -63,7 +63,7 @@ export default function AdminInquiries() {
         contacts: "/api/admin/export/contacts",
         quotes: "/api/admin/quotes",
         proposals: "/api/admin/proposals",
-        tickets: "/api/admin/tickets",
+        tickets: "/api/admin/partner/tickets",
       };
       const res = await fetch(endpoints[activeTab], { headers });
       if (res.ok) {
@@ -423,7 +423,7 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
   const fetchDetail = async (id: number) => {
     setLoadingDetail(true);
     try {
-      const res = await fetch(`/api/admin/tickets/${id}`, { headers });
+      const res = await fetch(`/api/admin/partner/tickets/${id}`, { headers });
       if (res.ok) setTicketDetail(await res.json());
     } catch {
       /* ignore */
@@ -446,7 +446,7 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
 
   const updateStatus = async (id: number, status: string) => {
     try {
-      await fetch(`/api/admin/tickets/${id}/status`, { method: "PUT", headers, body: JSON.stringify({ status }) });
+      await fetch(`/api/admin/partner/tickets/${id}`, { method: "PUT", headers, body: JSON.stringify({ status }) });
       toast({ title: "Status updated", description: "Client will be notified by email." });
       refresh();
       fetchDetail(id);
@@ -459,7 +459,7 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
     if (!replyText.trim() || !selected) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/admin/tickets/${selected.id}/messages`, {
+      const res = await fetch(`/api/admin/partner/tickets/${selected.id}/messages`, {
         method: "POST",
         headers,
         body: JSON.stringify({ message: replyText.trim() }),
@@ -479,7 +479,7 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this ticket?")) return;
     try {
-      await fetch(`/api/admin/tickets/${id}`, { method: "DELETE", headers });
+      await fetch(`/api/admin/partner/tickets/${id}`, { method: "DELETE", headers });
       toast({ title: "Deleted" });
       if (selected?.id === id) { setSelected(null); setTicketDetail(null); }
       refresh();

@@ -53,6 +53,42 @@ router.post("/quotes", async (req, res) => {
   }
 });
 
+// ─── Quote Requests (Admin) ──────────────────────────────────────────────────
+
+router.get("/admin/quotes", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const quotes = await db.select().from(quotesTable).orderBy(desc(quotesTable.createdAt));
+    res.json(quotes.map(q => ({ ...q, services: (() => { try { return JSON.parse(q.services); } catch { return [q.services]; } })() })));
+  } catch (err) {
+    console.error("Admin quotes error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to load quotes" });
+  }
+});
+
+router.put("/admin/quotes/:id/status", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { status } = req.body;
+    const [quote] = await db.update(quotesTable).set({ status }).where(eq(quotesTable.id, id)).returning();
+    if (!quote) { res.status(404).json({ error: "not_found" }); return; }
+    res.json({ ...quote, services: (() => { try { return JSON.parse(quote.services); } catch { return [quote.services]; } })() });
+  } catch (err) {
+    console.error("Update quote status error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to update quote status" });
+  }
+});
+
+router.delete("/admin/quotes/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(quotesTable).where(eq(quotesTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete quote error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete quote" });
+  }
+});
+
 // ─── Proposal Management (Admin) ────────────────────────────────────────────
 
 router.get("/admin/proposals", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {

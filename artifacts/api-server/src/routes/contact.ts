@@ -1,8 +1,40 @@
 import { Router, type IRouter } from "express";
+import { Response } from "express";
 import { db, contactsTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { sendContactFormNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
+
+function requireAdmin(req: AuthRequest, res: Response, next: Function) {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Admin access required" });
+    return;
+  }
+  next();
+}
+
+router.get("/admin/contacts", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const contacts = await db.select().from(contactsTable).orderBy(desc(contactsTable.createdAt));
+    res.json(contacts);
+  } catch (err) {
+    console.error("Admin contacts error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to load contacts" });
+  }
+});
+
+router.delete("/admin/contacts/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(contactsTable).where(eq(contactsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete contact error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete contact" });
+  }
+});
 
 router.post("/contact", async (req, res) => {
   try {

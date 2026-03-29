@@ -1166,6 +1166,33 @@ router.get("/admin/partner/tickets", requireAuth, async (_req, res) => {
   }
 });
 
+router.get("/admin/partner/tickets/:id", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [ticket] = await db.select().from(partnerSupportTicketsTable).where(eq(partnerSupportTicketsTable.id, id)).limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+    const messages = await db.select().from(partnerTicketMessagesTable)
+      .where(eq(partnerTicketMessagesTable.ticketId, id))
+      .orderBy(asc(partnerTicketMessagesTable.createdAt));
+    res.json({ ...ticket, messages });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load ticket" });
+  }
+});
+
+router.delete("/admin/partner/tickets/:id", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(partnerTicketMessagesTable).where(eq(partnerTicketMessagesTable.ticketId, id));
+    await db.delete(partnerSupportTicketsTable).where(eq(partnerSupportTicketsTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete ticket" });
+  }
+});
+
 router.put("/admin/partner/tickets/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
