@@ -130,7 +130,7 @@ export function Navbar() {
           <div className="hidden lg:flex items-center gap-4">
             <div className={cn("flex items-center gap-2 text-sm font-semibold mr-2", isScrolled ? "text-navy" : "text-white")}>
               <PhoneCall className="w-4 h-4 text-primary" />
-              <span>1-800-SIEBERT</span>
+              <span>866-484-9180</span>
             </div>
             <Link href="/portal">
               <Button variant={isScrolled ? "outline" : "ghost"} className={cn(!isScrolled && "text-white hover:bg-white/10")}>

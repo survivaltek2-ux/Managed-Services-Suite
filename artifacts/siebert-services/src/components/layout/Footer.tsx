@@ -67,11 +67,11 @@ export function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start gap-3 text-white/70">
                 <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
-                <span>123 Tech Boulevard, Suite 400<br/>Innovation City, ST 12345</span>
+                <span>4 Maple Court<br/>Washingtonville, NY 10992</span>
               </li>
               <li className="flex items-center gap-3 text-white/70">
                 <Phone className="w-5 h-5 text-primary shrink-0" />
-                <span>1-800-SIEBERT</span>
+                <span>866-484-9180</span>
               </li>
               <li className="flex items-center gap-3 text-white/70">
                 <Mail className="w-5 h-5 text-primary shrink-0" />
