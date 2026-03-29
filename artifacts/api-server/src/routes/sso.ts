@@ -140,7 +140,26 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
         .limit(1);
 
       if (!partner) {
-        res.redirect(`/partners/login?sso_error=no_account`);
+        const [adminUser] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.email, email))
+          .limit(1);
+
+        if (!adminUser || adminUser.role !== "admin") {
+          res.redirect(`/partners/login?sso_error=no_account`);
+          return;
+        }
+
+        if (!adminUser.ssoId) {
+          await db
+            .update(usersTable)
+            .set({ ssoProvider: "microsoft", ssoId })
+            .where(eq(usersTable.id, adminUser.id));
+        }
+
+        const token = jwt.sign({ userId: adminUser.id, role: adminUser.role }, JWT_SECRET, { expiresIn: "7d" });
+        res.redirect(`/partners/login?sso_token=${token}`);
         return;
       }
       if (!partner.ssoId) {

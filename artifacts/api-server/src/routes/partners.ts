@@ -3,12 +3,16 @@ import { Response } from "express";
 import bcrypt from "bcryptjs";
 import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
-import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest } from "../middlewares/partnerAuth.js";
+import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
+
+function isMainSiteAdmin(req: PartnerRequest): boolean {
+  return req.partnerId === MAIN_SITE_ADMIN_SENTINEL;
+}
 
 // ─── Tier Promotion (Revenue-based) ────────────────────────────────────────────
 const TIER_THRESHOLDS = {
@@ -108,6 +112,25 @@ router.post("/partner/auth/login", async (req, res) => {
 
 router.get("/partner/auth/me", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
+    if (req.partnerId === MAIN_SITE_ADMIN_SENTINEL) {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.mainSiteUserId!)).limit(1);
+      if (!user) { res.status(404).json({ error: "not_found", message: "Admin user not found" }); return; }
+      res.json({
+        id: user.id,
+        companyName: user.company || "Siebert Services (Admin)",
+        contactName: user.name,
+        email: user.email,
+        phone: user.phone || null,
+        tier: "platinum",
+        status: "approved",
+        totalDeals: 0,
+        ytdRevenue: "0",
+        isAdmin: true,
+        isMainSiteAdmin: true,
+        specializations: [],
+      });
+      return;
+    }
     const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
     res.json(sanitizePartner(partner));
@@ -144,6 +167,7 @@ router.post("/partner/auth/change-password", requirePartnerAuth, async (req: Par
 });
 
 router.put("/partner/profile", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.status(403).json({ error: "forbidden", message: "Profile updates are not available for admin accounts here" }); return; }
   try {
     const { companyName, contactName, phone, website, businessType, specializations, address, city, state, zip } = req.body;
     const [partner] = await db.update(partnersTable).set({
@@ -164,6 +188,30 @@ router.put("/partner/profile", requirePartnerAuth, async (req: PartnerRequest, r
 
 router.get("/partner/dashboard", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
+    if (req.partnerId === MAIN_SITE_ADMIN_SENTINEL) {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.mainSiteUserId!)).limit(1);
+      res.json({
+        partner: {
+          id: req.mainSiteUserId,
+          companyName: user?.company || "Siebert Services (Admin)",
+          contactName: user?.name || "Admin",
+          email: user?.email || "",
+          tier: "platinum",
+          status: "approved",
+          isAdmin: true,
+          isMainSiteAdmin: true,
+          totalDeals: 0,
+          ytdRevenue: "0",
+          specializations: [],
+        },
+        stats: { totalDeals: 0, activeDeals: 0, wonDeals: 0, totalPipeline: 0, totalRevenue: 0, pendingCommissions: 0, paidCommissions: 0, openTickets: 0, totalLeads: 0, convertedLeads: 0 },
+        dealsByStage: {},
+        monthlyDeals: {},
+        recentDeals: [],
+        recentCommissions: [],
+      });
+      return;
+    }
     const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     const deals = await db.select().from(partnerDealsTable).where(eq(partnerDealsTable.partnerId, req.partnerId!));
     const commissions = await db.select().from(partnerCommissionsTable).where(eq(partnerCommissionsTable.partnerId, req.partnerId!));
@@ -219,6 +267,7 @@ router.get("/partner/dashboard", requirePartnerAuth, async (req: PartnerRequest,
 // ─── Deals ────────────────────────────────────────────────────────────────────
 
 router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.json([]); return; }
   try {
     const deals = await db.select().from(partnerDealsTable)
       .where(eq(partnerDealsTable.partnerId, req.partnerId!))
@@ -383,6 +432,7 @@ router.put("/partner/deals/:id", requirePartnerAuth, async (req: PartnerRequest,
 // ─── Leads ────────────────────────────────────────────────────────────────────
 
 router.get("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.json([]); return; }
   try {
     const leads = await db.select().from(partnerLeadsTable)
       .where(eq(partnerLeadsTable.partnerId, req.partnerId!))
@@ -567,6 +617,7 @@ router.get("/partner/vendors", requirePartnerAuth, async (_req: PartnerRequest, 
 // ─── Commissions ──────────────────────────────────────────────────────────────
 
 router.get("/partner/commissions", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.json([]); return; }
   try {
     const commissions = await db.select().from(partnerCommissionsTable)
       .where(eq(partnerCommissionsTable.partnerId, req.partnerId!))
@@ -579,6 +630,7 @@ router.get("/partner/commissions", requirePartnerAuth, async (req: PartnerReques
 });
 
 router.get("/partner/commissions/summary", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.json({ totalEarned: 0, pending: 0, paid: 0, approved: 0, monthlyEarnings: {}, totalTransactions: 0 }); return; }
   try {
     const commissions = await db.select().from(partnerCommissionsTable)
       .where(eq(partnerCommissionsTable.partnerId, req.partnerId!));
@@ -629,6 +681,7 @@ router.post("/partner/commissions/:id/dispute", requirePartnerAuth, async (req: 
 // ─── Support Tickets ──────────────────────────────────────────────────────────
 
 router.get("/partner/tickets", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.json([]); return; }
   try {
     const tickets = await db.select().from(partnerSupportTicketsTable)
       .where(eq(partnerSupportTicketsTable.partnerId, req.partnerId!))
@@ -1232,6 +1285,7 @@ router.post("/partner/admin/client-tickets/:id/messages", requirePartnerAdmin, a
 // ─── Training Requests ────────────────────────────────────────────────────────
 
 router.post("/training-requests", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.status(403).json({ error: "forbidden", message: "Training requests must be submitted by a partner account" }); return; }
   try {
     const { vendorName, topic, preferredDate, attendeeCount, contactName, contactEmail, notes } = req.body;
 

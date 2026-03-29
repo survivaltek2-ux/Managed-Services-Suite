@@ -19,6 +19,29 @@ export interface PartnerUser {
   totalDeals: number;
   ytdRevenue: string | number;
   isAdmin: boolean;
+  isMainSiteAdmin?: boolean;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface PreFetchedToken {
+  token: string;
+  user: PartnerUser;
+}
+
+type LoginInput = LoginCredentials | PreFetchedToken;
+
+interface LoginResult {
+  token: string;
+  user: PartnerUser;
+  isMainSiteAdmin?: boolean;
+}
+
+function isPreFetchedToken(input: LoginInput): input is PreFetchedToken {
+  return "token" in input;
 }
 
 export function useAuth() {
@@ -41,35 +64,58 @@ export function useAuth() {
         }
         return null;
       }
-      return res.json();
+      return res.json() as Promise<PartnerUser>;
     },
     retry: false,
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: Record<string, string>) => {
+  const loginMutation = useMutation<LoginResult, Error, LoginInput>({
+    mutationFn: async (input: LoginInput): Promise<LoginResult> => {
+      if (isPreFetchedToken(input)) {
+        return { token: input.token, user: input.user };
+      }
+
       const res = await fetch("/api/partner/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(input),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: "Login failed" }));
-        throw new Error(err.message || "Login failed");
+
+      if (res.ok) {
+        const data = await res.json();
+        return { token: data.token as string, user: (data.partner ?? data.user) as PartnerUser };
       }
-      return res.json();
+
+      if (res.status === 401) {
+        const adminRes = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+
+        if (adminRes.ok) {
+          const adminData = await adminRes.json();
+          if (adminData.user?.role === "admin") {
+            return { token: adminData.token as string, user: adminData.user as PartnerUser, isMainSiteAdmin: true };
+          }
+          throw new Error("Your account does not have partner or admin access.");
+        }
+      }
+
+      const err = await res.json().catch(() => ({ message: "Login failed" }));
+      throw new Error((err as { message: string }).message || "Login failed");
     },
     onSuccess: (data) => {
       if (data.token) {
         localStorage.setItem("partner_token", data.token);
-        queryClient.setQueryData(["/api/partner/auth/me"], data.user);
+        queryClient.invalidateQueries({ queryKey: ["/api/partner/auth/me"] });
         setLocation("/dashboard");
       }
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
+    mutationFn: async (data: Record<string, string | number | boolean | null>) => {
       const res = await fetch("/api/partner/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,7 +123,7 @@ export function useAuth() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: "Registration failed" }));
-        throw new Error(err.message || "Registration failed");
+        throw new Error((err as { message: string }).message || "Registration failed");
       }
       return res.json();
     },

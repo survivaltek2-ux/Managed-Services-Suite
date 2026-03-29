@@ -104,7 +104,7 @@ export default function Login() {
       });
       const d = await res.json();
       if (res.ok) {
-        login({ token: d.token, user: d.user } as any);
+        login({ token: d.token as string, user: d.user });
       } else {
         setError(d.message || "Invalid or expired code.");
       }
