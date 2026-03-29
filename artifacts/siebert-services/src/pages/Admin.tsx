@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "users" | "activity" | "tsdIntegrations" | "reporting";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
+  { id: "inquiries", label: "Inquiries", icon: <Inbox size={18} />, section: "Management" },
+  { id: "invoices", label: "Invoices", icon: <CreditCard size={18} /> },
   { id: "blog", label: "Blog Posts", icon: <PenTool size={18} />, section: "Content" },
   { id: "services", label: "Services", icon: <Briefcase size={18} /> },
   { id: "testimonials", label: "Testimonials", icon: <MessageSquare size={18} /> },
@@ -73,7 +75,24 @@ export default function Admin() {
         activity: "/api/admin/activity",
         tsdIntegrations: "/api/admin/tsd/configs",
         reporting: "/api/admin/reports",
+        inquiries: "/api/admin/contacts",
+        invoices: "/api/admin/invoices",
       };
+      if (tab === "inquiries") {
+        const [contactRes, quoteRes, ticketRes] = await Promise.all([
+          fetch("/api/admin/contacts", { headers: headers() }),
+          fetch("/api/admin/quotes", { headers: headers() }),
+          fetch("/api/admin/tickets", { headers: headers() }),
+        ]);
+        const [contactData, quoteData, ticketData] = await Promise.all([
+          contactRes.ok ? contactRes.json() : [],
+          quoteRes.ok ? quoteRes.json() : [],
+          ticketRes.ok ? ticketRes.json() : [],
+        ]);
+        setData(prev => ({ ...prev, contacts: contactData, quotes: quoteData, tickets: ticketData }));
+        setLoading(false);
+        return;
+      }
       if (tab === "tsdIntegrations") {
         const [cfgRes, logRes, productRes] = await Promise.all([
           fetch(endpoints["tsdIntegrations"], { headers: headers() }),
@@ -367,6 +386,8 @@ export default function Admin() {
                 { key: "active", label: "Active", type: "checkbox" },
               ]} columns={["question", "category", "active"]} />}
               {activeTab === "blog" && <BlogTab posts={data.blog || []} refresh={() => fetchData("blog")} headers={headers} />}
+              {activeTab === "inquiries" && <InquiriesTab contacts={data.contacts || []} quotes={data.quotes || []} tickets={data.tickets || []} headers={headers} refresh={() => fetchData("inquiries")} toast={toast} />}
+              {activeTab === "invoices" && <InvoicesTab invoices={data.invoices || []} headers={headers} refresh={() => fetchData("invoices")} />}
               {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} products={data.tsdProducts || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
@@ -1911,3 +1932,167 @@ function ReportingTab({ data }: { data: any }) {
     </div>
   );
 }
+
+function InquiriesTab({ contacts, quotes, tickets, headers, refresh, toast }: { contacts: any[]; quotes: any[]; tickets: any[]; headers: () => any; refresh: () => void; toast: any }) {
+  const [activeSubTab, setActiveSubTab] = React.useState<"contacts" | "quotes" | "tickets">("contacts");
+
+  const deleteItem = async (type: string, id: number) => {
+    if (!window.confirm("Are you sure?")) return;
+    try {
+      const res = await fetch(`/api/admin/${type}/${id}`, { method: "DELETE", headers: headers() });
+      if (res.ok) {
+        toast({ title: `${type} deleted` });
+        refresh();
+      } else {
+        toast({ title: `Failed to delete ${type}`, variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 border-b">
+        {["contacts", "quotes", "tickets"].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveSubTab(tab as any)}
+            className={`px-4 py-2 font-medium text-sm border-b-2 ${
+              activeSubTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {activeSubTab === "contacts" && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Contacts</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b"><tr>
+                  {["Name", "Email", "Company", "Date", "Actions"].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-xs font-semibold">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody className="divide-y">
+                  {contacts.map(c => (
+                    <tr key={c.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium">{c.name}</td>
+                      <td className="px-3 py-2 text-sm">{c.email}</td>
+                      <td className="px-3 py-2 text-sm text-muted-foreground">{c.company}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
+                      <td className="px-3 py-2"><Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteItem("contacts", c.id)}><Trash2 size={16} /></Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {contacts.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No contacts</p>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeSubTab === "quotes" && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Quotes</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b"><tr>
+                  {["Name", "Email", "Services", "Status", "Date", "Actions"].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-xs font-semibold">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody className="divide-y">
+                  {quotes.map(q => (
+                    <tr key={q.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium">{q.name}</td>
+                      <td className="px-3 py-2 text-sm">{q.email}</td>
+                      <td className="px-3 py-2 text-sm text-muted-foreground">{typeof q.services === "string" ? q.services.slice(0, 30) : "—"}</td>
+                      <td className="px-3 py-2"><Badge variant="outline">{q.status}</Badge></td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(q.createdAt).toLocaleDateString()}</td>
+                      <td className="px-3 py-2"><Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteItem("quotes", q.id)}><Trash2 size={16} /></Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {quotes.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No quotes</p>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeSubTab === "tickets" && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Tickets</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b"><tr>
+                  {["Title", "Status", "Priority", "Created", "Actions"].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-xs font-semibold">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody className="divide-y">
+                  {tickets.map(t => (
+                    <tr key={t.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium">{t.title}</td>
+                      <td className="px-3 py-2"><Badge variant="outline">{t.status}</Badge></td>
+                      <td className="px-3 py-2 text-sm text-muted-foreground">{t.priority}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</td>
+                      <td className="px-3 py-2"><Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteItem("tickets", t.id)}><Trash2 size={16} /></Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {tickets.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No tickets</p>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function InvoicesTab({ invoices, headers, refresh }: { invoices: any[]; headers: () => any; refresh: () => void }) {
+  const { toast } = useToast();
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Client Invoices</CardTitle></CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b"><tr>
+              {["Invoice", "Client", "Status", "Total", "Due Date", "Created"].map(h => (
+                <th key={h} className="px-3 py-2 text-left text-xs font-semibold">{h}</th>
+              ))}
+            </tr></thead>
+            <tbody className="divide-y">
+              {invoices.map((inv: any) => (
+                <tr key={inv.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 font-mono text-xs">{inv.invoiceNumber}</td>
+                  <td className="px-3 py-2 font-medium text-sm">{inv.userName || "N/A"}</td>
+                  <td className="px-3 py-2">
+                    <Badge variant={inv.status === "paid" ? "default" : "outline"}>
+                      {inv.status}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 font-semibold">${parseFloat(inv.total || 0).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(inv.dueDate).toLocaleDateString()}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(inv.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {invoices.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No invoices</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
