@@ -72,15 +72,15 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-[#f3f3f3]">
       {/* Salesforce-style Top Header */}
       <header className="sf-header text-white flex-shrink-0 z-50 relative">
-        <div className="h-11 flex items-center px-4 gap-3">
+        <div className="h-10 sm:h-11 flex items-center px-2 sm:px-4 gap-2 sm:gap-3">
           {/* App Launcher */}
-          <button className="p-1.5 hover:bg-white/10 rounded transition-colors" title="App Launcher" aria-label="App Launcher">
-            <Grid3X3 className="w-5 h-5" />
+          <button className="p-1 sm:p-1.5 hover:bg-white/10 rounded transition-colors hidden sm:flex" title="App Launcher" aria-label="App Launcher">
+            <Grid3X3 className="w-4 sm:w-5 h-4 sm:h-5" />
           </button>
 
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2 mr-4">
-            <span className="font-bold text-base tracking-tight">Siebert Partners</span>
+          <Link href="/dashboard" className="flex items-center gap-1.5 sm:gap-2 mr-2 sm:mr-4 shrink-0">
+            <span className="font-bold text-xs sm:text-base tracking-tight">Siebert <span className="hidden sm:inline">Partners</span></span>
           </Link>
 
           {/* Desktop Nav Tabs */}
@@ -95,7 +95,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                   onClick={(e) => disabled && e.preventDefault()}
                 >
                   <div className={cn(
-                    "px-3 py-2 text-[13px] font-medium rounded-t transition-colors whitespace-nowrap cursor-pointer",
+                    "px-2 sm:px-3 py-2 text-[12px] sm:text-[13px] font-medium rounded-t transition-colors whitespace-nowrap cursor-pointer",
                     isActive 
                       ? "bg-[#f3f3f3] text-[#032d60]" 
                       : disabled 
@@ -115,26 +115,26 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* Mobile Menu Toggle */}
-          <button className="lg:hidden p-1.5 hover:bg-white/10 rounded ml-auto" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen}>
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          <button className="lg:hidden p-1 sm:p-1.5 hover:bg-white/10 rounded ml-auto" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen}>
+            {mobileMenuOpen ? <X className="w-4 sm:w-5 h-4 sm:h-5" /> : <Menu className="w-4 sm:w-5 h-4 sm:h-5" />}
           </button>
 
           {/* Right side actions */}
           <div className="hidden lg:flex items-center gap-1 ml-auto">
             {/* Global Search */}
-            <div className="relative">
+            <div className="relative hidden md:block">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/50" />
               <input
                 type="text"
                 placeholder="Search..."
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                className="h-7 w-48 pl-8 pr-3 text-xs bg-white/15 border border-white/20 rounded text-white placeholder:text-white/50 focus:outline-none focus:bg-white/25 focus:border-white/40 transition-all"
+                className="h-7 w-40 pl-8 pr-3 text-xs bg-white/15 border border-white/20 rounded text-white placeholder:text-white/50 focus:outline-none focus:bg-white/25 focus:border-white/40 transition-all"
               />
             </div>
 
-            <button className="p-1.5 hover:bg-white/10 rounded transition-colors" title="Help" aria-label="Help">
-              <HelpCircle className="w-4 h-4 text-white/80" />
+            <button className="p-1 sm:p-1.5 hover:bg-white/10 rounded transition-colors" title="Help" aria-label="Help">
+              <HelpCircle className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white/80" />
             </button>
 
             {/* User Avatar */}
@@ -142,7 +142,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               <button 
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-label="User menu" aria-expanded={showUserMenu}
-                className="w-7 h-7 rounded-full bg-[#fe9339] flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-white/30 transition-all"
+                className="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-[#fe9339] flex items-center justify-center text-white text-[10px] sm:text-xs font-bold hover:ring-2 hover:ring-white/30 transition-all"
               >
                 {user.contactName.charAt(0).toUpperCase()}
               </button>
@@ -174,7 +174,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-white/10 bg-[#032d60] pb-2 px-2">
+          <div className="lg:hidden border-t border-white/10 bg-[#032d60] pb-2 px-2 max-h-[calc(100vh-40px)] overflow-y-auto">
             {BASE_NAV_ITEMS.map(item => {
               const isActive = location === item.href;
               const Icon = item.icon;
@@ -229,13 +229,13 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       {/* Page Content */}
       <main className="flex-1 overflow-auto">
         {isPending && location !== "/profile" ? (
-          <div className="max-w-2xl mx-auto mt-12 px-4">
-            <div className="sf-card p-8 text-center">
-              <div className="w-14 h-14 bg-[#fe9339]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-7 h-7 text-[#fe9339]" />
+          <div className="max-w-2xl mx-auto mt-6 sm:mt-12 px-3 sm:px-4">
+            <div className="sf-card p-4 sm:p-8 text-center">
+              <div className="w-12 sm:w-14 h-12 sm:h-14 bg-[#fe9339]/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <Target className="w-6 sm:w-7 h-6 sm:h-7 text-[#fe9339]" />
               </div>
-              <h2 className="text-xl font-bold text-foreground mb-2">Application Under Review</h2>
-              <p className="text-sm text-muted-foreground mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground mb-2">Application Under Review</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                 Thank you for applying to the Siebert Services Partner Program. Our team is currently reviewing your application.
               </p>
               <Link href="/profile">

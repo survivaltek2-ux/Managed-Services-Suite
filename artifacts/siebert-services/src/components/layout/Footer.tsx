@@ -9,15 +9,15 @@ export function Footer() {
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 mb-12 sm:mb-16">
           
           {/* Brand Col */}
-          <div className="space-y-6">
-            <Link href="/" className="flex items-center gap-2">
+          <div className="space-y-3 sm:space-y-6">
+            <Link href="/" className="flex items-center justify-center sm:justify-start gap-2">
               <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center text-white font-display font-bold text-xl shadow-lg">
                 S
               </div>
-              <div className="font-display font-bold text-2xl text-white tracking-tight">
+              <div className="font-display font-bold text-xl sm:text-2xl text-white tracking-tight">
                 Siebert <span className="text-primary">Services</span>
               </div>
             </Link>
@@ -34,7 +34,7 @@ export function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-white font-display font-bold text-lg mb-6">Quick Links</h4>
+            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Quick Links</h4>
             <ul className="space-y-4">
               {[
                 { label: 'Home', href: '/' },
@@ -63,7 +63,7 @@ export function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h4 className="text-white font-display font-bold text-lg mb-6">Contact Us</h4>
+            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Contact Us</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3 text-white/70">
                 <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
@@ -82,7 +82,7 @@ export function Footer() {
 
           {/* Newsletter */}
           <div>
-            <h4 className="text-white font-display font-bold text-lg mb-6">Newsletter</h4>
+            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Newsletter</h4>
             <p className="text-white/70 mb-4">Stay updated with the latest in managed IT, cybersecurity, and vendor product news.</p>
             <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
               <Input 
@@ -95,11 +95,11 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-white/50 text-sm">
+        <div className="pt-6 sm:pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 text-center sm:text-left">
+          <p className="text-white/50 text-xs sm:text-sm">
             © {new Date().getFullYear()} Siebert Repair Services LLC DBA Siebert Services. All rights reserved.
           </p>
-          <div className="flex gap-6 text-sm text-white/50">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-xs sm:text-sm text-white/50">
             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
             <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
           </div>

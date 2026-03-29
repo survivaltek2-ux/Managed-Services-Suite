@@ -54,14 +54,14 @@ export function Navbar() {
         isScrolled ? "bg-white/90 backdrop-blur-lg border-border/50 shadow-sm py-3" : "bg-navy border-transparent py-5"
       )}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center gap-2">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center text-white font-display font-bold text-xl shadow-lg group-hover:scale-105 transition-transform">
+          <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group shrink-0">
+            <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center text-white font-display font-bold text-lg sm:text-xl shadow-lg group-hover:scale-105 transition-transform">
               S
             </div>
-            <div className={cn("font-display font-bold text-xl tracking-tight transition-colors", isScrolled ? "text-navy" : "text-white")}>
+            <div className={cn("font-display font-bold text-base sm:text-xl tracking-tight transition-colors hidden sm:block", isScrolled ? "text-navy" : "text-white")}>
               Siebert <span className="text-primary">Services</span>
             </div>
           </Link>
@@ -144,17 +144,17 @@ export function Navbar() {
 
           {/* Mobile Menu Toggle */}
           <button
-            className="lg:hidden p-2 text-primary"
+            className="lg:hidden p-1.5 text-primary hover:bg-white/10 rounded-lg transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* Mobile Nav */}
       {mobileMenuOpen && (
-        <div className="lg:hidden absolute top-full left-0 w-full bg-white border-b border-border shadow-xl py-4 px-4 flex flex-col gap-1 animate-fade-in">
+        <div className="lg:hidden absolute top-full left-0 w-full bg-white border-b border-border shadow-xl py-3 px-3 flex flex-col gap-1 animate-fade-in max-h-[calc(100vh-64px)] overflow-y-auto">
           {topNavLinks.map((link) => (
             <Link
               key={link.href}
@@ -201,14 +201,14 @@ export function Navbar() {
           )}
 
           <hr className="my-2" />
-          <div className="flex flex-col gap-3 px-4">
-            <Link href="/portal" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="outline" className="w-full justify-center">
+          <div className="flex flex-col gap-2 px-0">
+            <Link href="/portal" onClick={() => setMobileMenuOpen(false)} className="w-full">
+              <Button variant="outline" className="w-full justify-center text-sm">
                 {isAuthenticated ? "Dashboard" : "Client Portal"}
               </Button>
             </Link>
-            <Link href="/quote" onClick={() => setMobileMenuOpen(false)}>
-              <Button className="w-full justify-center">Get a Quote</Button>
+            <Link href="/quote" onClick={() => setMobileMenuOpen(false)} className="w-full">
+              <Button className="w-full justify-center text-sm">Get a Quote</Button>
             </Link>
           </div>
         </div>
