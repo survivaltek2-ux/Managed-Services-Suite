@@ -775,15 +775,28 @@ router.post("/admin/seed/vendors", requireAuth, requireAdmin, async (_req: AuthR
     ];
 
     let created = 0;
+    let updated = 0;
     for (const vendor of sampleVendors) {
       const existing = await db.select().from(telarusVendorsTable).where(eq(telarusVendorsTable.externalId, vendor.externalId));
       if (existing.length === 0) {
         await db.insert(telarusVendorsTable).values(vendor);
         created++;
+      } else {
+        // Update existing vendor with products and other fields
+        await db.update(telarusVendorsTable).set({
+          name: vendor.name,
+          accountType: vendor.accountType,
+          industry: vendor.industry,
+          website: vendor.website,
+          partnerType: vendor.partnerType,
+          isActive: vendor.isActive,
+          products: vendor.products,
+        }).where(eq(telarusVendorsTable.externalId, vendor.externalId));
+        updated++;
       }
     }
 
-    res.json({ success: true, message: `Seeded ${created} vendor(s). Total vendors: ${(await db.select().from(telarusVendorsTable)).length}` });
+    res.json({ success: true, message: `Created ${created}, updated ${updated} vendor(s). Total vendors: ${(await db.select().from(telarusVendorsTable)).length}` });
   } catch (err) {
     console.error("[Admin] Seed vendors error:", err);
     res.status(500).json({ error: "server_error", message: String(err) });
