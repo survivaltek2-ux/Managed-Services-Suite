@@ -263,6 +263,7 @@ function AdminNavDropdown({ location }: { location: string }) {
   const adminLinks = [
     { href: "/client-tickets", label: "Client Tickets", icon: Users },
     { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+    { href: "/admin/leads", label: "Manage Leads", icon: AlertCircle },
     { href: "/admin/partners", label: "Partners", icon: Building2 },
     { href: "/admin/commissions", label: "Commissions", icon: CreditCard },
     { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
