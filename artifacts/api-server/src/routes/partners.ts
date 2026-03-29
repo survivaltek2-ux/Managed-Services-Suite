@@ -5,7 +5,7 @@ import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourc
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
-import { sendDealSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification } from "../lib/email.js";
+import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 
 const router: IRouter = Router();
@@ -476,6 +476,16 @@ router.post("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, re
       notes: notes?.trim() || null,
       source: "partner_submission",
     }).returning();
+    
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (partner) {
+      sendLeadSubmittedNotification(lead, {
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }).catch(err => console.error("[Email] Lead notification error:", err));
+    }
+    
     res.status(201).json(lead);
   } catch (err) {
     console.error(err);
@@ -962,6 +972,16 @@ router.post("/admin/partner/leads", requireAuth, async (req, res) => {
       email: email || null, phone: phone || null,
       source: source || null, interest: interest || null,
     }).returning();
+    
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, partnerId)).limit(1);
+    if (partner) {
+      sendLeadSubmittedNotification(lead, {
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        email: partner.email,
+      }).catch(err => console.error("[Email] Lead notification error:", err));
+    }
+    
     res.status(201).json(lead);
   } catch (err) {
     console.error(err);

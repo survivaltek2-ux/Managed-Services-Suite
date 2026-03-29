@@ -220,6 +220,45 @@ export async function sendDealSubmittedNotification(deal: {
   ]);
 }
 
+export async function sendLeadSubmittedNotification(lead: {
+  companyName: string;
+  contactName: string;
+  email?: string | null;
+  phone?: string | null;
+  interest: string;
+}, partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}) {
+  const cfg = await loadEmailConfig();
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Lead Submitted</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Company</td><td style="padding: 8px 0; font-weight: 600;">${esc(lead.companyName)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Contact</td><td style="padding: 8px 0;">${esc(lead.contactName)}</td></tr>
+          ${lead.email ? `<tr><td style="padding: 8px 0; color: #706e6b;">Email</td><td style="padding: 8px 0;"><a href="mailto:${esc(lead.email)}" style="color: #0176d3;">${esc(lead.email)}</a></td></tr>` : ""}
+          ${lead.phone ? `<tr><td style="padding: 8px 0; color: #706e6b;">Phone</td><td style="padding: 8px 0;"><a href="tel:${esc(lead.phone)}" style="color: #0176d3;">${esc(lead.phone)}</a></td></tr>` : ""}
+          <tr><td style="padding: 8px 0; color: #706e6b;">Interest</td><td style="padding: 8px 0;">${esc(lead.interest)}</td></tr>
+        </table>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 0; color: #706e6b; width: 140px;">Partner Company</td><td style="padding: 8px 0;">${esc(partner.companyName)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #706e6b;">Contact</td><td style="padding: 8px 0;">${esc(partner.contactName)} (${esc(partner.email)})</td></tr>
+        </table>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services Partner Portal.</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(cfg.notificationEmail, `New Lead Submitted: ${esc(lead.companyName)} — ${esc(partner.companyName)}`, adminHtml);
+}
+
 export async function sendTicketSubmittedNotification(ticket: {
   subject: string;
   description: string;
