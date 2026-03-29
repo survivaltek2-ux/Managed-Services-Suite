@@ -41,7 +41,6 @@ async function createAdmin() {
 
     console.log("✅ Admin user created successfully!");
     console.log(`📧 Email: ${admin.email}`);
-    console.log(`🔐 Password: ${ADMIN_PASSWORD}`);
     console.log("\n⚠️  Change this password immediately after first login!");
   } catch (err) {
     console.error("❌ Error creating admin:", err);
