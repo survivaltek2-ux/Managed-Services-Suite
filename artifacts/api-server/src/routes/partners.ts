@@ -477,6 +477,8 @@ router.post("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, re
       source: "partner_submission",
     }).returning();
     
+    res.status(201).json(lead);
+    
     const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     if (partner) {
       sendLeadSubmittedNotification(lead, {
@@ -485,8 +487,6 @@ router.post("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, re
         email: partner.email,
       }).catch(err => console.error("[Email] Lead notification error:", err));
     }
-    
-    res.status(201).json(lead);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to submit lead" });
@@ -973,6 +973,8 @@ router.post("/admin/partner/leads", requireAuth, async (req, res) => {
       source: source || null, interest: interest || null,
     }).returning();
     
+    res.status(201).json(lead);
+    
     const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, partnerId)).limit(1);
     if (partner) {
       sendLeadSubmittedNotification(lead, {
@@ -981,8 +983,6 @@ router.post("/admin/partner/leads", requireAuth, async (req, res) => {
         email: partner.email,
       }).catch(err => console.error("[Email] Lead notification error:", err));
     }
-    
-    res.status(201).json(lead);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to assign lead" });
