@@ -22,7 +22,11 @@ import {
   Users,
   FolderOpen,
   Inbox,
-  FileText
+  Building2,
+  FileText,
+  RefreshCw,
+  CreditCard,
+  ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -43,6 +47,11 @@ const BASE_NAV_ITEMS = [
 const ADMIN_NAV_ITEMS = [
   { href: "/client-tickets", label: "Client Tickets", icon: Users },
   { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+  { href: "/admin/partners", label: "Partners", icon: Building2 },
+  { href: "/admin/commissions", label: "Commissions (Admin)", icon: CreditCard },
+  { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
+  { href: "/admin/documents", label: "Documents (Admin)", icon: FileText },
+  { href: "/admin/invoices", label: "Invoices", icon: FileText },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -76,7 +85,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav Tabs */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto">
-            {NAV_ITEMS.map(item => {
+            {BASE_NAV_ITEMS.map(item => {
               const isActive = location === item.href;
               const disabled = isPending && item.href !== "/dashboard" && item.href !== "/profile";
               return (
@@ -98,6 +107,11 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+
+            {/* Admin Dropdown (visible only to admins) */}
+            {user.isAdmin && (
+              <AdminNavDropdown location={location} />
+            )}
           </nav>
 
           {/* Mobile Menu Toggle */}
@@ -161,7 +175,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-white/10 bg-[#032d60] pb-2 px-2">
-            {NAV_ITEMS.map(item => {
+            {BASE_NAV_ITEMS.map(item => {
               const isActive = location === item.href;
               const Icon = item.icon;
               return (
@@ -176,6 +190,28 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            {user.isAdmin && (
+              <>
+                <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-white/40 font-semibold mt-2 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3 h-3" /> Admin
+                </div>
+                {ADMIN_NAV_ITEMS.map(item => {
+                  const isActive = location === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}>
+                      <div className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium",
+                        isActive ? "bg-white/15 text-white" : "text-white/80 hover:bg-white/10"
+                      )}>
+                        <Icon className="w-4 h-4" />
+                        {item.label}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </>
+            )}
             <div className="border-t border-white/10 mt-1 pt-1">
               <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium text-white/80 hover:bg-white/10">
@@ -213,6 +249,66 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function AdminNavDropdown({ location }: { location: string }) {
+  const [open, setOpen] = useState(false);
+
+  const isAdminRoute = location.startsWith("/admin") || location === "/client-tickets";
+
+  const adminLinks = [
+    { href: "/client-tickets", label: "Client Tickets", icon: Users },
+    { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+    { href: "/admin/partners", label: "Partners", icon: Building2 },
+    { href: "/admin/commissions", label: "Commissions", icon: CreditCard },
+    { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
+    { href: "/admin/documents", label: "Documents", icon: FileText },
+    { href: "/admin/invoices", label: "Invoices", icon: FileText },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center gap-1 px-3 py-2 text-[13px] font-medium rounded-t transition-colors whitespace-nowrap cursor-pointer",
+          isAdminRoute
+            ? "bg-[#f3f3f3] text-[#032d60]"
+            : "text-white/90 hover:bg-white/10 hover:text-white"
+        )}
+        aria-expanded={open}
+      >
+        <ShieldCheck className="w-3.5 h-3.5 mr-0.5" />
+        Admin
+        <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-0.5 w-52 bg-white rounded shadow-lg border border-[#d8dde6] z-50 text-foreground overflow-hidden py-1">
+            {adminLinks.map(item => {
+              const isActive = location === item.href;
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} onClick={() => setOpen(false)}>
+                  <div className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer transition-colors",
+                    isActive
+                      ? "bg-[#032d60]/10 text-[#032d60] font-medium"
+                      : "text-foreground hover:bg-[#f3f3f3]"
+                  )}>
+                    <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                    {item.label}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

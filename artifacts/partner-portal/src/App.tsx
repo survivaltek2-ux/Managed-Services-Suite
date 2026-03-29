@@ -20,6 +20,11 @@ import ClientTickets from "./pages/ClientTickets";
 import Documents from "./pages/Documents";
 import AdminInquiries from "./pages/AdminInquiries";
 import ProposalGenerator from "./pages/ProposalGenerator";
+import AdminPartners from "./pages/AdminPartners";
+import AdminCommissions from "./pages/AdminCommissions";
+import AdminTsdVendorRouting from "./pages/AdminTsdVendorRouting";
+import AdminDocuments from "./pages/AdminDocuments";
+import AdminInvoices from "./pages/AdminInvoices";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -63,6 +68,13 @@ function Router() {
       <Route path="/documents"><ProtectedRoute component={Documents} /></Route>
       <Route path="/admin/inquiries"><ProtectedRoute component={AdminInquiries} /></Route>
       <Route path="/proposals/generate"><ProtectedRoute component={ProposalGenerator} /></Route>
+
+      {/* Admin-only Partner Management Routes */}
+      <Route path="/admin/partners"><ProtectedRoute component={AdminPartners} /></Route>
+      <Route path="/admin/commissions"><ProtectedRoute component={AdminCommissions} /></Route>
+      <Route path="/admin/tsd-vendor-routing"><ProtectedRoute component={AdminTsdVendorRouting} /></Route>
+      <Route path="/admin/documents"><ProtectedRoute component={AdminDocuments} /></Route>
+      <Route path="/admin/invoices"><ProtectedRoute component={AdminInvoices} /></Route>
 
       <Route component={NotFound} />
     </Switch>
