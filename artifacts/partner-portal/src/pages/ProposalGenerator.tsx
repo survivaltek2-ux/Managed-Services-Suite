@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Download, Eye, Send, X } from "lucide-react";
+import { Plus, Trash2, Download, Eye, Send, X, BookOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/Badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useTsdProducts, type TsdProduct } from "@/hooks/use-tsd-products";
 
 interface LineItem {
   name: string;
@@ -35,10 +36,104 @@ interface ProposalForm {
   lineItems: LineItem[];
 }
 
+function ProductPickerModal({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (product: TsdProduct) => void;
+  onClose: () => void;
+}) {
+  const { data, isLoading } = useTsdProducts();
+  const [search, setSearch] = useState("");
+
+  const allProducts = data?.products ?? [];
+  const filtered = allProducts.filter(
+    (p) =>
+      p.active &&
+      (search === "" ||
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.category.toLowerCase().includes(search.toLowerCase()) ||
+        (p.description ?? "").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const grouped: Record<string, TsdProduct[]> = {};
+  for (const p of filtered) {
+    if (!grouped[p.category]) grouped[p.category] = [];
+    grouped[p.category].push(p);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <Card className="w-full max-w-xl max-h-[80vh] flex flex-col p-0 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h2 className="font-bold text-lg">Browse Product Catalog</h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="px-6 py-3 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Loading catalog...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {search ? "No products match your search." : "No products in catalog."}
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {Object.entries(grouped).map(([category, products]) => (
+                <div key={category}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    {category}
+                  </p>
+                  <div className="space-y-1">
+                    {products.map((product) => (
+                      <button
+                        key={product.id}
+                        className="w-full text-left px-3 py-2.5 rounded-md hover:bg-muted transition-colors"
+                        onClick={() => {
+                          onSelect(product);
+                          onClose();
+                        }}
+                      >
+                        <p className="text-sm font-medium">{product.name}</p>
+                        {product.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            {product.description}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function ProposalGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [productPickerTargetIdx, setProductPickerTargetIdx] = useState<number | null>(null);
   const [form, setForm] = useState<ProposalForm>({
     clientName: "",
     clientEmail: "",
@@ -73,6 +168,33 @@ export default function ProposalGenerator() {
       ...p,
       lineItems: p.lineItems.map((item, i) => i === idx ? { ...item, [field]: value } : item),
     }));
+  };
+
+  const openProductPicker = (idx: number | "new") => {
+    setProductPickerTargetIdx(idx === "new" ? null : idx);
+    setProductPickerOpen(true);
+  };
+
+  const handleProductSelect = (product: TsdProduct) => {
+    if (productPickerTargetIdx === null) {
+      setForm(p => ({
+        ...p,
+        lineItems: [
+          ...p.lineItems,
+          { name: product.name, description: product.description ?? "", quantity: 1, unitPrice: 0, unit: "each", recurring: false, recurringInterval: "monthly" },
+        ],
+      }));
+    } else {
+      setForm(p => ({
+        ...p,
+        lineItems: p.lineItems.map((item, i) =>
+          i === productPickerTargetIdx
+            ? { ...item, name: product.name, description: product.description ?? "" }
+            : item
+        ),
+      }));
+    }
+    setProductPickerTargetIdx(null);
   };
 
   const subtotal = form.lineItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
@@ -186,14 +308,31 @@ export default function ProposalGenerator() {
               <Card className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="font-bold text-lg">Services & Items</h2>
-                  <Button size="sm" variant="outline" onClick={addLineItem}><Plus className="w-4 h-4 mr-1" />Add Item</Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => openProductPicker("new")}>
+                      <BookOpen className="w-4 h-4 mr-1" />Browse Catalog
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={addLineItem}>
+                      <Plus className="w-4 h-4 mr-1" />Add Item
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {form.lineItems.map((item, idx) => (
                     <div key={idx} className="border rounded-lg p-4 bg-muted/30">
                       <div className="grid grid-cols-12 gap-3 mb-3">
                         <div className="col-span-6">
-                          <Label className="text-xs">Item Name *</Label>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs">Item Name *</Label>
+                            <button
+                              type="button"
+                              className="text-xs text-primary hover:underline flex items-center gap-1"
+                              onClick={() => openProductPicker(idx)}
+                            >
+                              <BookOpen className="w-3 h-3" />
+                              From catalog
+                            </button>
+                          </div>
                           <Input value={item.name} onChange={e => updateLineItem(idx, "name", e.target.value)} placeholder="e.g., Network Setup" />
                         </div>
                         <div className="col-span-2">
@@ -410,6 +549,17 @@ export default function ProposalGenerator() {
                 </div>
               </Card>
             </div>
+          )}
+
+          {/* Product Picker Modal */}
+          {productPickerOpen && (
+            <ProductPickerModal
+              onSelect={handleProductSelect}
+              onClose={() => {
+                setProductPickerOpen(false);
+                setProductPickerTargetIdx(null);
+              }}
+            />
           )}
         </div>
       </div>
