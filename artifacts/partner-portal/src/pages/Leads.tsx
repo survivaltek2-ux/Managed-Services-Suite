@@ -63,9 +63,9 @@ export default function Leads() {
             <h1 className="text-lg font-bold text-foreground">Leads</h1>
             <span className="text-xs text-muted-foreground">{filtered.length} items</span>
           </div>
-          <button onClick={() => setShowSubmitModal(true)} className="sf-btn sf-btn-primary">
+          {/* <button onClick={() => setShowSubmitModal(true)} className="sf-btn sf-btn-primary">
             <Plus className="w-3.5 h-3.5" /> Submit a Lead
-          </button>
+          </button> */}
         </div>
       </div>
 
