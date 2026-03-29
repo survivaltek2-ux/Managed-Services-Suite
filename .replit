@@ -34,13 +34,8 @@ SMTP_PORT = "587"
 SMTP_FROM_EMAIL = "notifications@siebertrservices.com"
 SMTP_FROM_NAME = "Siebert Services"
 NOTIFICATION_EMAIL = "sales@siebertrservices.com"
-MICROSOFT_CLIENT_ID = "4ad09401-61d4-4a72-a3a8-e190bda371b9"
-MICROSOFT_TENANT_ID = "2fbca90b-a528-483e-98fa-c06e32056557"
 MICROSOFT_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/microsoft/callback"
-ZOOM_ACCOUNT_ID = "YFSwbpmmSMihwB7OqE046g"
-ZOOM_CLIENT_SECRET = "CiP2K1ALU8vDyUUorSysyZMKEUvRmLtT"
 ZOOM_PHONE_NUMBER = "+1-845-908-0123"
-ZOOM_WEBHOOK_SECRET = "hKm8Lbt8R1qNWV4Xt6grcA"
 
 [nix]
 channel = "stable-25_05"
