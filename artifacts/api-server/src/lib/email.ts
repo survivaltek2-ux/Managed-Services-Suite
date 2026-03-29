@@ -544,3 +544,237 @@ export async function sendClientTicketNotification(ticket: {
     sendEmail(client.email, `Support Ticket Received: ${ticket.subject}`, clientHtml),
   ]);
 }
+
+export async function sendAdminTicketReply(ticket: {
+  id: number;
+  subject: string;
+  priority: string;
+}, client: {
+  name: string;
+  email: string;
+}, adminMessage: string) {
+  const cfg = await loadEmailConfig();
+  const priorityColors: Record<string, string> = {
+    urgent: "#ea001e", high: "#fe9339", medium: "#0176d3", low: "#706e6b",
+  };
+  const pColor = priorityColors[ticket.priority] || "#706e6b";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Reply on Your Support Ticket</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(client.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 4px;">Our support team has replied to your ticket <strong>#${ticket.id} — ${esc(ticket.subject)}</strong>:</p>
+        <div style="background: #f4f6f9; border-left: 4px solid #0176d3; padding: 14px 16px; margin: 16px 0; border-radius: 0 4px 4px 0;">
+          <p style="font-size: 14px; margin: 0; white-space: pre-wrap; color: #032d60;">${esc(adminMessage)}</p>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 16px;">Log in to your client portal to view the full thread and continue the conversation.</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${esc(process.env.CLIENT_PORTAL_URL || "https://siebertrservices.com")}/support" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-size: 14px; font-weight: 600;">View Ticket</a>
+        </div>
+        <p style="font-size: 11px; color: #999; margin-top: 20px;">Ticket #${ticket.id} · Priority: <span style="color: ${pColor}; text-transform: uppercase; font-weight: 600;">${esc(ticket.priority)}</span></p>
+        <p style="font-size: 12px; color: #999; margin-top: 4px;">— Siebert Services Support Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(client.email, `Re: [#${ticket.id}] ${ticket.subject}`, html);
+}
+
+export async function sendTicketStatusUpdate(ticket: {
+  id: number;
+  subject: string;
+  priority: string;
+}, client: {
+  name: string;
+  email: string;
+}, newStatus: string) {
+  const cfg = await loadEmailConfig();
+  const statusLabels: Record<string, string> = {
+    open: "Open",
+    in_progress: "In Progress",
+    resolved: "Resolved",
+    closed: "Closed",
+  };
+  const statusColors: Record<string, string> = {
+    open: "#0176d3",
+    in_progress: "#fe9339",
+    resolved: "#2e844a",
+    closed: "#706e6b",
+  };
+  const label = statusLabels[newStatus] || newStatus;
+  const color = statusColors[newStatus] || "#706e6b";
+
+  const statusMessages: Record<string, string> = {
+    in_progress: "Our team has started working on your ticket and will keep you updated.",
+    resolved: "Your ticket has been marked as resolved. If the issue persists, you can re-open it by replying in the client portal.",
+    closed: "Your ticket has been closed. If you have further questions, please don't hesitate to open a new ticket.",
+    open: "Your ticket has been re-opened and our team will follow up shortly.",
+  };
+  const message = statusMessages[newStatus] || "The status of your ticket has been updated.";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Ticket Status Updated</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(client.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">The status of your support ticket <strong>#${ticket.id} — ${esc(ticket.subject)}</strong> has been updated to:</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <span style="display: inline-block; background: ${color}; color: #fff; padding: 8px 24px; border-radius: 20px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">${esc(label)}</span>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 20px; text-align: center;">${message}</p>
+        <div style="text-align: center;">
+          <a href="${esc(process.env.CLIENT_PORTAL_URL || "https://siebertrservices.com")}/support" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-size: 14px; font-weight: 600;">View Ticket</a>
+        </div>
+        <p style="font-size: 12px; color: #999; margin-top: 24px;">— Siebert Services Support Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(client.email, `Ticket #${ticket.id} Status Updated: ${label}`, html);
+}
+
+export async function sendProposalToClient(proposal: {
+  proposalNumber: string;
+  title: string;
+  clientName: string;
+  clientEmail: string;
+  clientCompany: string;
+  total: string;
+  validUntil?: Date | null;
+}) {
+  const proposalUrl = `${process.env.CLIENT_PORTAL_URL || "https://siebertrservices.com"}/proposal/${proposal.proposalNumber}`;
+  const validDate = proposal.validUntil
+    ? new Date(proposal.validUntil).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+    : null;
+  const totalFormatted = parseFloat(proposal.total).toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Your Proposal from Siebert Services</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(proposal.clientName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">We've prepared a proposal for <strong>${esc(proposal.clientCompany)}</strong>. Please review the details below and let us know if you'd like to move forward.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px; margin-bottom: 20px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 150px;">Proposal #</td><td style="padding: 10px 12px; font-weight: 600;">${esc(proposal.proposalNumber)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Title</td><td style="padding: 10px 12px;">${esc(proposal.title)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Total</td><td style="padding: 10px 12px; font-weight: 700; color: #2e844a; font-size: 16px;">${esc(totalFormatted)}</td></tr>
+          ${validDate ? `<tr><td style="padding: 10px 12px; color: #706e6b;">Valid Until</td><td style="padding: 10px 12px;">${esc(validDate)}</td></tr>` : ""}
+        </table>
+        <p style="font-size: 14px; margin: 0 0 20px;">Click the button below to view the full proposal, review line items, and accept or decline.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(proposalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">Review Proposal</a>
+        </div>
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Questions? Contact us:</p>
+        <ul style="font-size: 13px; color: #706e6b; margin: 4px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:sales@siebertrservices.com" style="color: #0176d3;">sales@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 24px;">— Siebert Services Sales Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(proposal.clientEmail, `Proposal Ready: ${proposal.title} — ${proposal.proposalNumber}`, html);
+}
+
+export async function sendProposalResponseNotification(proposal: {
+  proposalNumber: string;
+  title: string;
+  clientName: string;
+  clientEmail: string;
+  clientCompany: string;
+  total: string;
+}, action: "accepted" | "rejected") {
+  const cfg = await loadEmailConfig();
+  const isAccepted = action === "accepted";
+  const actionLabel = isAccepted ? "Accepted" : "Declined";
+  const actionColor = isAccepted ? "#2e844a" : "#ea001e";
+  const totalFormatted = parseFloat(proposal.total).toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, ${isAccepted ? "#2e844a" : "#c23934"}); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Proposal ${actionLabel}</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 8px;">${isAccepted ? "Great news!" : "Update:"} <strong>${esc(proposal.clientName)}</strong> from <strong>${esc(proposal.clientCompany)}</strong> has <span style="color: ${actionColor}; font-weight: 700;">${actionLabel.toLowerCase()}</span> proposal <strong>${esc(proposal.proposalNumber)}</strong>.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px; margin: 16px 0;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 150px;">Proposal #</td><td style="padding: 10px 12px; font-weight: 600;">${esc(proposal.proposalNumber)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Title</td><td style="padding: 10px 12px;">${esc(proposal.title)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Client</td><td style="padding: 10px 12px;">${esc(proposal.clientName)} — ${esc(proposal.clientEmail)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Company</td><td style="padding: 10px 12px;">${esc(proposal.clientCompany)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Total</td><td style="padding: 10px 12px; font-weight: 700; color: #2e844a;">${esc(totalFormatted)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Response</td><td style="padding: 10px 12px; font-weight: 700; color: ${actionColor};">${esc(actionLabel)}</td></tr>
+        </table>
+        ${isAccepted ? `<p style="font-size: 14px; margin: 0 0 4px; color: #2e844a; font-weight: 600;">Next step: Follow up with the client to begin onboarding.</p>` : `<p style="font-size: 14px; margin: 0 0 4px;">Consider following up to understand their concerns and explore alternatives.</p>`}
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services platform.</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(cfg.notificationEmail, `Proposal ${actionLabel}: ${proposal.proposalNumber} — ${proposal.clientCompany}`, html);
+}
+
+export async function sendQuoteStatusUpdate(quote: {
+  id: number;
+  name: string;
+  email: string;
+  company: string;
+  services: string;
+}, newStatus: string) {
+  const statusMessages: Record<string, { label: string; message: string; color: string }> = {
+    reviewing: {
+      label: "Under Review",
+      message: "Our team is actively reviewing your quote request. We'll be in touch within 1-2 business days with a detailed proposal.",
+      color: "#0176d3",
+    },
+    quoted: {
+      label: "Proposal Ready",
+      message: "We've prepared a custom proposal for your request. Check your email for the proposal link, or contact us to schedule a review call.",
+      color: "#2e844a",
+    },
+    closed: {
+      label: "Closed",
+      message: "This quote request has been closed. If you'd like to re-engage, please don't hesitate to reach out.",
+      color: "#706e6b",
+    },
+  };
+
+  const info = statusMessages[newStatus];
+  if (!info) return;
+
+  const services = (() => {
+    try { return JSON.parse(quote.services).join(", "); } catch { return quote.services; }
+  })();
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Update on Your Quote Request</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(quote.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">We have an update on your quote request for <strong>${esc(services)}</strong> at <strong>${esc(quote.company)}</strong>:</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <span style="display: inline-block; background: ${info.color}; color: #fff; padding: 8px 24px; border-radius: 20px; font-size: 14px; font-weight: 700;">${esc(info.label)}</span>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 20px; text-align: center;">${info.message}</p>
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Need to discuss? Reach us at:</p>
+        <ul style="font-size: 13px; color: #706e6b; margin: 4px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:sales@siebertrservices.com" style="color: #0176d3;">sales@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 24px;">— Siebert Services Sales Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(quote.email, `Quote Request Update — ${info.label}`, html);
+}

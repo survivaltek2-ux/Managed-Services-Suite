@@ -408,6 +408,11 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any>(null);
+  const [ticketDetail, setTicketDetail] = useState<any>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     if (!search) return data;
@@ -415,30 +420,82 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
     return data.filter((t: any) => t.subject.toLowerCase().includes(s));
   }, [data, search]);
 
+  const fetchDetail = async (id: number) => {
+    setLoadingDetail(true);
+    try {
+      const res = await fetch(`/api/admin/tickets/${id}`, { headers });
+      if (res.ok) setTicketDetail(await res.json());
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const selectTicket = (t: any) => {
+    setSelected(t);
+    setReplyText("");
+    fetchDetail(t.id);
+  };
+
+  React.useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [ticketDetail?.messages?.length]);
+
   const updateStatus = async (id: number, status: string) => {
     try {
       await fetch(`/api/admin/tickets/${id}/status`, { method: "PUT", headers, body: JSON.stringify({ status }) });
-      toast({ title: "Status updated" });
+      toast({ title: "Status updated", description: "Client will be notified by email." });
       refresh();
+      fetchDetail(id);
     } catch {
       toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  const sendReply = async () => {
+    if (!replyText.trim() || !selected) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/admin/tickets/${selected.id}/messages`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message: replyText.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setReplyText("");
+      toast({ title: "Reply sent", description: "Client will be notified by email." });
+      fetchDetail(selected.id);
+      refresh();
+    } catch {
+      toast({ title: "Failed to send reply", variant: "destructive" });
+    } finally {
+      setSending(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete?")) return;
+    if (!confirm("Delete this ticket?")) return;
     try {
       await fetch(`/api/admin/tickets/${id}`, { method: "DELETE", headers });
       toast({ title: "Deleted" });
-      if (selected?.id === id) setSelected(null);
+      if (selected?.id === id) { setSelected(null); setTicketDetail(null); }
       refresh();
     } catch {
       toast({ title: "Error", variant: "destructive" });
     }
   };
 
+  const priorityColor = (p: string) => {
+    if (p === "urgent" || p === "critical") return "destructive";
+    if (p === "high") return "default";
+    return "secondary";
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: 600 }}>
       <div className="lg:col-span-1">
         <div className="flex gap-2 mb-4">
           <div className="relative flex-1">
@@ -451,19 +508,19 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
           {filtered.length === 0 ? (
             <div className="p-8 text-center text-xs text-muted-foreground">No tickets</div>
           ) : (
-            <div className="space-y-1">
-              {filtered.map(t => (
+            <div className="space-y-0">
+              {filtered.map((t: any) => (
                 <button
                   key={t.id}
-                  onClick={() => setSelected(t)}
-                  className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors ${selected?.id === t.id ? "bg-primary/10" : ""}`}
+                  onClick={() => selectTicket(t)}
+                  className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors ${selected?.id === t.id ? "bg-primary/10 border-l-2 border-l-primary" : ""}`}
                 >
                   <p className="font-medium text-sm">#{t.id} {t.subject}</p>
-                  <div className="flex gap-1 mt-1">
-                    <Badge variant={t.priority === "critical" ? "destructive" : t.priority === "high" ? "default" : "secondary"} className="text-xs">
-                      {t.priority}
-                    </Badge>
+                  <div className="flex gap-1 mt-1 flex-wrap">
+                    <Badge variant={priorityColor(t.priority)} className="text-xs">{t.priority}</Badge>
+                    <Badge variant="outline" className="text-xs">{t.status?.replace("_", " ")}</Badge>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">{new Date(t.createdAt).toLocaleDateString()}</p>
                 </button>
               ))}
             </div>
@@ -473,45 +530,96 @@ function TicketsView({ data, refresh, headers, exportCSV }: any) {
 
       <div className="lg:col-span-2">
         {selected ? (
-          <Card className="h-full flex flex-col">
-            <div className="border-b p-4 flex items-start justify-between">
-              <div>
-                <h3 className="font-bold text-lg">#{selected.id} {selected.subject}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{new Date(selected.createdAt).toLocaleString()}</p>
+          <Card className="flex flex-col" style={{ height: 640 }}>
+            <div className="border-b p-4 flex items-start justify-between flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-base truncate">#{selected.id} {selected.subject}</h3>
+                <div className="flex gap-2 mt-1 items-center flex-wrap">
+                  <Badge variant={priorityColor(selected.priority)} className="text-xs">{selected.priority}</Badge>
+                  <span className="text-xs text-muted-foreground">{selected.category}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(selected.createdAt).toLocaleString()}</span>
+                </div>
               </div>
-              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(selected.id)}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                <select
+                  className="h-8 px-2 rounded border text-xs bg-background"
+                  value={ticketDetail?.status || selected.status}
+                  onChange={e => updateStatus(selected.id, e.target.value)}
+                >
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+                <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDelete(selected.id)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-            <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Priority</p>
-                  <Badge variant={selected.priority === "critical" ? "destructive" : selected.priority === "high" ? "default" : "secondary"}>
-                    {selected.priority}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Status</p>
-                  <select className="h-8 px-2 rounded border text-xs bg-background w-full" value={selected.status} onChange={e => updateStatus(selected.id, e.target.value)}>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </div>
-              </div>
-              {selected.description && (
-                <div className="border-t pt-3">
-                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-2">Description</p>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{selected.description}</p>
-                </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {loadingDetail ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading...</div>
+              ) : (
+                <>
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase">Original Request</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{selected.description}</p>
+                  </div>
+
+                  {ticketDetail?.messages?.map((msg: any) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.senderType === "admin" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                          msg.senderType === "admin"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
+                        }`}
+                      >
+                        <p className="text-xs font-semibold mb-1 opacity-80">{msg.senderName}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                        <p className="text-xs opacity-60 mt-1 text-right">{new Date(msg.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </>
               )}
+            </div>
+
+            <div className="border-t p-3 flex-shrink-0">
+              <div className="flex gap-2">
+                <textarea
+                  className="flex-1 min-h-[72px] max-h-32 px-3 py-2 text-sm rounded-md border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Type your reply... (client will be notified by email)"
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendReply();
+                  }}
+                  disabled={sending}
+                />
+                <Button
+                  className="self-end"
+                  size="sm"
+                  onClick={sendReply}
+                  disabled={!replyText.trim() || sending}
+                >
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Ctrl+Enter to send</p>
             </div>
           </Card>
         ) : (
-          <Card className="h-full flex items-center justify-center text-muted-foreground">
-            <p>Select a ticket to view details</p>
+          <Card className="h-full flex items-center justify-center text-muted-foreground" style={{ minHeight: 400 }}>
+            <div className="text-center">
+              <p className="font-medium">Select a ticket</p>
+              <p className="text-sm mt-1">View messages and reply to clients</p>
+            </div>
           </Card>
         )}
       </div>

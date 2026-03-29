@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
 import { Response, Request, NextFunction } from "express";
-import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable } from "@workspace/db";
+import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable } from "@workspace/db";
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
 import jwt from "jsonwebtoken";
-import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache } from "../lib/email.js";
+import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache, sendAdminTicketReply, sendTicketStatusUpdate, sendQuoteStatusUpdate } from "../lib/email.js";
 import bcrypt from "bcryptjs";
 
 const JWT_SECRET = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
@@ -673,6 +673,14 @@ router.put("/admin/quotes/:id/status", requireAdminOrPartnerAdmin, async (req: A
     const [quote] = await db.update(quotesTable).set(updates).where(eq(quotesTable.id, id)).returning();
     if (!quote) { res.status(404).json({ error: "not_found" }); return; }
     await logActivity(req.userId, "update", "quote", id, `Status changed to: ${status}`);
+
+    if (status && ["reviewing", "quoted", "closed"].includes(status)) {
+      sendQuoteStatusUpdate(
+        { id: quote.id, name: quote.name, email: quote.email, company: quote.company, services: quote.services },
+        status,
+      ).catch(err => console.error("[Email] Quote status notification error:", err));
+    }
+
     res.json({ ...quote, services: JSON.parse(quote.services) });
   } catch (err) {
     console.error(err);
@@ -701,6 +709,60 @@ router.get("/admin/tickets", requireAdminOrPartnerAdmin, async (req: AuthRequest
   }
 });
 
+router.get("/admin/tickets/:id", requireAdminOrPartnerAdmin, async (req: AuthRequest & PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id)).limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+    const messages = await db.select().from(ticketMessagesTable)
+      .where(eq(ticketMessagesTable.ticketId, id))
+      .orderBy(ticketMessagesTable.createdAt);
+    res.json({ ...ticket, messages });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load ticket" });
+  }
+});
+
+router.post("/admin/tickets/:id/messages", requireAdminOrPartnerAdmin, async (req: AuthRequest & PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { message } = req.body;
+    if (!message) { res.status(400).json({ error: "validation_error", message: "message is required" }); return; }
+
+    const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, id)).limit(1);
+    if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
+
+    const [msg] = await db.insert(ticketMessagesTable).values({
+      ticketId: id,
+      senderType: "admin",
+      senderName: "Siebert Services Support",
+      message,
+    }).returning();
+
+    if (ticket.status === "resolved" || ticket.status === "closed") {
+      await db.update(ticketsTable).set({ status: "in_progress", updatedAt: new Date() }).where(eq(ticketsTable.id, id));
+    } else {
+      await db.update(ticketsTable).set({ updatedAt: new Date() }).where(eq(ticketsTable.id, id));
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.userId)).limit(1);
+    if (user) {
+      sendAdminTicketReply(
+        { id: ticket.id, subject: ticket.subject, priority: ticket.priority },
+        { name: user.name, email: user.email },
+        message,
+      ).catch(err => console.error("[Email] Admin ticket reply notification error:", err));
+    }
+
+    await logActivity(req.userId, "create", "ticket_message", id, `Admin replied to ticket #${id}`);
+    res.status(201).json(msg);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to send reply" });
+  }
+});
+
 router.put("/admin/tickets/:id/status", requireAdminOrPartnerAdmin, async (req: AuthRequest & PartnerRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
@@ -708,6 +770,16 @@ router.put("/admin/tickets/:id/status", requireAdminOrPartnerAdmin, async (req: 
     const [ticket] = await db.update(ticketsTable).set({ status, updatedAt: new Date() }).where(eq(ticketsTable.id, id)).returning();
     if (!ticket) { res.status(404).json({ error: "not_found" }); return; }
     await logActivity(req.userId, "update", "ticket", id, `Status changed to: ${status}`);
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.userId)).limit(1);
+    if (user && ["in_progress", "resolved", "closed"].includes(status)) {
+      sendTicketStatusUpdate(
+        { id: ticket.id, subject: ticket.subject, priority: ticket.priority },
+        { name: user.name, email: user.email },
+        status,
+      ).catch(err => console.error("[Email] Ticket status update notification error:", err));
+    }
+
     res.json(ticket);
   } catch (err) {
     console.error(err);

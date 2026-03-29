@@ -3,7 +3,7 @@ import { Response } from "express";
 import { db, quotesTable, quoteProposalsTable, quoteLineItemsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
-import { sendQuoteRequestNotification } from "../lib/email.js";
+import { sendQuoteRequestNotification, sendProposalToClient, sendProposalResponseNotification } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -218,6 +218,17 @@ router.put("/admin/proposals/:id/send", requireAuth, requireAdmin, async (req: A
       status: "sent", sentAt: new Date(), updatedAt: new Date(),
     }).where(eq(quoteProposalsTable.id, id)).returning();
     if (!proposal) { res.status(404).json({ error: "not_found" }); return; }
+
+    sendProposalToClient({
+      proposalNumber: proposal.proposalNumber,
+      title: proposal.title,
+      clientName: proposal.clientName,
+      clientEmail: proposal.clientEmail,
+      clientCompany: proposal.clientCompany,
+      total: proposal.total,
+      validUntil: proposal.validUntil,
+    }).catch(err => console.error("[Email] Proposal send notification error:", err));
+
     res.json(proposal);
   } catch (err) {
     console.error(err);
@@ -285,6 +296,15 @@ router.post("/proposals/:number/respond", async (req, res) => {
       clientSignature: action === "accepted" ? (signature || "Accepted") : null,
       updatedAt: new Date(),
     }).where(eq(quoteProposalsTable.id, proposal.id)).returning();
+
+    sendProposalResponseNotification({
+      proposalNumber: proposal.proposalNumber,
+      title: proposal.title,
+      clientName: proposal.clientName,
+      clientEmail: proposal.clientEmail,
+      clientCompany: proposal.clientCompany,
+      total: proposal.total,
+    }, action as "accepted" | "rejected").catch(err => console.error("[Email] Proposal response notification error:", err));
 
     res.json(updated);
   } catch (err) {

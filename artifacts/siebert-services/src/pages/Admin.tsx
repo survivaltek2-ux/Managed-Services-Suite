@@ -1935,6 +1935,55 @@ function ReportingTab({ data }: { data: any }) {
 
 function InquiriesTab({ contacts, quotes, tickets, headers, refresh, toast }: { contacts: any[]; quotes: any[]; tickets: any[]; headers: () => any; refresh: () => void; toast: any }) {
   const [activeSubTab, setActiveSubTab] = React.useState<"contacts" | "quotes" | "tickets">("contacts");
+  const [selectedTicket, setSelectedTicket] = React.useState<any>(null);
+  const [ticketDetail, setTicketDetail] = React.useState<any>(null);
+  const [loadingDetail, setLoadingDetail] = React.useState(false);
+  const [replyText, setReplyText] = React.useState("");
+  const [sendingReply, setSendingReply] = React.useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const fetchTicketDetail = async (id: number) => {
+    setLoadingDetail(true);
+    try {
+      const res = await fetch(`/api/admin/tickets/${id}`, { headers: headers() });
+      if (res.ok) setTicketDetail(await res.json());
+    } catch { /* ignore */ } finally { setLoadingDetail(false); }
+  };
+
+  const selectTicket = (t: any) => {
+    setSelectedTicket(t);
+    setReplyText("");
+    fetchTicketDetail(t.id);
+  };
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [ticketDetail?.messages?.length]);
+
+  const updateTicketStatus = async (id: number, status: string) => {
+    try {
+      await fetch(`/api/admin/tickets/${id}/status`, { method: "PUT", headers: headers(), body: JSON.stringify({ status }) });
+      toast({ title: "Status updated", description: "Client will be notified by email." });
+      refresh();
+      fetchTicketDetail(id);
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const sendTicketReply = async () => {
+    if (!replyText.trim() || !selectedTicket) return;
+    setSendingReply(true);
+    try {
+      const res = await fetch(`/api/admin/tickets/${selectedTicket.id}/messages`, {
+        method: "POST", headers: headers(), body: JSON.stringify({ message: replyText.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setReplyText("");
+      toast({ title: "Reply sent", description: "Client will be notified by email." });
+      fetchTicketDetail(selectedTicket.id);
+      refresh();
+    } catch { toast({ title: "Failed to send", variant: "destructive" }); }
+    finally { setSendingReply(false); }
+  };
 
   const deleteItem = async (type: string, id: number) => {
     if (!window.confirm("Are you sure?")) return;
@@ -1942,6 +1991,7 @@ function InquiriesTab({ contacts, quotes, tickets, headers, refresh, toast }: { 
       const res = await fetch(`/api/admin/${type}/${id}`, { method: "DELETE", headers: headers() });
       if (res.ok) {
         toast({ title: `${type} deleted` });
+        if (type === "tickets" && selectedTicket?.id === id) { setSelectedTicket(null); setTicketDetail(null); }
         refresh();
       } else {
         toast({ title: `Failed to delete ${type}`, variant: "destructive" });
@@ -2027,32 +2077,112 @@ function InquiriesTab({ contacts, quotes, tickets, headers, refresh, toast }: { 
       )}
 
       {activeSubTab === "tickets" && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Tickets</CardTitle></CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b"><tr>
-                  {["Title", "Status", "Priority", "Created", "Actions"].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-xs font-semibold">{h}</th>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: 560 }}>
+          <div className="lg:col-span-1">
+            <Card className="max-h-[580px] overflow-y-auto">
+              {tickets.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No tickets</div>
+              ) : (
+                <div>
+                  {tickets.map((t: any) => (
+                    <button
+                      key={t.id}
+                      onClick={() => selectTicket(t)}
+                      className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors ${selectedTicket?.id === t.id ? "bg-primary/10 border-l-2 border-l-primary" : ""}`}
+                    >
+                      <p className="font-medium text-sm">#{t.id} {t.subject}</p>
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        <Badge variant={t.priority === "urgent" || t.priority === "critical" ? "destructive" : t.priority === "high" ? "default" : "secondary"} className="text-xs">{t.priority}</Badge>
+                        <Badge variant="outline" className="text-xs">{t.status?.replace("_", " ")}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{new Date(t.createdAt).toLocaleDateString()}</p>
+                    </button>
                   ))}
-                </tr></thead>
-                <tbody className="divide-y">
-                  {tickets.map(t => (
-                    <tr key={t.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-medium">{t.title}</td>
-                      <td className="px-3 py-2"><Badge variant="outline">{t.status}</Badge></td>
-                      <td className="px-3 py-2 text-sm text-muted-foreground">{t.priority}</td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</td>
-                      <td className="px-3 py-2"><Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteItem("tickets", t.id)}><Trash2 size={16} /></Button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {tickets.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No tickets</p>}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div className="lg:col-span-2">
+            {selectedTicket ? (
+              <Card className="flex flex-col" style={{ height: 580 }}>
+                <div className="border-b p-4 flex items-start justify-between flex-shrink-0">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base truncate">#{selectedTicket.id} {selectedTicket.subject}</h3>
+                    <div className="flex gap-2 mt-1 items-center flex-wrap">
+                      <Badge variant={selectedTicket.priority === "urgent" || selectedTicket.priority === "critical" ? "destructive" : selectedTicket.priority === "high" ? "default" : "secondary"} className="text-xs">{selectedTicket.priority}</Badge>
+                      <span className="text-xs text-muted-foreground">{selectedTicket.category}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                    <select
+                      className="h-8 px-2 rounded border text-xs bg-background"
+                      value={ticketDetail?.status || selectedTicket.status}
+                      onChange={e => updateTicketStatus(selectedTicket.id, e.target.value)}
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                    <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0" onClick={() => deleteItem("tickets", selectedTicket.id)}>
+                      <Trash2 size={15} />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {loadingDetail ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                      <Loader2 className="animate-spin w-4 h-4 mr-2" /> Loading...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase">Original Request</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
+                      </div>
+                      {ticketDetail?.messages?.map((msg: any) => (
+                        <div key={msg.id} className={`flex ${msg.senderType === "admin" ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[80%] rounded-lg px-4 py-3 ${msg.senderType === "admin" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                            <p className="text-xs font-semibold mb-1 opacity-80">{msg.senderName}</p>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                            <p className="text-xs opacity-60 mt-1 text-right">{new Date(msg.createdAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+                </div>
+
+                <div className="border-t p-3 flex-shrink-0">
+                  <div className="flex gap-2">
+                    <textarea
+                      className="flex-1 min-h-[64px] max-h-28 px-3 py-2 text-sm rounded-md border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="Type your reply... (client will be notified by email)"
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendTicketReply(); }}
+                      disabled={sendingReply}
+                    />
+                    <Button className="self-end" size="sm" onClick={sendTicketReply} disabled={!replyText.trim() || sendingReply}>
+                      {sendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Ctrl+Enter to send</p>
+                </div>
+              </Card>
+            ) : (
+              <Card className="flex items-center justify-center text-muted-foreground" style={{ minHeight: 300 }}>
+                <div className="text-center">
+                  <p className="font-medium">Select a ticket</p>
+                  <p className="text-sm mt-1">View messages and reply to clients</p>
+                </div>
+              </Card>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
