@@ -14,12 +14,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
   { id: "inquiries", label: "Inquiries", icon: <Inbox size={18} />, section: "Management" },
+  { id: "leads", label: "Partner Leads", icon: <Briefcase size={18} />, section: "Management" },
   { id: "invoices", label: "Invoices", icon: <CreditCard size={18} /> },
   { id: "blog", label: "Blog Posts", icon: <PenTool size={18} />, section: "Content" },
   { id: "services", label: "Services", icon: <Briefcase size={18} /> },
@@ -105,6 +107,13 @@ export default function Admin() {
           productRes.ok ? productRes.json() : [],
         ]);
         setData(prev => ({ ...prev, tsdConfigs: cfgData, tsdLogs: logData, tsdProducts: productData }));
+        setLoading(false);
+        return;
+      }
+      if (tab === "leads") {
+        const partnersRes = await fetch("/api/admin/partners", { headers: headers() });
+        const partnersData = partnersRes.ok ? await partnersRes.json() : [];
+        setData(prev => ({ ...prev, partners: partnersData }));
         setLoading(false);
         return;
       }
@@ -388,6 +397,7 @@ export default function Admin() {
               {activeTab === "blog" && <BlogTab posts={data.blog || []} refresh={() => fetchData("blog")} headers={headers} />}
               {activeTab === "inquiries" && <InquiriesTab contacts={data.contacts || []} quotes={data.quotes || []} tickets={data.tickets || []} headers={headers} refresh={() => fetchData("inquiries")} toast={toast} />}
               {activeTab === "invoices" && <InvoicesTab invoices={data.invoices || []} headers={headers} refresh={() => fetchData("invoices")} />}
+              {activeTab === "leads" && <AdminLeads partners={data.partners || []} headers={headers} refresh={() => fetchData("leads")} toast={toast} />}
               {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} products={data.tsdProducts || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
