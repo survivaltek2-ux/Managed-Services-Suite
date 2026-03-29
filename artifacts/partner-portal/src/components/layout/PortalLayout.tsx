@@ -20,7 +20,8 @@ import {
   Menu,
   X,
   Users,
-  FolderOpen
+  FolderOpen,
+  Inbox
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ const BASE_NAV_ITEMS = [
 
 const ADMIN_NAV_ITEMS = [
   { href: "/client-tickets", label: "Client Tickets", icon: Users },
+  { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -51,7 +53,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const isPending = user.status === "pending";
-  const adminItems = user.isAdmin && (user as any).clientTicketsEnabled ? ADMIN_NAV_ITEMS : [];
+  const adminItems = user.isAdmin ? ADMIN_NAV_ITEMS : [];
   const NAV_ITEMS = [...BASE_NAV_ITEMS, ...adminItems];
   const currentTab = NAV_ITEMS.find(i => location === i.href) || NAV_ITEMS[0];
 

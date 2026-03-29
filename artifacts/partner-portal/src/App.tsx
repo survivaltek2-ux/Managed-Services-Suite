@@ -18,6 +18,7 @@ import Commissions from "./pages/Commissions";
 import SupportTickets from "./pages/SupportTickets";
 import ClientTickets from "./pages/ClientTickets";
 import Documents from "./pages/Documents";
+import AdminInquiries from "./pages/AdminInquiries";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
       <Route path="/client-tickets"><ProtectedRoute component={ClientTickets} /></Route>
       <Route path="/documents"><ProtectedRoute component={Documents} /></Route>
+      <Route path="/admin/inquiries"><ProtectedRoute component={AdminInquiries} /></Route>
 
       <Route component={NotFound} />
     </Switch>
