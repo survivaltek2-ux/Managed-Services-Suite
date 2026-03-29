@@ -60,8 +60,11 @@ export function useVendors() {
     queryFn: async () => {
       const res = await fetch("/api/partner/vendors", { headers: getAuthHeaders() });
       if (!res.ok) throw new Error("Failed to fetch vendors");
-      return res.json();
+      const data = await res.json();
+      return data;
     },
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5,
   });
 }
 

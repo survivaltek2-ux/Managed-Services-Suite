@@ -337,11 +337,21 @@ function VendorSelector({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
 
+  // Debug: log vendor data on change
+  React.useEffect(() => {
+    if (vendors.length > 0) {
+      const vendorsWithProducts = vendors.filter(v => v.products && v.products.length > 0);
+      console.log(`[VendorSelector] Loaded ${vendors.length} vendors, ${vendorsWithProducts.length} have products. Sample:`, vendors.slice(0, 1).map(v => ({ name: v.name, products: v.products })));
+    }
+  }, [vendors]);
+
   // Get all unique categories from vendors
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     vendors.forEach(v => {
-      v.products.forEach(p => cats.add(p.category));
+      if (v.products && Array.isArray(v.products)) {
+        v.products.forEach(p => cats.add(p.category));
+      }
     });
     return Array.from(cats).sort();
   }, [vendors]);
@@ -351,7 +361,9 @@ function VendorSelector({
     
     // Filter by category if selected
     if (selectedCategory) {
-      result = result.filter(v => v.products.some(p => p.category === selectedCategory));
+      result = result.filter(v => 
+        v.products && Array.isArray(v.products) && v.products.some(p => p.category === selectedCategory)
+      );
     }
     
     // Then filter by search
@@ -361,7 +373,7 @@ function VendorSelector({
         v.name.toLowerCase().includes(q) ||
         (v.industry || "").toLowerCase().includes(q) ||
         (v.accountType || "").toLowerCase().includes(q) ||
-        v.products.some(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+        (v.products && Array.isArray(v.products) && v.products.some(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)))
       );
     }
     

@@ -616,7 +616,14 @@ router.get("/partner/vendors", requirePartnerAuth, async (_req: PartnerRequest, 
       .from(telarusVendorsTable)
       .where(eq(telarusVendorsTable.isActive, true))
       .orderBy(asc(telarusVendorsTable.name));
-    const vendors = rows.map(v => ({ ...v, products: JSON.parse(v.products || "[]") }));
+    const vendors = rows.map(v => {
+      try {
+        return { ...v, products: JSON.parse(v.products || "[]") };
+      } catch (e) {
+        console.error(`Failed to parse products for vendor ${v.name}:`, v.products, e);
+        return { ...v, products: [] };
+      }
+    });
     res.json(vendors);
   } catch (err) {
     console.error(err);
