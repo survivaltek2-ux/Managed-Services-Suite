@@ -716,6 +716,7 @@ export async function syncVendorsFromTelarus(provider?: TsdProvider): Promise<vo
         numberOfEmployees: r.numberOfEmployees ?? null,
         annualRevenue: r.annualRevenue ?? null,
         isActive: r.isActive ?? true,
+        products: JSON.stringify(r.products ?? []),
         rawData: JSON.stringify(r.rawData ?? {}),
       }));
       await db.update(tsdConfigsTable).set({ lastVendorSyncAt: new Date(), updatedAt: new Date() }).where(eq(tsdConfigsTable.id, cfg.id));
