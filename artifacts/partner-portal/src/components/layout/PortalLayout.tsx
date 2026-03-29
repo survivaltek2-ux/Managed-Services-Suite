@@ -21,7 +21,8 @@ import {
   X,
   Users,
   FolderOpen,
-  Inbox
+  Inbox,
+  FileText
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const BASE_NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/deals", label: "Deals", icon: Handshake },
   { href: "/leads", label: "Leads", icon: Target },
+  { href: "/proposals/generate", label: "Generate Proposal", icon: FileText },
   { href: "/commissions", label: "Commissions", icon: DollarSign },
   { href: "/documents", label: "Documents", icon: FolderOpen },
   { href: "/resources", label: "Resources", icon: BookOpen },
