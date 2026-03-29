@@ -12,6 +12,15 @@ export interface Lead {
   assignedAt: string;
 }
 
+export interface SubmitLeadData {
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  interest: string;
+  notes: string;
+}
+
 export function useLeads() {
   return useQuery<Lead[]>({
     queryKey: ["/api/partner/leads"],
@@ -33,6 +42,27 @@ export function useUpdateLeadStatus() {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error("Failed to update lead");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/partner/leads"] });
+    },
+  });
+}
+
+export function useSubmitLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: SubmitLeadData) => {
+      const res = await fetch("/api/partner/leads", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to submit lead");
+      }
       return res.json();
     },
     onSuccess: () => {

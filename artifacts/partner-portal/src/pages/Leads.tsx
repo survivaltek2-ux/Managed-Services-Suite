@@ -1,10 +1,9 @@
 import { PortalLayout } from "@/components/layout/PortalLayout";
-import { useLeads, useUpdateLeadStatus } from "@/hooks/use-leads";
+import { useLeads, useUpdateLeadStatus, useSubmitLead } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/use-auth";
 import { format } from "date-fns";
 import { Mail, Phone, Building, Search, Filter, ChevronDown, Plus, X } from "lucide-react";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const LEAD_INTEREST_OPTIONS = [
   "Connectivity (Internet/MPLS)",
@@ -22,28 +21,6 @@ const LEAD_INTEREST_OPTIONS = [
   "Other",
 ];
 
-function useSubmitLead() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/partner/leads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to submit lead");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-    },
-  });
-}
-
 export default function Leads() {
   const { data: leads = [], isLoading } = useLeads();
   const { mutateAsync: updateStatus } = useUpdateLeadStatus();
@@ -51,6 +28,7 @@ export default function Leads() {
   const { mutateAsync: submitLead, isPending: isSubmitting } = useSubmitLead();
   const [search, setSearch] = useState("");
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     companyName: "",
     contactName: "",
@@ -67,12 +45,13 @@ export default function Leads() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
     try {
       await submitLead(formData);
       setFormData({ companyName: "", contactName: "", email: "", phone: "", interest: "", notes: "" });
       setShowSubmitModal(false);
-    } catch (err) {
-      console.error("Failed to submit lead:", err);
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to submit lead. Please try again.");
     }
   };
 
@@ -254,7 +233,11 @@ export default function Leads() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#d8dde6] flex justify-end gap-2">
+            <div className="px-6 py-4 border-t border-[#d8dde6] flex items-center justify-between gap-2">
+              {submitError && (
+                <p className="text-xs text-red-600 flex-1">{submitError}</p>
+              )}
+              <div className="flex gap-2 ml-auto">
               <button type="button" onClick={() => setShowSubmitModal(false)} className="sf-btn sf-btn-neutral">
                 Cancel
               </button>
@@ -265,6 +248,7 @@ export default function Leads() {
               >
                 {isSubmitting ? "Submitting..." : "Submit Lead"}
               </button>
+              </div>
             </div>
           </form>
         </div>
