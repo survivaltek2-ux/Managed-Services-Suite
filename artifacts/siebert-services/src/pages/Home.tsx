@@ -43,7 +43,7 @@ export default function Home() {
                 <span className="text-gradient">Delivered Simply.</span>
               </h1>
               <p className="text-xl text-white/80 leading-relaxed mb-10 max-w-2xl">
-                Siebert Services is a hybrid MSP — combining our own managed IT services with authorized reselling of enterprise products from the industry's top vendors. One partner for procurement, deployment, management, and support.
+                Siebert Services is a hybrid MSP — combining our own managed IT services with authorized reselling of enterprise products from our authorized vendor partners. One partner for procurement, deployment, management, and support.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
@@ -107,7 +107,7 @@ export default function Home() {
           <div className="text-center max-w-3xl mx-auto mb-12">
             <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">Our Vendor Partners</h2>
             <p className="text-lg text-muted-foreground">
-              As a hybrid MSP, we pair our managed services with products from the industry's leading vendors. Partner-level pricing, priority support, and expert deployment — all included.
+              As a hybrid MSP, we pair our managed services with products from our authorized vendor partners. Partner-level pricing, priority support, and expert deployment — all included.
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

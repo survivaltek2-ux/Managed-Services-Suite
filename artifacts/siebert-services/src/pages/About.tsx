@@ -18,10 +18,10 @@ export default function About() {
               Siebert Repair Services LLC (DBA Siebert Services) was founded with a singular mission: to demystify enterprise technology for businesses of all sizes. 
             </p>
             <p className="text-lg text-muted-foreground leading-relaxed mb-6">
-              We believe that IT shouldn't be a roadblock or a black box. It should be the engine that drives your growth. As a hybrid MSP, we combine our own managed IT services with authorized reselling of enterprise products from top vendors — HP, Dell, Zoom, Extreme Networks, and Juniper — giving you partner-level pricing, expert deployment, and hands-on support from a single provider.
+              We believe that IT shouldn't be a roadblock or a black box. It should be the engine that drives your growth. As a hybrid MSP, we combine our own managed IT services with authorized reselling of enterprise products from our vendor partners — HP, Dell, Zoom, Extreme Networks, and Juniper — giving you partner-level pricing, expert deployment, and hands-on support from a single provider.
             </p>
             <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-              Our hybrid MSP model is simple: we bring together the best products from leading vendors with our own managed services — helpdesk, cybersecurity, cloud management, and more — so you get a complete IT solution from a single partner, backed by SLAs and 24/7 support.
+              Our hybrid MSP model is simple: we bring together the best products from our vendor partners with our own managed services — helpdesk, cybersecurity, cloud management, and more — so you get a complete IT solution from a single partner, backed by SLAs and 24/7 support.
             </p>
             
             <div className="grid grid-cols-2 gap-6">
