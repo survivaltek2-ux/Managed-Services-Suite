@@ -259,8 +259,7 @@ export default function Leads() {
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleSubmit}
+                type="submit"
                 disabled={isSubmitting}
                 className="sf-btn sf-btn-primary"
               >
