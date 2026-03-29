@@ -133,6 +133,32 @@ router.put("/auth/me", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: "validation_error", message: "currentPassword and newPassword are required" });
+      return;
+    }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "not_found", message: "User not found" });
+      return;
+    }
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) {
+      res.status(401).json({ error: "unauthorized", message: "Current password is incorrect" });
+      return;
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.update(usersTable).set({ password: hashedPassword }).where(eq(usersTable.id, req.userId!));
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to change password" });
+  }
+});
+
 router.post("/auth/request-code", async (req, res) => {
   try {
     const { email: rawEmail, type } = req.body;

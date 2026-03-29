@@ -64,6 +64,10 @@ export default function Portal() {
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
 
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordChanging, setPasswordChanging] = useState(false);
+
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [ticketDetail, setTicketDetail] = useState<any | null>(null);
   const [ticketDetailLoading, setTicketDetailLoading] = useState(false);
@@ -75,6 +79,13 @@ export default function Portal() {
     const params = new URLSearchParams(window.location.search);
     const ssoToken = params.get("sso_token");
     const ssoErr = params.get("sso_error");
+    const changePassword = params.get("change_password");
+
+    if (changePassword === "1") {
+      setShowChangePassword(true);
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
 
     if (ssoToken) {
       setSsoLoading(true);
@@ -197,6 +208,46 @@ export default function Portal() {
   };
 
   const { toast } = useToast();
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
+      return;
+    }
+    if (passwordForm.newPassword.length < 8) {
+      toast({ title: "Password must be at least 8 characters", variant: "destructive" });
+      return;
+    }
+
+    setPasswordChanging(true);
+    try {
+      const res = await fetch(getApiUrl("/auth/change-password"), {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      if (res.ok) {
+        toast({ title: "Password changed successfully" });
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setShowChangePassword(false);
+      } else {
+        const data = await res.json();
+        toast({ title: data.message || "Failed to change password", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Error changing password", variant: "destructive" });
+    } finally {
+      setPasswordChanging(false);
+    }
+  };
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const createTicketMutation = useCreateTicket({
@@ -820,13 +871,86 @@ export default function Portal() {
                     <p className="font-medium text-navy">Password</p>
                     <p className="text-sm text-muted-foreground">Last changed: unknown</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = "/portal?change_password=1"}>Change Password</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowChangePassword(true)}>Change Password</Button>
                 </div>
                 <div className="pt-2 border-t">
                   <Button variant="ghost" onClick={logout} className="text-destructive hover:bg-destructive/10 hover:text-destructive w-full justify-start gap-2">
                     <LogOut className="w-4 h-4" /> Sign Out of All Sessions
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Change Password Modal */}
+        {showChangePassword && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md">
+              <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lock className="w-4 h-4" /> Change Password
+                </CardTitle>
+                <button onClick={() => setShowChangePassword(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </CardHeader>
+              <CardContent className="pt-5">
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <Label className="text-xs font-semibold">Current Password</Label>
+                    <Input
+                      type="password"
+                      placeholder="Enter current password"
+                      value={passwordForm.currentPassword}
+                      onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">New Password</Label>
+                    <Input
+                      type="password"
+                      placeholder="Enter new password (min 8 characters)"
+                      value={passwordForm.newPassword}
+                      onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">Confirm New Password</Label>
+                    <Input
+                      type="password"
+                      placeholder="Confirm new password"
+                      value={passwordForm.confirmPassword}
+                      onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      required
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowChangePassword(false);
+                        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                      }}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={passwordChanging}
+                      className="flex-1"
+                    >
+                      {passwordChanging ? "Updating..." : "Update Password"}
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </div>
