@@ -1061,78 +1061,124 @@ function QuotesTab({ quotes, refresh, headers, exportCSV }: { quotes: any[]; ref
     if (!confirm("Delete?")) return;
     try {
       await fetch(`/api/admin/quotes/${id}`, { method: "DELETE", headers: headers() });
-      toast({ title: "Deleted" }); refresh();
+      toast({ title: "Deleted" }); 
+      if (selected?.id === id) setSelected(null);
+      refresh();
     } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between gap-4">
-        <SearchBar value={search} onChange={setSearch} />
-        <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" />Export CSV</Button>
-      </div>
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-muted-foreground text-xs uppercase">
-              <tr>
-                <th className="px-5 py-3 text-left">Date</th>
-                <th className="px-5 py-3 text-left">Company</th>
-                <th className="px-5 py-3 text-left">Contact</th>
-                <th className="px-5 py-3 text-left">Budget</th>
-                <th className="px-5 py-3 text-left">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(q => (
-                <tr key={q.id} className="border-b last:border-0 hover:bg-muted/50 cursor-pointer" onClick={() => setSelected(q)}>
-                  <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-3 font-medium">{q.company}</td>
-                  <td className="px-5 py-3">{q.name}</td>
-                  <td className="px-5 py-3">{q.budget || "-"}</td>
-                  <td className="px-5 py-3">
-                    <select className="h-7 px-2 rounded border text-xs bg-background" value={q.status}
-                      onClick={e => e.stopPropagation()}
-                      onChange={e => updateStatus(q.id, e.target.value)}>
-                      <option value="pending">Pending</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="quoted">Quoted</option>
-                      <option value="closed">Closed</option>
-                    </select>
-                  </td>
-                  <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(q.id)}><Trash2 className="w-4 h-4" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No quotes found.</div>}
-        </div>
-      </Card>
+  const handleEmail = (email: string) => {
+    window.location.href = `mailto:${email}?subject=Re: Your Quote Request`;
+  };
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Quote Request Details</DialogTitle></DialogHeader>
-          {selected && (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-xs text-muted-foreground">Name</p><p className="font-medium">{selected.name}</p></div>
-                <div><p className="text-xs text-muted-foreground">Email</p><p>{selected.email}</p></div>
-                <div><p className="text-xs text-muted-foreground">Phone</p><p>{selected.phone || "-"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Company</p><p>{selected.company}</p></div>
-                <div><p className="text-xs text-muted-foreground">Company Size</p><p>{selected.companySize || "-"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Budget</p><p>{selected.budget || "-"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Timeline</p><p>{selected.timeline || "-"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Status</p><Badge>{selected.status}</Badge></div>
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* List */}
+      <div className="lg:col-span-1 space-y-4">
+        <div className="flex justify-between gap-2">
+          <div className="flex-1">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+          <Button variant="outline" onClick={exportCSV} size="sm"><Download className="w-4 h-4" /></Button>
+        </div>
+        <Card className="max-h-[600px] overflow-y-auto">
+          <div className="space-y-1">
+            {filtered.map(q => (
+              <button
+                key={q.id}
+                onClick={() => setSelected(q)}
+                className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors ${selected?.id === q.id ? "bg-primary/10 border-primary" : ""}`}
+              >
+                <p className="font-medium text-sm">{q.company}</p>
+                <p className="text-xs text-muted-foreground truncate">{q.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(q.createdAt).toLocaleDateString()}</p>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="p-8 text-center text-xs text-muted-foreground">No quotes</div>}
+          </div>
+        </Card>
+      </div>
+
+      {/* Detail View */}
+      <div className="lg:col-span-2">
+        {selected ? (
+          <Card className="h-full flex flex-col">
+            <div className="border-b p-4 flex items-start justify-between">
+              <div>
+                <h3 className="font-bold text-lg">{selected.company}</h3>
+                <p className="text-sm text-muted-foreground">{selected.name}</p>
               </div>
-              <div><p className="text-xs text-muted-foreground">Services</p><div className="flex flex-wrap gap-1 mt-1">{(selected.services || []).map((s: string) => <Badge key={s} variant="outline">{s}</Badge>)}</div></div>
-              {selected.details && <div><p className="text-xs text-muted-foreground">Details</p><p className="mt-1">{selected.details}</p></div>}
+              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(selected.id)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Contact</p>
+                  <p className="text-sm font-medium">{selected.name}</p>
+                  <p className="text-xs text-muted-foreground">{selected.email}</p>
+                  {selected.phone && <p className="text-xs text-muted-foreground">{selected.phone}</p>}
+                </div>
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Status</p>
+                  <select className="h-8 px-2 rounded border text-xs bg-background w-full" value={selected.status} onChange={e => updateStatus(selected.id, e.target.value)}>
+                    <option value="pending">Pending</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="quoted">Quoted</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Company Size</p>
+                  <p className="text-sm">{selected.companySize || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Budget</p>
+                  <p className="text-sm font-medium">{selected.budget || "-"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Timeline</p>
+                  <p className="text-sm">{selected.timeline || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Submitted</p>
+                  <p className="text-sm">{new Date(selected.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+              {(selected.services || []).length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-2">Services Interested</p>
+                  <div className="flex flex-wrap gap-1">{selected.services.map((s: string) => <Badge key={s} variant="outline">{s}</Badge>)}</div>
+                </div>
+              )}
+              {selected.details && (
+                <div className="border-t pt-3">
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-2">Details</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{selected.details}</p>
+                </div>
+              )}
+            </div>
+            <div className="border-t p-4 flex gap-2">
+              <Button size="sm" onClick={() => handleEmail(selected.email)} className="gap-2">
+                <Mail className="w-4 h-4" /> Reply via Email
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                navigator.clipboard.writeText(`${selected.email}`);
+                toast({ title: "Email copied" });
+              }}>Copy Email</Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="h-full flex items-center justify-center text-muted-foreground">
+            <p>Select a quote to view details</p>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
@@ -1140,6 +1186,7 @@ function QuotesTab({ quotes, refresh, headers, exportCSV }: { quotes: any[]; ref
 function ProposalsTab({ proposals, refresh, headers }: { proposals: any[]; refresh: () => void; headers: () => any }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({
     clientName: "", clientEmail: "", clientCompany: "", clientPhone: "", title: "",
@@ -1342,6 +1389,7 @@ function ProposalsTab({ proposals, refresh, headers }: { proposals: any[]; refre
 function TicketsTab({ tickets, refresh, headers, exportCSV }: { tickets: any[]; refresh: () => void; headers: () => any; exportCSV: () => void }) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<any>(null);
   const filtered = useMemo(() => {
     if (!search) return tickets;
     const s = search.toLowerCase();
@@ -1359,55 +1407,99 @@ function TicketsTab({ tickets, refresh, headers, exportCSV }: { tickets: any[]; 
     if (!confirm("Delete?")) return;
     try {
       await fetch(`/api/admin/tickets/${id}`, { method: "DELETE", headers: headers() });
-      toast({ title: "Deleted" }); refresh();
+      toast({ title: "Deleted" }); 
+      if (selected?.id === id) setSelected(null);
+      refresh();
     } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
+  const priorityColor = (p: string) => {
+    return p === "critical" ? "destructive" : p === "high" ? "default" : p === "medium" ? "secondary" : "outline";
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between gap-4">
-        <SearchBar value={search} onChange={setSearch} />
-        <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" />Export CSV</Button>
-      </div>
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-muted-foreground text-xs uppercase">
-              <tr>
-                <th className="px-5 py-3 text-left">ID</th>
-                <th className="px-5 py-3 text-left">Subject</th>
-                <th className="px-5 py-3 text-left">Priority</th>
-                <th className="px-5 py-3 text-left">Category</th>
-                <th className="px-5 py-3 text-left">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(t => (
-                <tr key={t.id} className="border-b last:border-0 hover:bg-muted/50">
-                  <td className="px-5 py-3 text-muted-foreground">#{t.id}</td>
-                  <td className="px-5 py-3 font-medium">{t.subject}</td>
-                  <td className="px-5 py-3">
-                    <Badge variant={t.priority === "critical" ? "destructive" : t.priority === "high" ? "default" : "secondary"}>{t.priority}</Badge>
-                  </td>
-                  <td className="px-5 py-3">{t.category}</td>
-                  <td className="px-5 py-3">
-                    <select className="h-7 px-2 rounded border text-xs bg-background" value={t.status}
-                      onChange={e => updateStatus(t.id, e.target.value)}>
-                      <option value="open">Open</option><option value="in_progress">In Progress</option>
-                      <option value="resolved">Resolved</option><option value="closed">Closed</option>
-                    </select>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(t.id)}><Trash2 className="w-4 h-4" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div className="p-8 text-center text-muted-foreground">No tickets found.</div>}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* List */}
+      <div className="lg:col-span-1 space-y-4">
+        <div className="flex justify-between gap-2">
+          <div className="flex-1">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+          <Button variant="outline" onClick={exportCSV} size="sm"><Download className="w-4 h-4" /></Button>
         </div>
-      </Card>
+        <Card className="max-h-[600px] overflow-y-auto">
+          <div className="space-y-1">
+            {filtered.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setSelected(t)}
+                className={`w-full text-left px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors ${selected?.id === t.id ? "bg-primary/10 border-primary" : ""}`}
+              >
+                <p className="font-medium text-sm">#{t.id} {t.subject}</p>
+                <div className="flex gap-1 mt-1">
+                  <Badge variant={priorityColor(t.priority)} className="text-xs">{t.priority}</Badge>
+                  <Badge variant="outline" className="text-xs">{t.category}</Badge>
+                </div>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="p-8 text-center text-xs text-muted-foreground">No tickets</div>}
+          </div>
+        </Card>
+      </div>
+
+      {/* Detail View */}
+      <div className="lg:col-span-2">
+        {selected ? (
+          <Card className="h-full flex flex-col">
+            <div className="border-b p-4 flex items-start justify-between">
+              <div>
+                <h3 className="font-bold text-lg">#{selected.id} {selected.subject}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{new Date(selected.createdAt).toLocaleString()}</p>
+              </div>
+              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(selected.id)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Priority</p>
+                  <Badge variant={priorityColor(selected.priority)}>{selected.priority}</Badge>
+                </div>
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Category</p>
+                  <Badge variant="outline">{selected.category}</Badge>
+                </div>
+                <div>
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-1">Status</p>
+                  <select className="h-8 px-2 rounded border text-xs bg-background w-full" value={selected.status} onChange={e => updateStatus(selected.id, e.target.value)}>
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+              </div>
+              {selected.description && (
+                <div className="border-t pt-3">
+                  <p className="text-xs uppercase font-semibold text-muted-foreground mb-2">Description</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{selected.description}</p>
+                </div>
+              )}
+              {selected.resolution && (
+                <div className="border-t pt-3 bg-green-50 dark:bg-green-950 rounded p-3">
+                  <p className="text-xs uppercase font-semibold text-green-800 dark:text-green-200 mb-2">Resolution</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-green-900 dark:text-green-100">{selected.resolution}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <Card className="h-full flex items-center justify-center text-muted-foreground">
+            <p>Select a ticket to view details</p>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
