@@ -730,7 +730,7 @@ export class TelarusAdapter implements TsdConnector {
       for (const objName of customObjNames) {
         try {
           const test = await this.sfQuery(`SELECT Id FROM ${objName} LIMIT 1`);
-          if (test.length >= 0) { usedCustomObject = objName; break; }
+          if (test.length > 0) { usedCustomObject = objName; break; }
         } catch { continue; }
       }
 
