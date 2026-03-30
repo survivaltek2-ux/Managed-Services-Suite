@@ -56,7 +56,7 @@ export default function PublicHome() {
             {[
               { icon: TrendingUp, title: "Aggressive Margins", desc: "Earn highly competitive margins on hardware, software, and recurring managed services." },
               { icon: Shield, title: "Deal Protection", desc: "Register your opportunities to guarantee your pricing and protect your deals from channel conflict." },
-              { icon: Zap, title: "Zoom Master Agent", desc: "Access the entire Zoom portfolio with VIP support, implementation help, and reseller pricing." }
+              { icon: Zap, title: "Zoom Agent", desc: "Access the entire Zoom portfolio with VIP support, implementation help, and reseller pricing." }
             ].map((feature, i) => (
               <div key={i} className="bg-card p-8 rounded-2xl shadow-sm border border-border/50 hover:shadow-md transition-shadow">
                 <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
