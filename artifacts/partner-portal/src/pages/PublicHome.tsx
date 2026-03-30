@@ -122,9 +122,6 @@ function TierCard({ name, image, features, featured = false }: { name: string, i
           </li>
         ))}
       </ul>
-      <Link href="/register" className="mt-8 block">
-        <Button variant={featured ? "default" : "outline"} className="w-full rounded-xl">Apply for {name}</Button>
-      </Link>
     </div>
   );
 }
