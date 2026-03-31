@@ -258,18 +258,116 @@ export default function InternetPlans() {
                 </div>
               </div>
             ) : userType === "business" ? (
-              /* BUSINESS FLOW */
-              <div className="bg-gradient-to-r from-[#032d60] to-[#0160b0] rounded-lg p-8 text-white text-center">
-                <h3 className="text-2xl font-bold mb-3">Business Internet Solutions</h3>
-                <p className="mb-6 text-white/90">For enterprise-grade fiber, dedicated circuits, and managed connectivity, our team can help you find the right provider and manage installation.</p>
-                <a
-                  href="tel:+1-800-000-0000"
-                  className="inline-block bg-white text-[#032d60] font-bold py-3 px-8 rounded-lg hover:bg-gray-100 transition"
-                >
-                  Speak with an Internet Expert
-                </a>
-                <p className="text-sm text-white/70 mt-4">We can manage installation and security setup.</p>
-              </div>
+              /* BUSINESS FLOW - Show business-grade providers */
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+                  <p className="font-semibold mb-1">Affiliate Disclosure</p>
+                  <p>We may receive a referral commission when you order service through links on this page. This helps support our website at no additional cost to you. We can also manage installation and security setup for your business.</p>
+                </div>
+
+                {(() => {
+                  // Filter providers for business: prioritize Fiber and high-speed options
+                  const businessProviders = result.providers.filter(
+                    p => ["Fiber", "Fixed Wireless", "Cable"].includes(p.technology) && p.maxDownload >= 25
+                  );
+                  
+                  // Group by technology
+                  const businessTechGroups: Record<string, typeof result.providers> = {};
+                  for (const p of businessProviders) {
+                    if (!businessTechGroups[p.technology]) businessTechGroups[p.technology] = [];
+                    businessTechGroups[p.technology].push(p);
+                  }
+
+                  return (
+                    <>
+                      <p className="text-gray-600 font-semibold">
+                        {businessProviders.length} business-grade provider{businessProviders.length !== 1 ? 's' : ''} available
+                      </p>
+
+                      {businessProviders.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Globe className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-lg font-semibold text-gray-700">No business-grade providers found</p>
+                          <p className="text-gray-600 mt-2">Unfortunately, there are no qualifying business internet providers available for this address. Please contact us for custom solutions.</p>
+                          <a
+                            href="/contact"
+                            className="inline-block mt-4 bg-[#032d60] hover:bg-[#0160b0] text-white font-semibold py-2 px-6 rounded-lg transition"
+                          >
+                            Contact Our Team
+                          </a>
+                        </div>
+                      ) : (
+                        Object.entries(businessTechGroups).map(([tech, providers]) => {
+                          const cfg = fallbackConfig(tech);
+                          const Icon = cfg.icon;
+                          return (
+                            <div key={tech} className={`border rounded-lg overflow-hidden ${cfg.cardBorder}`}>
+                              <div className={`px-4 py-3 flex items-center gap-2 ${cfg.cardBg}`}>
+                                <Icon className={`w-5 h-5 ${cfg.iconColor}`} />
+                                <h3 className={`text-lg font-semibold ${cfg.labelText}`}>{tech}</h3>
+                                <span className={`ml-auto text-sm font-medium px-3 py-1 rounded-full ${cfg.badge}`}>
+                                  {providers.length}
+                                </span>
+                              </div>
+                              <div className="divide-y divide-gray-200">
+                                {providers.map((p) => (
+                                  <div key={`${p.providerId}-${p.technology}`} className="px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                    <div>
+                                      <h4 className="text-lg font-semibold text-gray-900">{p.brandName}</h4>
+                                      <p className="text-sm text-gray-600">{p.technologyDetail}</p>
+                                      {p.minPlanPrice && (
+                                        <p className="text-sm font-semibold text-emerald-600 mt-1">
+                                          From ${(p.minPlanPrice.amount_cents / 100).toFixed(2)}/mo
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                      <div className="text-sm text-gray-600">
+                                        <span className="font-semibold text-gray-900">{formatSpeed(p.maxDownload)}</span>
+                                        <span> down / </span>
+                                        <span className="font-semibold text-gray-900">{formatSpeed(p.maxUpload)}</span>
+                                        <span> up</span>
+                                        {p.lowLatency && (
+                                          <span className="ml-3 inline-block bg-emerald-100 text-emerald-800 text-xs font-semibold px-2 py-1 rounded">Low Latency</span>
+                                        )}
+                                      </div>
+                                      {p.affiliateUrl && (
+                                        <a
+                                          href={p.affiliateUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="bg-[#032d60] hover:bg-[#0160b0] text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm whitespace-nowrap"
+                                        >
+                                          {p.affiliateButtonLabel || "Get Started"}
+                                          <ExternalLink className="w-3.5 h-3.5" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+
+                      {/* Links */}
+                      <div className="flex gap-3 justify-center">
+                        <a
+                          href={result.fccMapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#032d60] hover:text-[#0160b0] font-semibold flex items-center gap-2"
+                        >
+                          <Map className="w-4 h-4" />
+                          View on FCC Map
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </>
+                  );
+                })()}
+              </>
             ) : (
               /* HOME FLOW - Show consumer ISP results */
               <>
