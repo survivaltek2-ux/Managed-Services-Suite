@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { db, affiliateClicksTable } from "@workspace/db";
 import { desc, count, sql } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth.js";
+import { RESIDENTIAL_COMMISSIONS, VOIP_COMMISSIONS, CYBERSECURITY_COMMISSIONS, VPN_COMMISSIONS, PASSWORD_MGMT_COMMISSIONS, BACKUP_COMMISSIONS, BUSINESS_CONNECTIVITY_COMMISSIONS } from "../config/isp-commissions.js";
 
 const router = Router();
 
@@ -93,6 +94,38 @@ router.get("/api/admin/affiliate/clicks", requireAdmin, async (_req: Request, re
     console.error("[Affiliate Admin] Error fetching clicks:", err);
     res.status(500).json({ error: "server_error" });
   }
+});
+
+/**
+ * GET /api/admin/affiliate/programs
+ * Admin only — returns the full catalog of affiliate programs from config,
+ * grouped by category, so the team can see what's live vs. pending sign-up.
+ */
+router.get("/api/admin/affiliate/programs", requireAdmin, (_req: Request, res: Response) => {
+  const buildCategory = (name: string, map: Record<string, any>) =>
+    Object.entries(map).map(([slug, entry]) => ({
+      slug,
+      category: name,
+      rateUsd: entry.rateUsd,
+      percentRate: entry.percentRate ?? null,
+      commissionType: entry.commissionType,
+      network: entry.network,
+      affiliateSignupUrl: entry.affiliateSignupUrl,
+      isLive: entry.affiliateUrl !== null,
+      notes: entry.notes,
+    }));
+
+  const programs = [
+    ...buildCategory("Residential ISP", RESIDENTIAL_COMMISSIONS),
+    ...buildCategory("Business Connectivity", BUSINESS_CONNECTIVITY_COMMISSIONS),
+    ...buildCategory("VoIP & Communications", VOIP_COMMISSIONS),
+    ...buildCategory("Cybersecurity", CYBERSECURITY_COMMISSIONS),
+    ...buildCategory("VPN & Network Security", VPN_COMMISSIONS),
+    ...buildCategory("Password Management", PASSWORD_MGMT_COMMISSIONS),
+    ...buildCategory("Backup & Storage", BACKUP_COMMISSIONS),
+  ];
+
+  res.json({ programs, totalLive: programs.filter(p => p.isLive).length, totalPending: programs.filter(p => !p.isLive).length });
 });
 
 export default router;
