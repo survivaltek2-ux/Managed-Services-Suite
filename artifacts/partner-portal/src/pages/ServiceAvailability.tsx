@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { getAuthHeaders } from "@/hooks/use-auth";
 import {
   MapPin, Search, AlertCircle, CheckCircle, Loader2,
@@ -71,6 +72,13 @@ export default function ServiceAvailability() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AvailabilityResult | null>(null);
 
+  const handleAddressSelect = (result: { address: string; city: string; state: string; zip: string; lat: number; lng: number }) => {
+    setAddress(result.address);
+    setCity(result.city);
+    setState(result.state);
+    setZip(result.zip);
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address.trim() || !state) return;
@@ -133,13 +141,11 @@ export default function ServiceAvailability() {
           <form onSubmit={handleSearch} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Street Address *</label>
-              <input
-                type="text"
+              <AddressAutocomplete
                 value={address}
-                onChange={e => setAddress(e.target.value)}
+                onChange={setAddress}
+                onAddressSelect={handleAddressSelect}
                 placeholder="e.g. 123 Main St"
-                required
-                className="w-full h-9 px-3 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-[#0176d3]/30 focus:border-[#0176d3]"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
