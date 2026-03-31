@@ -73,13 +73,15 @@ router.get("/service-availability", requirePartnerAuth, async (req: PartnerReque
       redirect: "follow",
     });
 
-    if (!apiRes.ok) {
+    // Parse the body regardless of status — the API sends { success: false } on 400 too
+    let data: any;
+    try {
+      data = await apiRes.json();
+    } catch {
       console.error("[Service Availability] External API error:", apiRes.status);
       res.status(502).json({ error: "upstream_error", message: "Could not reach the broadband data service. Please try again." });
       return;
     }
-
-    const data = await apiRes.json();
 
     if (!data.success) {
       const msg = data.error || "Address not found";
