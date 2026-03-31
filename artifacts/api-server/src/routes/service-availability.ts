@@ -27,6 +27,11 @@ interface IspProvider {
   maxUpload: number;
   lowLatency: boolean;
   locationCount?: number;
+  // Affiliate fields from Hum
+  affiliateUrl?: string;
+  affiliateButtonLabel?: string;
+  affiliateToken?: string;
+  minPlanPrice?: { amount_cents: number; currency: string };
 }
 
 interface ApiResponseData {
@@ -232,7 +237,7 @@ async function tryHum(address: string, city: string, state: string, zip: string)
       return { success: false, error: "No providers found" };
     }
 
-    // Transform Hum providers to our format
+    // Transform Hum providers to our format (with affiliate data)
     const providers: IspProvider[] = humProviders.map((p: any, idx: number) => {
       const offering = p.offerings?.[0] || {};
       return {
@@ -244,6 +249,11 @@ async function tryHum(address: string, city: string, state: string, zip: string)
         maxDownload: offering.max_download_speed || 0,
         maxUpload: offering.max_upload_speed || 0,
         lowLatency: (offering.max_download_speed || 0) >= 100,
+        // Affiliate fields from Hum
+        affiliateUrl: p.url,
+        affiliateButtonLabel: p.button_label,
+        affiliateToken: p.security_token,
+        minPlanPrice: p.min_plan_price,
       };
     });
 

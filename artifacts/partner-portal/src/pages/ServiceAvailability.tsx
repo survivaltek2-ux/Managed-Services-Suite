@@ -42,6 +42,11 @@ interface IspProvider {
   maxUpload: number;
   lowLatency: boolean;
   locationCount?: number;
+  // Affiliate fields from Hum
+  affiliateUrl?: string;
+  affiliateButtonLabel?: string;
+  affiliateToken?: string;
+  minPlanPrice?: { amount_cents: number; currency: string };
 }
 
 interface AvailabilityResult {
@@ -256,21 +261,38 @@ export default function ServiceAvailability() {
                     </div>
                     <div className="divide-y divide-[#e5e7eb]">
                       {providers.map((p) => (
-                        <div key={`${p.providerId}-${p.technology}`} className="px-4 py-3 bg-white flex flex-wrap items-center gap-x-6 gap-y-1">
+                        <div key={`${p.providerId}-${p.technology}`} className="px-4 py-3 bg-white flex flex-wrap items-center justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground">{p.brandName}</p>
                             <p className="text-xs text-muted-foreground">{p.technologyDetail}</p>
+                            {p.minPlanPrice && (
+                              <p className="text-xs text-emerald-600 font-medium mt-1">
+                                From ${(p.minPlanPrice.amount_cents / 100).toFixed(2)}/mo
+                              </p>
+                            )}
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
-                            <span className="flex items-center gap-1">
-                              <ArrowDownUp className="w-3 h-3" />
-                              <span className="font-medium text-foreground">{formatSpeed(p.maxDownload)}</span>
-                              <span>↓</span>
-                              <span className="font-medium text-foreground">{formatSpeed(p.maxUpload)}</span>
-                              <span>↑</span>
-                            </span>
-                            {p.lowLatency && (
-                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-medium">Low Latency</span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <ArrowDownUp className="w-3 h-3" />
+                                <span className="font-medium text-foreground">{formatSpeed(p.maxDownload)}</span>
+                                <span>↓</span>
+                                <span className="font-medium text-foreground">{formatSpeed(p.maxUpload)}</span>
+                                <span>↑</span>
+                              </span>
+                              {p.lowLatency && (
+                                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-medium">Low Latency</span>
+                              )}
+                            </div>
+                            {p.affiliateUrl && (
+                              <a
+                                href={p.affiliateUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="sf-btn sf-btn-primary text-xs px-3 py-1.5 h-auto"
+                              >
+                                {p.affiliateButtonLabel || "Get Started"}
+                              </a>
                             )}
                           </div>
                         </div>
