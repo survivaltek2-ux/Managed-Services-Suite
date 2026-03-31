@@ -16,6 +16,7 @@ import zoomWebhookRouter from "./zoomWebhook";
 import invoicesRouter from "./invoices";
 import reportsRouter from "./reports";
 import serviceAvailabilityRouter from "./service-availability.js";
+import placesRouter from "./places.js";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(zoomWebhookRouter);
 router.use(invoicesRouter);
 router.use(reportsRouter);
 router.use(serviceAvailabilityRouter);
+router.use(placesRouter);
 
 export default router;
