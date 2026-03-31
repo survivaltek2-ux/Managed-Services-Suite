@@ -366,18 +366,17 @@ router.get("/service-availability", async (req: Request, res: Response) => {
     // Tertiary: download speed (fastest first)
     const providers = Array.from(seen.values())
       .map(p => {
+        // Attach commission data internally for sorting only — never exposed in response
         const commission = lookupResidentialCommission(p.brandName);
         return {
           ...p,
-          estimatedCommissionUsd: commission?.rateUsd ?? 0,
-          commissionNetwork: commission?.network,
-          commissionAffiliateSignupUrl: commission?.affiliateSignupUrl,
+          _commissionRateInternal: commission?.rateUsd ?? 0,
         };
       })
       .sort((a, b) => {
-        // Sort by commission first
-        if (b.estimatedCommissionUsd !== a.estimatedCommissionUsd) {
-          return b.estimatedCommissionUsd - a.estimatedCommissionUsd;
+        // Sort by commission first (internal only, not in response)
+        if (b._commissionRateInternal !== a._commissionRateInternal) {
+          return b._commissionRateInternal - a._commissionRateInternal;
         }
         // Then by technology
         const ao = TECH_ORDER[a.technology] ?? 5;
@@ -385,7 +384,8 @@ router.get("/service-availability", async (req: Request, res: Response) => {
         if (ao !== bo) return ao - bo;
         // Then by speed
         return b.maxDownload - a.maxDownload;
-      });
+      })
+      .map(({ _commissionRateInternal, ...publicProvider }) => publicProvider); // Strip internal field
 
     res.json({
       location: {

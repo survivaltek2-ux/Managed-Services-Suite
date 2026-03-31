@@ -42,10 +42,6 @@ interface IspProvider {
   affiliateUrl?: string;
   affiliateButtonLabel?: string;
   minPlanPrice?: { amount_cents: number; currency: string };
-  // Commission data from backend (auto-sorted by revenue potential)
-  estimatedCommissionUsd?: number;
-  commissionNetwork?: string;
-  commissionAffiliateSignupUrl?: string;
 }
 
 interface AvailabilityResult {
