@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
-import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
-import { MapPin, Search, Wifi, Zap, Radio, Satellite, Globe, AlertCircle, CheckCircle, ArrowDownUp, Loader2 } from "lucide-react";
+import { getAuthHeaders } from "@/hooks/use-auth";
+import { MapPin, Search, AlertCircle, CheckCircle, Loader2, ExternalLink, Map, Navigation } from "lucide-react";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -10,66 +10,20 @@ const US_STATES = [
   "VA","WA","WV","WI","WY","DC"
 ];
 
-const TECH_ICONS: Record<string, any> = {
-  "Fiber": Zap,
-  "Cable": Wifi,
-  "DSL": Globe,
-  "Fixed Wireless": Radio,
-  "Licensed Fixed Wireless": Radio,
-  "Satellite": Satellite,
-  "Licensed Satellite": Satellite,
-};
-
-const TECH_COLORS: Record<string, string> = {
-  "Fiber": "bg-emerald-50 border-emerald-200 text-emerald-700",
-  "Cable": "bg-orange-50 border-orange-200 text-orange-700",
-  "DSL": "bg-blue-50 border-blue-200 text-blue-700",
-  "Fixed Wireless": "bg-purple-50 border-purple-200 text-purple-700",
-  "Licensed Fixed Wireless": "bg-purple-50 border-purple-200 text-purple-700",
-  "Satellite": "bg-slate-50 border-slate-200 text-slate-700",
-  "Licensed Satellite": "bg-slate-50 border-slate-200 text-slate-700",
-};
-
-const TECH_BADGE: Record<string, string> = {
-  "Fiber": "bg-emerald-100 text-emerald-800",
-  "Cable": "bg-orange-100 text-orange-800",
-  "DSL": "bg-blue-100 text-blue-800",
-  "Fixed Wireless": "bg-purple-100 text-purple-800",
-  "Licensed Fixed Wireless": "bg-purple-100 text-purple-800",
-  "Satellite": "bg-slate-100 text-slate-700",
-  "Licensed Satellite": "bg-slate-100 text-slate-700",
-};
-
-function formatSpeed(mbps: number | null | undefined): string {
-  if (!mbps) return "N/A";
-  if (mbps >= 1000) return `${(mbps / 1000).toFixed(1)} Gbps`;
-  return `${mbps} Mbps`;
-}
-
-interface Provider {
-  providerName: string;
-  technology: string;
-  technologyCode: number;
-  maxDownloadSpeed: number;
-  maxUploadSpeed: number;
-  lowLatency: boolean;
-}
-
 interface AvailabilityResult {
-  location: { address: string; locationId: string; latitude: number; longitude: number };
-  providers: Provider[];
-  total: number;
+  location: { address: string; latitude: number; longitude: number };
+  fccMapUrl: string;
+  fccLocationUrl: string;
+  googleMapsUrl: string;
 }
 
 export default function ServiceAvailability() {
-  const { user } = useAuth();
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notConfigured, setNotConfigured] = useState(false);
   const [result, setResult] = useState<AvailabilityResult | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -79,7 +33,6 @@ export default function ServiceAvailability() {
     setLoading(true);
     setError(null);
     setResult(null);
-    setNotConfigured(false);
 
     try {
       const params = new URLSearchParams({ address: address.trim(), state });
@@ -93,11 +46,7 @@ export default function ServiceAvailability() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.error === "fcc_not_configured") {
-          setNotConfigured(true);
-        } else {
-          setError(data.message || "Failed to retrieve availability data");
-        }
+        setError(data.message || "Failed to retrieve availability data");
         return;
       }
 
@@ -108,14 +57,6 @@ export default function ServiceAvailability() {
       setLoading(false);
     }
   };
-
-  const techGroups = result
-    ? result.providers.reduce((acc: Record<string, Provider[]>, p) => {
-        if (!acc[p.technology]) acc[p.technology] = [];
-        acc[p.technology].push(p);
-        return acc;
-      }, {})
-    : {};
 
   return (
     <PortalLayout>
@@ -200,27 +141,6 @@ export default function ServiceAvailability() {
           </form>
         </div>
 
-        {/* Not Configured Notice */}
-        {notConfigured && (
-          <div className="sf-card p-5 border-amber-200 bg-amber-50">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-sm text-amber-800 mb-1">FCC API Credentials Required</p>
-                <p className="text-sm text-amber-700 mb-3">
-                  To use this feature, you need a free FCC broadband account and API token.
-                </p>
-                <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside mb-3">
-                  <li>Register for a free account at <a href="https://broadbandmap.fcc.gov" target="_blank" rel="noreferrer" className="underline font-medium">broadbandmap.fcc.gov</a></li>
-                  <li>Log in → click your username → <strong>Manage API Access</strong> → Generate token</li>
-                  <li>Add <code className="bg-amber-100 px-1 rounded text-xs">FCC_USERNAME</code> (your email) and <code className="bg-amber-100 px-1 rounded text-xs">FCC_API_TOKEN</code> to your environment settings</li>
-                </ol>
-                <p className="text-xs text-amber-600">The FCC API is free and covers all 50 US states with data updated every ~6 months.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Error */}
         {error && (
           <div className="sf-card p-4 border-red-200 bg-red-50 flex gap-3">
@@ -233,66 +153,67 @@ export default function ServiceAvailability() {
         {result && (
           <div className="space-y-4">
             {/* Location confirmed */}
-            <div className="sf-card p-4 flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+            <div className="sf-card p-4 flex items-center gap-3 border-emerald-200 bg-emerald-50">
+              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{result.location.address}</p>
-                <p className="text-xs text-muted-foreground">FCC Location ID: {result.location.locationId}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-lg font-bold text-[#032d60]">{result.total}</p>
-                <p className="text-xs text-muted-foreground">provider{result.total !== 1 ? "s" : ""} found</p>
+                <p className="text-xs font-semibold text-emerald-800 mb-0.5">Address Verified</p>
+                <p className="text-sm font-medium text-emerald-900 truncate">{result.location.address}</p>
+                <p className="text-xs text-emerald-600 mt-0.5">
+                  {result.location.latitude.toFixed(5)}, {result.location.longitude.toFixed(5)}
+                </p>
               </div>
             </div>
 
-            {result.total === 0 ? (
-              <div className="sf-card p-8 text-center">
-                <Globe className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium text-foreground mb-1">No providers found</p>
-                <p className="text-sm text-muted-foreground">No broadband providers reported serving this location in the FCC database.</p>
+            {/* FCC map links */}
+            <div className="sf-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-border">
+                <p className="font-semibold text-sm text-foreground">View Broadband Availability</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Open the FCC National Broadband Map to see all ISPs and speeds at this address.
+                </p>
               </div>
-            ) : (
-              Object.entries(techGroups).map(([tech, providers]) => {
-                const Icon = TECH_ICONS[tech] || Globe;
-                const cardClass = TECH_COLORS[tech] || "bg-slate-50 border-slate-200 text-slate-700";
-                const badgeClass = TECH_BADGE[tech] || "bg-slate-100 text-slate-700";
-                return (
-                  <div key={tech} className={`sf-card overflow-hidden border ${cardClass.split(" ")[1]}`}>
-                    <div className={`px-4 py-3 flex items-center gap-2 border-b ${cardClass.split(" ")[1]} ${cardClass.split(" ")[0]}`}>
-                      <Icon className={`w-4 h-4 ${cardClass.split(" ")[2]}`} />
-                      <span className={`text-sm font-semibold ${cardClass.split(" ")[2]}`}>{tech}</span>
-                      <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass}`}>
-                        {providers.length} provider{providers.length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <div className="divide-y divide-[#e5e7eb]">
-                      {providers.map((p, i) => (
-                        <div key={i} className="px-4 py-3 bg-white flex flex-wrap items-center gap-x-6 gap-y-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground">{p.providerName}</p>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <ArrowDownUp className="w-3 h-3" />
-                              <span className="font-medium text-foreground">{formatSpeed(p.maxDownloadSpeed)}</span>
-                              <span>↓</span>
-                              <span className="font-medium text-foreground">{formatSpeed(p.maxUploadSpeed)}</span>
-                              <span>↑</span>
-                            </span>
-                            {p.lowLatency && (
-                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-medium">Low Latency</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+              <div className="p-4 space-y-2.5">
+                <a
+                  href={result.fccLocationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between w-full bg-[#032d60] text-white px-4 py-3 rounded-lg text-sm font-medium hover:bg-[#032d60]/90 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <Map className="w-4 h-4" />
+                    FCC Broadband Map — Location Detail
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+                <a
+                  href={result.fccMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between w-full bg-white text-[#032d60] border border-[#032d60]/20 px-4 py-3 rounded-lg text-sm font-medium hover:bg-[#032d60]/5 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <Map className="w-4 h-4" />
+                    FCC Broadband Map — Area View
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+                <a
+                  href={result.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between w-full bg-white text-muted-foreground border border-border px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted/30 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <Navigation className="w-4 h-4" />
+                    View on Google Maps
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+              </div>
+            </div>
 
             <p className="text-xs text-muted-foreground text-center pb-2">
-              Data sourced from the FCC Broadband Data Collection (BDC) — updated approximately every 6 months.
+              FCC broadband data is updated periodically. The map shows all ISPs serving this address along with available speeds and technology types.
             </p>
           </div>
         )}

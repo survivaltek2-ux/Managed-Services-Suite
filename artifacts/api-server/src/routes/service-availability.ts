@@ -3,19 +3,52 @@ import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.j
 
 const router = Router();
 
-const TECH_CODES: Record<number, { label: string; color: string }> = {
-  10: { label: "DSL", color: "blue" },
-  40: { label: "Cable", color: "orange" },
-  50: { label: "Fiber", color: "green" },
-  70: { label: "Fixed Wireless", color: "purple" },
-  71: { label: "Fixed Wireless", color: "purple" },
-  300: { label: "Licensed Fixed Wireless", color: "purple" },
-  301: { label: "Licensed Fixed Wireless", color: "purple" },
-  400: { label: "Fixed Wireless", color: "purple" },
-  500: { label: "Licensed Satellite", color: "gray" },
-  600: { label: "Satellite", color: "gray" },
-  700: { label: "Other", color: "gray" },
-};
+interface CensusMatch {
+  matchedAddress: string;
+  coordinates: { x: number; y: number };
+}
+
+async function geocodeAddress(address: string, city?: string, state?: string, zip?: string): Promise<CensusMatch | null> {
+  const oneLineAddress = [address, city, state, zip].filter(Boolean).join(", ");
+  const params = new URLSearchParams({
+    address: oneLineAddress,
+    benchmark: "2020",
+    format: "json",
+  });
+
+  const res = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${params}`);
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const matches: CensusMatch[] = data?.result?.addressMatches ?? [];
+  return matches.length > 0 ? matches[0] : null;
+}
+
+function buildFccMapUrl(lat: number, lon: number, addr: string): string {
+  const params = new URLSearchParams({
+    addr,
+    lat: lat.toFixed(6),
+    lon: lon.toFixed(6),
+    unit: "ft",
+    speed: "25",
+    tech: "300",
+    zoom: "14",
+  });
+  return `https://broadbandmap.fcc.gov/home?${params}`;
+}
+
+function buildFccLocationUrl(lat: number, lon: number, addr: string): string {
+  const params = new URLSearchParams({
+    addr,
+    lat: lat.toFixed(6),
+    lon: lon.toFixed(6),
+    unit: "ft",
+    speed: "25",
+    tech: "300",
+    zoom: "14",
+  });
+  return `https://broadbandmap.fcc.gov/location-summary/fixed?${params}`;
+}
 
 router.get("/service-availability", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
@@ -26,90 +59,29 @@ router.get("/service-availability", requirePartnerAuth, async (req: PartnerReque
       return;
     }
 
-    const username = process.env.FCC_USERNAME;
-    const hashValue = process.env.FCC_API_TOKEN;
+    const match = await geocodeAddress(address, city, state, zip);
 
-    if (!username || !hashValue) {
-      res.status(503).json({
-        error: "fcc_not_configured",
-        message: "FCC broadband API credentials are not yet configured. Please set FCC_USERNAME and FCC_API_TOKEN in your environment settings.",
-      });
-      return;
-    }
-
-    const fccHeaders = { username, hash_value: hashValue };
-
-    const locationParams = new URLSearchParams();
-    locationParams.set("address", address);
-    if (city) locationParams.set("city", city);
-    locationParams.set("state", state);
-    if (zip) locationParams.set("zip", zip);
-    locationParams.set("unit", "ft");
-    locationParams.set("radius", "500");
-    locationParams.set("limit", "5");
-
-    const locationRes = await fetch(
-      `https://broadbandmap.fcc.gov/api/public/map/listLocations?${locationParams}`,
-      { headers: fccHeaders }
-    );
-
-    if (!locationRes.ok) {
-      const errText = await locationRes.text();
-      console.error("[Service Availability] FCC location error:", locationRes.status, errText);
-      res.status(502).json({ error: "fcc_location_error", message: "Failed to locate address in FCC database" });
-      return;
-    }
-
-    const locationData = await locationRes.json();
-
-    if (!locationData.data || locationData.data.length === 0) {
+    if (!match) {
       res.status(404).json({
         error: "location_not_found",
-        message: "This address could not be found in the FCC broadband database. Try adjusting the address or zip code.",
+        message: "This address could not be verified. Please check the address and try again.",
       });
       return;
     }
 
-    const location = locationData.data[0];
-    const locationId = location.location_id;
-
-    const availRes = await fetch(
-      `https://broadbandmap.fcc.gov/api/public/map/listAvailability?location_id=${locationId}`,
-      { headers: fccHeaders }
-    );
-
-    if (!availRes.ok) {
-      const errText = await availRes.text();
-      console.error("[Service Availability] FCC availability error:", availRes.status, errText);
-      res.status(502).json({ error: "fcc_availability_error", message: "Failed to retrieve availability data" });
-      return;
-    }
-
-    const availData = await availRes.json();
-
-    const providers = (availData.data || []).map((p: any) => ({
-      providerName: p.provider_name || p.doing_business_as_name || "Unknown Provider",
-      technology: TECH_CODES[p.technology_code]?.label ?? `Tech ${p.technology_code}`,
-      technologyCode: Number(p.technology_code),
-      maxDownloadSpeed: p.max_advertised_download_speed,
-      maxUploadSpeed: p.max_advertised_upload_speed,
-      lowLatency: p.low_latency === true || p.low_latency === 1,
-    }));
-
-    providers.sort((a: any, b: any) => {
-      const order = [50, 40, 70, 300, 301, 400, 10, 500, 600, 700, 71];
-      return (order.indexOf(a.technologyCode) ?? 99) - (order.indexOf(b.technologyCode) ?? 99);
-    });
+    const lat = match.coordinates.y;
+    const lon = match.coordinates.x;
+    const formattedAddress = match.matchedAddress;
 
     res.json({
       location: {
-        address: location.address_primary || `${address}${city ? `, ${city}` : ""}, ${state}${zip ? ` ${zip}` : ""}`,
-        locationId,
-        latitude: location.latitude,
-        longitude: location.longitude,
+        address: formattedAddress,
+        latitude: lat,
+        longitude: lon,
       },
-      providers,
-      total: providers.length,
+      fccMapUrl: buildFccMapUrl(lat, lon, formattedAddress),
+      fccLocationUrl: buildFccLocationUrl(lat, lon, formattedAddress),
+      googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
     });
   } catch (err: any) {
     console.error("[Service Availability] Error:", err);
