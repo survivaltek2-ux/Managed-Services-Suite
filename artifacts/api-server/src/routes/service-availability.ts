@@ -3,51 +3,48 @@ import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.j
 
 const router = Router();
 
-interface CensusMatch {
-  matchedAddress: string;
-  coordinates: { x: number; y: number };
+const TECH_ORDER: Record<string, number> = {
+  Fiber: 0,
+  Cable: 1,
+  DSL: 2,
+  "Fixed Wireless": 3,
+  "Licensed Fixed Wireless": 3,
+  Satellite: 4,
+  Other: 5,
+};
+
+interface IspProvider {
+  providerId: string;
+  brandName: string;
+  technology: string;
+  technologyCode: number;
+  technologyDetail: string;
+  maxDownload: number;
+  maxUpload: number;
+  lowLatency: boolean;
+  locationCount?: number;
 }
 
-async function geocodeAddress(address: string, city?: string, state?: string, zip?: string): Promise<CensusMatch | null> {
-  const oneLineAddress = [address, city, state, zip].filter(Boolean).join(", ");
-  const params = new URLSearchParams({
-    address: oneLineAddress,
-    benchmark: "2020",
-    format: "json",
-  });
-
-  const res = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${params}`);
-  if (!res.ok) return null;
-
-  const data = await res.json();
-  const matches: CensusMatch[] = data?.result?.addressMatches ?? [];
-  return matches.length > 0 ? matches[0] : null;
-}
-
-function buildFccMapUrl(lat: number, lon: number, addr: string): string {
-  const params = new URLSearchParams({
-    addr,
-    lat: lat.toFixed(6),
-    lon: lon.toFixed(6),
-    unit: "ft",
-    speed: "25",
-    tech: "300",
-    zoom: "14",
-  });
-  return `https://broadbandmap.fcc.gov/home?${params}`;
-}
-
-function buildFccLocationUrl(lat: number, lon: number, addr: string): string {
-  const params = new URLSearchParams({
-    addr,
-    lat: lat.toFixed(6),
-    lon: lon.toFixed(6),
-    unit: "ft",
-    speed: "25",
-    tech: "300",
-    zoom: "14",
-  });
-  return `https://broadbandmap.fcc.gov/location-summary/fixed?${params}`;
+interface ApiResponseData {
+  address: {
+    input: string;
+    matched: string;
+    components: { streetAddress: string; city: string; state: string; zip: string };
+  };
+  coordinates: { lat: number; lng: number };
+  providers: IspProvider[];
+  summary: {
+    totalProviders: number;
+    totalOptions: number;
+    hasFiber: boolean;
+    hasCable: boolean;
+    hasDSL: boolean;
+    hasFixedWireless: boolean;
+    hasSatellite: boolean;
+    maxDownloadSpeed: number;
+    maxUploadSpeed: number;
+    state: string;
+  };
 }
 
 router.get("/service-availability", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
@@ -55,37 +52,81 @@ router.get("/service-availability", requirePartnerAuth, async (req: PartnerReque
     const { address, city, state, zip } = req.query as Record<string, string>;
 
     if (!address || !state) {
-      res.status(400).json({ error: "validation_error", message: "address and state are required" });
+      res.status(400).json({ error: "validation_error", message: "Address and state are required." });
       return;
     }
 
-    const match = await geocodeAddress(address, city, state, zip);
+    // Build formatted address string (city is strongly recommended)
+    const parts = [address.trim()];
+    if (city?.trim()) parts.push(city.trim());
+    parts.push(state.trim());
+    if (zip?.trim()) parts.push(zip.trim());
+    const formattedAddress = parts.join(", ");
 
-    if (!match) {
-      res.status(404).json({
-        error: "location_not_found",
-        message: "This address could not be verified. Please check the address and try again.",
-      });
+    const apiUrl = `https://www.internetproviders.ai/api/availability?address=${encodeURIComponent(formattedAddress)}`;
+
+    const apiRes = await fetch(apiUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; SiebertServices/1.0)",
+        "Accept": "application/json",
+      },
+      redirect: "follow",
+    });
+
+    if (!apiRes.ok) {
+      console.error("[Service Availability] External API error:", apiRes.status);
+      res.status(502).json({ error: "upstream_error", message: "Could not reach the broadband data service. Please try again." });
       return;
     }
 
-    const lat = match.coordinates.y;
-    const lon = match.coordinates.x;
-    const formattedAddress = match.matchedAddress;
+    const data = await apiRes.json();
+
+    if (!data.success) {
+      const msg = data.error || "Address not found";
+      if (msg.toLowerCase().includes("not find") || msg.toLowerCase().includes("valid")) {
+        res.status(404).json({
+          error: "address_not_found",
+          message: "This address could not be found. Please include city and state (e.g., 123 Main St, Nashville, TN).",
+        });
+      } else {
+        res.status(422).json({ error: "lookup_failed", message: msg });
+      }
+      return;
+    }
+
+    const d: ApiResponseData = data.data;
+
+    // Deduplicate providers (same brand + technology → keep highest speeds)
+    const seen = new Map<string, IspProvider>();
+    for (const p of (d.providers || [])) {
+      const key = `${p.providerId}-${p.technology}`;
+      const existing = seen.get(key);
+      if (!existing || p.maxDownload > existing.maxDownload) {
+        seen.set(key, p);
+      }
+    }
+
+    const providers = Array.from(seen.values()).sort((a, b) => {
+      const ao = TECH_ORDER[a.technology] ?? 5;
+      const bo = TECH_ORDER[b.technology] ?? 5;
+      if (ao !== bo) return ao - bo;
+      return b.maxDownload - a.maxDownload;
+    });
 
     res.json({
       location: {
-        address: formattedAddress,
-        latitude: lat,
-        longitude: lon,
+        address: d.address.matched,
+        latitude: d.coordinates.lat,
+        longitude: d.coordinates.lng,
       },
-      fccMapUrl: buildFccMapUrl(lat, lon, formattedAddress),
-      fccLocationUrl: buildFccLocationUrl(lat, lon, formattedAddress),
-      googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+      providers,
+      summary: d.summary,
+      fccMapUrl: `https://broadbandmap.fcc.gov/home?addr=${encodeURIComponent(d.address.matched)}&lat=${d.coordinates.lat.toFixed(6)}&lon=${d.coordinates.lng.toFixed(6)}&unit=ft&speed=25&tech=300&zoom=14`,
+      googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${d.coordinates.lat},${d.coordinates.lng}`,
     });
   } catch (err: any) {
     console.error("[Service Availability] Error:", err);
-    res.status(500).json({ error: "server_error", message: "An unexpected error occurred" });
+    res.status(500).json({ error: "server_error", message: "An unexpected error occurred." });
   }
 });
 
