@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/lib/auth";
@@ -30,22 +30,39 @@ function PublicRouter() {
   return (
     <Layout>
       <Switch>
+        {/* Core pages */}
         <Route path="/" component={Home} />
         <Route path="/services" component={Services} />
-        <Route path="/zoom" component={ZoomPartner} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/quote" component={Quote} />
-        <Route path="/portal" component={Portal} />
-        <Route path="/internet-plans" component={InternetPlans} />
-        <Route path="/blog" component={Blog} />
-        <Route path="/blog/:slug" component={BlogPost} />
-        <Route path="/proposal/:number" component={ProposalView} />
         <Route path="/privacy" component={Privacy} />
+
+        {/* Features & Tools */}
+        <Route path="/internet-plans" component={InternetPlans} />
+        {/* Future route: /internet-availability */}
+
+        {/* Partner programs */}
+        <Route path="/zoom" component={ZoomPartner} />
+        <Route path="/portal" component={Portal} />
+
+        {/* Vendor partner pages */}
         <Route path="/extreme-networks" component={ExtremeNetworks} />
         <Route path="/hp" component={HP} />
         <Route path="/dell" component={Dell} />
         <Route path="/juniper-networks" component={JuniperNetworks} />
+
+        {/* Blog */}
+        <Route path="/blog" component={Blog} />
+        <Route path="/blog/:slug" component={BlogPost} />
+
+        {/* Proposals */}
+        <Route path="/proposal/:number" component={ProposalView} />
+
+        {/* Legacy redirects */}
+        <Redirect from="/products-and-services" to="/services" />
+
+        {/* 404 Fallback (must be last) */}
         <Route component={NotFound} />
       </Switch>
     </Layout>
