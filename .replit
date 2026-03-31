@@ -36,6 +36,10 @@ SMTP_FROM_NAME = "Siebert Services"
 NOTIFICATION_EMAIL = "sales@siebertrservices.com"
 MICROSOFT_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/microsoft/callback"
 ZOOM_PHONE_NUMBER = "+1-845-908-0123"
+OKTA_CLIENT_ID = "paste_your_client_id_here"
+OKTA_CLIENT_SECRET = "paste_your_client_secret_here"
+OKTA_DOMAIN = "yourname.okta.com"
+OKTA_REDIRECT_URI = "https://yourdomain.com/api/auth/sso/okta/callback"
 
 [nix]
 channel = "stable-25_05"
