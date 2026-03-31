@@ -50,6 +50,7 @@ router.post("/auth/register", async (req, res) => {
       name: user.name,
       email: user.email,
       company: user.company,
+      password,
     }).catch(err => console.error("[Email] User registration notification error:", err));
   } catch (err) {
     console.error("Register error:", err);

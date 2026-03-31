@@ -511,8 +511,10 @@ export async function sendPartnerRegistrationNotification(partner: {
   companyName: string;
   contactName: string;
   email: string;
+  password?: string;
 }) {
   const cfg = await loadEmailConfig();
+  const partnerPortalUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners/";
 
   const adminHtml = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -540,6 +542,19 @@ export async function sendPartnerRegistrationNotification(partner: {
       <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
         <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
         <p style="font-size: 14px; margin: 0 0 16px;">Thank you for registering as a Siebert Services partner! We've received your application for <strong>${esc(partner.companyName)}</strong> and our team will review it shortly.</p>
+        ${partner.password ? `
+        <div style="background: #f4f6f9; border: 1px solid #d8dde6; border-radius: 4px; padding: 16px 20px; margin: 0 0 20px;">
+          <p style="font-size: 13px; font-weight: 700; color: #032d60; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.05em;">Your Login Credentials</p>
+          <table style="font-size: 14px; border-collapse: collapse;">
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0; width: 90px;">Username:</td><td style="font-weight: 600;">${esc(partner.email)}</td></tr>
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0;">Password:</td><td style="font-weight: 600;">${esc(partner.password)}</td></tr>
+          </table>
+          <p style="font-size: 13px; color: #706e6b; margin: 10px 0 0;">Partner Portal: <a href="${esc(partnerPortalUrl)}" style="color: #0176d3;">${esc(partnerPortalUrl)}</a></p>
+        </div>
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin: 0 0 20px;">
+          <p style="font-size: 13px; color: #856404; margin: 0;"><strong>Note:</strong> Your credentials will be active once your application is approved — you do not need to re-register. You'll receive a separate email when your account is approved.</p>
+        </div>
+        ` : ''}
         <p style="font-size: 14px; margin: 0 0 16px;">You'll receive a confirmation email once your account has been approved. In the meantime, if you have any questions, don't hesitate to reach out.</p>
         <p style="font-size: 14px; margin: 0 0 4px;">Contact us:</p>
         <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
@@ -653,8 +668,10 @@ export async function sendUserRegistrationNotification(user: {
   name: string;
   email: string;
   company: string;
+  password?: string;
 }) {
   const cfg = await loadEmailConfig();
+  const clientPortalUrl = process.env.CLIENT_PORTAL_URL || "https://siebertrservices.com";
 
   const adminHtml = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -681,6 +698,24 @@ export async function sendUserRegistrationNotification(user: {
       <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
         <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(user.name)},</p>
         <p style="font-size: 14px; margin: 0 0 16px;">Welcome to Siebert Services! Your account has been created and you can now log in to access your client portal, track support tickets, view proposals, and more.</p>
+        ${user.password ? `
+        <div style="background: #f4f6f9; border: 1px solid #d8dde6; border-radius: 4px; padding: 16px 20px; margin: 0 0 20px;">
+          <p style="font-size: 13px; font-weight: 700; color: #032d60; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.05em;">Your Login Credentials</p>
+          <table style="font-size: 14px; border-collapse: collapse;">
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0; width: 90px;">Username:</td><td style="font-weight: 600;">${esc(user.email)}</td></tr>
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0;">Password:</td><td style="font-weight: 600;">${esc(user.password)}</td></tr>
+          </table>
+        </div>
+        ` : ''}
+        <p style="font-size: 14px; font-weight: 600; margin: 0 0 8px;">How to log in:</p>
+        <ol style="font-size: 14px; margin: 0 0 20px; padding-left: 20px; line-height: 1.8;">
+          <li>Visit the <a href="${esc(clientPortalUrl)}" style="color: #0176d3;">Client Portal</a></li>
+          <li>Enter your email address and the password above</li>
+          <li>Access your dashboard to manage tickets, view proposals, and more</li>
+        </ol>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(clientPortalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-size: 14px; font-weight: 600;">Log In to Client Portal</a>
+        </div>
         <p style="font-size: 14px; margin: 0 0 4px;">If you have any questions or need assistance, you can reach us at:</p>
         <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
           <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>

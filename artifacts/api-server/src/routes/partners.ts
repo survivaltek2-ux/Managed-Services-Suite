@@ -86,6 +86,7 @@ router.post("/partner/auth/register", async (req, res) => {
       companyName: partner.companyName,
       contactName: partner.contactName,
       email: partner.email,
+      password,
     }).catch(err => console.error("[Email] Partner registration notification error:", err));
   } catch (err) {
     console.error("Partner register error:", err);
