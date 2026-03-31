@@ -30,16 +30,26 @@ const CATEGORY_ORDER = [
   "VPN & Network Security",
   "Password Management",
   "Backup & Storage",
+  "Home Security",
+  "Consumer Antivirus",
+  "Identity Protection",
+  "Cloud Productivity",
+  "Web Hosting & Domains",
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Residential ISP":       "bg-blue-100 text-blue-800",
-  "Business Connectivity": "bg-indigo-100 text-indigo-800",
-  "VoIP & Communications": "bg-green-100 text-green-800",
-  "Cybersecurity":         "bg-red-100 text-red-800",
-  "VPN & Network Security":"bg-purple-100 text-purple-800",
-  "Password Management":   "bg-amber-100 text-amber-800",
-  "Backup & Storage":      "bg-slate-100 text-slate-700",
+  "Residential ISP":        "bg-blue-100 text-blue-800",
+  "Business Connectivity":  "bg-indigo-100 text-indigo-800",
+  "VoIP & Communications":  "bg-green-100 text-green-800",
+  "Cybersecurity":          "bg-red-100 text-red-800",
+  "VPN & Network Security": "bg-purple-100 text-purple-800",
+  "Password Management":    "bg-amber-100 text-amber-800",
+  "Backup & Storage":       "bg-slate-100 text-slate-700",
+  "Home Security":          "bg-orange-100 text-orange-800",
+  "Consumer Antivirus":     "bg-rose-100 text-rose-800",
+  "Identity Protection":    "bg-teal-100 text-teal-800",
+  "Cloud Productivity":     "bg-sky-100 text-sky-800",
+  "Web Hosting & Domains":  "bg-lime-100 text-lime-800",
 };
 
 function commissionLabel(p: AffiliateProgram): string {

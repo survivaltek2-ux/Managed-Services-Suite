@@ -178,6 +178,15 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     notes:
       "Business and home VoIP. Apply via FlexOffers.",
   },
+  "8x8": {
+    rateUsd: 100,
+    commissionType: "per_sale",
+    network: "Direct (8x8 ReferTo8 Program)",
+    affiliateSignupUrl: "https://www.8x8.com/partners",
+    affiliateUrl: null,
+    notes:
+      "$100/qualified sale. 8x8's ReferTo8 referral program. UCaaS + contact center — good MSP fit. Apply at 8x8.com/partners.",
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,6 +365,235 @@ export const BACKUP_COMMISSIONS: Record<string, CommissionEntry> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HOME SECURITY — residential and SMB/commercial monitoring
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
+  adt: {
+    rateUsd: 200,
+    commissionType: "per_sale",
+    network: "CJ Affiliate / FlexOffers",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "$200 Visa gift card per confirmed residential sale. Highest flat-rate home security commission available. Search 'ADT' in CJ Affiliate.",
+  },
+  simplisafe: {
+    rateUsd: 75,
+    commissionType: "per_sale",
+    network: "Awin",
+    affiliateSignupUrl: "https://www.awin.com",
+    affiliateUrl: null,
+    notes:
+      "$50–$100/sale depending on tier. No contract, DIY install — easy consumer sell. Apply via Awin (awin.com).",
+  },
+  ring: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "~10%",
+    network: "Amazon Associates",
+    affiliateSignupUrl: "https://affiliate-program.amazon.com",
+    affiliateUrl: null,
+    notes:
+      "~10% per sale via Amazon Associates (Ring is Amazon-owned). Good for bundling with ISP recommendations. Apply at affiliate-program.amazon.com.",
+  },
+  vivint: {
+    rateUsd: 150,
+    commissionType: "per_sale",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "Smart home + professional monitoring. $100–$200/sale range. Search 'Vivint' in CJ Affiliate.",
+  },
+  brinks: {
+    rateUsd: 100,
+    commissionType: "per_sale",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "Brinks Home Security. Up to $100/sale. Search 'Brinks Home Security' in CJ Affiliate.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSUMER ANTIVIRUS & INTERNET SECURITY
+// Great cross-sell alongside ISP recommendations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const CONSUMER_ANTIVIRUS_COMMISSIONS: Record<string, CommissionEntry> = {
+  norton360: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "25–50%",
+    network: "CJ Affiliate / Impact",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "25% base on CJ, up to 50% on Impact for top publishers. Norton 360 + LifeLock bundles available. Search 'Norton' in CJ marketplace.",
+  },
+  mcafee: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "25%",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "25% per sale OR $10 flat (varies by deal). Consumer and family plans. Search 'McAfee' in CJ Affiliate.",
+  },
+  avast: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "25–40%",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "25% base, up to 40% at higher volumes. Consumer antivirus — high conversion alongside ISP/internet plans. Search 'Avast' in CJ Affiliate.",
+  },
+  avgantivirus: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "25–40%",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "AVG (owned by Avast/Gen Digital). Same commission structure. Search 'AVG' in CJ Affiliate.",
+  },
+  totalav: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "40–70%",
+    network: "CJ Affiliate / Direct",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "One of the highest consumer antivirus commission rates (up to 70%). Budget-friendly product that converts well. Search 'TotalAV' in CJ Affiliate.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IDENTITY THEFT PROTECTION
+// High-value sell alongside antivirus + ISP recommendations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const IDENTITY_PROTECTION_COMMISSIONS: Record<string, CommissionEntry> = {
+  lifelock: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "up to 20%",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "Up to 20% per sale (LifeLock/Norton brand). Annual plans yield the highest commission. Search 'LifeLock' in CJ Affiliate.",
+  },
+  aura: {
+    rateUsd: 95,
+    commissionType: "per_sale",
+    network: "Impact",
+    affiliateSignupUrl: "https://impact.com",
+    affiliateUrl: null,
+    notes:
+      "$65–$125 per qualified enrollment (using midpoint $95). All-in-one ID theft + antivirus + VPN. Apply at impact.com — search 'Aura'.",
+  },
+  identityguard: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "15–20%",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "Identity Guard (Aura-owned brand). 15–20% per sale. Consumer and family plans. Search 'Identity Guard' in CJ Affiliate.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLOUD PRODUCTIVITY (Microsoft 365, Google Workspace)
+// Per-user commissions — ideal for business client upsell.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const CLOUD_PRODUCTIVITY_COMMISSIONS: Record<string, CommissionEntry> = {
+  microsoft365: {
+    rateUsd: 10,
+    commissionType: "per_sale",
+    network: "Microsoft Affiliate Program (CJ Affiliate)",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "$10/annual signup, $5/monthly signup (flat per-account, not per-user). Search 'Microsoft' in CJ Affiliate. Also consider Microsoft CSP (Cloud Solution Provider) reseller program for higher ongoing revenue.",
+  },
+  googleworkspace: {
+    rateUsd: 13,
+    commissionType: "per_sale",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "$9–$18 per new user (Business Starter $9, Standard $18). Scales well for business clients. Search 'Google Workspace' in CJ Affiliate. Also consider becoming a Google Workspace Reseller.",
+  },
+  dropboxbusiness: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "15–25%",
+    network: "Impact",
+    affiliateSignupUrl: "https://impact.com",
+    affiliateUrl: null,
+    notes:
+      "Dropbox Business and Plus plans. 15–25% per sale. Apply at impact.com — search 'Dropbox'.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB HOSTING & DOMAINS
+// High flat commissions; good for residential/small business clients.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const WEB_HOSTING_COMMISSIONS: Record<string, CommissionEntry> = {
+  bluehost: {
+    rateUsd: 65,
+    commissionType: "per_sale",
+    network: "CJ Affiliate / Impact",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "$65/sale base, tiered higher at volume. Popular consumer/SMB host. Search 'Bluehost' in CJ Affiliate.",
+  },
+  siteground: {
+    rateUsd: 50,
+    commissionType: "per_sale",
+    network: "Direct (SiteGround Affiliate Program)",
+    affiliateSignupUrl: "https://www.siteground.com/affiliates.htm",
+    affiliateUrl: null,
+    notes:
+      "$50–$100/sale (tiered by volume). Strong brand and good conversions. Apply at siteground.com/affiliates.",
+  },
+  hostgator: {
+    rateUsd: 65,
+    commissionType: "per_sale",
+    network: "CJ Affiliate / Impact",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "$65/sale base. Budget-friendly hosting — strong consumer market appeal. Search 'HostGator' in CJ Affiliate.",
+  },
+  godaddy: {
+    rateUsd: 0,
+    commissionType: "percent_sale",
+    percentRate: "15%",
+    network: "CJ Affiliate",
+    affiliateSignupUrl: "https://www.cj.com",
+    affiliateUrl: null,
+    notes:
+      "15% per sale on hosting, domains, and add-ons. Massive brand recognition. Search 'GoDaddy' in CJ Affiliate.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LEGACY ALIAS (kept for backward compat)
 // ─────────────────────────────────────────────────────────────────────────────
 export const BUSINESS_COMMISSIONS = BUSINESS_CONNECTIVITY_COMMISSIONS;
@@ -396,6 +634,11 @@ export function getAllServicePrograms(): Array<CommissionEntry & { slug: string;
   addCategory(PASSWORD_MGMT_COMMISSIONS, "Password Management");
   addCategory(BACKUP_COMMISSIONS, "Backup & Storage");
   addCategory(BUSINESS_CONNECTIVITY_COMMISSIONS, "Business Connectivity");
+  addCategory(HOME_SECURITY_COMMISSIONS, "Home Security");
+  addCategory(CONSUMER_ANTIVIRUS_COMMISSIONS, "Consumer Antivirus");
+  addCategory(IDENTITY_PROTECTION_COMMISSIONS, "Identity Protection");
+  addCategory(CLOUD_PRODUCTIVITY_COMMISSIONS, "Cloud Productivity");
+  addCategory(WEB_HOSTING_COMMISSIONS, "Web Hosting & Domains");
 
   return entries.sort((a, b) => b.rateUsd - a.rateUsd);
 }

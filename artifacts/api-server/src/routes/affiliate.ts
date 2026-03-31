@@ -2,7 +2,20 @@ import { Router, Request, Response } from "express";
 import { db, affiliateClicksTable } from "@workspace/db";
 import { desc, count, sql } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth.js";
-import { RESIDENTIAL_COMMISSIONS, VOIP_COMMISSIONS, CYBERSECURITY_COMMISSIONS, VPN_COMMISSIONS, PASSWORD_MGMT_COMMISSIONS, BACKUP_COMMISSIONS, BUSINESS_CONNECTIVITY_COMMISSIONS } from "../config/isp-commissions.js";
+import {
+  RESIDENTIAL_COMMISSIONS,
+  VOIP_COMMISSIONS,
+  CYBERSECURITY_COMMISSIONS,
+  VPN_COMMISSIONS,
+  PASSWORD_MGMT_COMMISSIONS,
+  BACKUP_COMMISSIONS,
+  BUSINESS_CONNECTIVITY_COMMISSIONS,
+  HOME_SECURITY_COMMISSIONS,
+  CONSUMER_ANTIVIRUS_COMMISSIONS,
+  IDENTITY_PROTECTION_COMMISSIONS,
+  CLOUD_PRODUCTIVITY_COMMISSIONS,
+  WEB_HOSTING_COMMISSIONS,
+} from "../config/isp-commissions.js";
 
 const router = Router();
 
@@ -123,6 +136,11 @@ router.get("/api/admin/affiliate/programs", requireAdmin, (_req: Request, res: R
     ...buildCategory("VPN & Network Security", VPN_COMMISSIONS),
     ...buildCategory("Password Management", PASSWORD_MGMT_COMMISSIONS),
     ...buildCategory("Backup & Storage", BACKUP_COMMISSIONS),
+    ...buildCategory("Home Security", HOME_SECURITY_COMMISSIONS),
+    ...buildCategory("Consumer Antivirus", CONSUMER_ANTIVIRUS_COMMISSIONS),
+    ...buildCategory("Identity Protection", IDENTITY_PROTECTION_COMMISSIONS),
+    ...buildCategory("Cloud Productivity", CLOUD_PRODUCTIVITY_COMMISSIONS),
+    ...buildCategory("Web Hosting & Domains", WEB_HOSTING_COMMISSIONS),
   ];
 
   res.json({ programs, totalLive: programs.filter(p => p.isLive).length, totalPending: programs.filter(p => !p.isLive).length });
