@@ -294,6 +294,10 @@ router.get("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res
 });
 
 router.post("/partner/deals", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) {
+    res.status(403).json({ error: "forbidden", message: "Admin accounts cannot register deals through the partner interface. Use the admin panel." });
+    return;
+  }
   try {
     const { title, customerName, customerEmail, customerPhone, description, products, vendorSelections, estimatedValue, stage, expectedCloseDate, notes, tsdTargets } = req.body;
     if (!title || !customerName) {
@@ -469,6 +473,10 @@ router.put("/partner/leads/:id", requirePartnerAuth, async (req: PartnerRequest,
 });
 
 router.post("/partner/leads", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) {
+    res.status(403).json({ error: "forbidden", message: "Admin accounts cannot submit leads through the partner interface. Use the admin panel." });
+    return;
+  }
   try {
     const { companyName, contactName, email, phone, interest, notes } = req.body;
     if (!companyName || !contactName || !interest) {
@@ -547,6 +555,10 @@ router.get("/partner/certifications", requirePartnerAuth, async (req: PartnerReq
 });
 
 router.post("/partner/certifications/:id/progress", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) {
+    res.status(403).json({ error: "forbidden", message: "Admin accounts do not have certification progress to track." });
+    return;
+  }
   try {
     const certId = parseInt(req.params.id as string);
     const { status, progressPct } = req.body;
