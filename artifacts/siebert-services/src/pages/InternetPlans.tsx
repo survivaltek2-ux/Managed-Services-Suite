@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import {
   MapPin, Search, AlertCircle, CheckCircle, Loader2,
-  ExternalLink, Map, Wifi, Zap, Radio, Satellite, Globe, ArrowDownUp
+  ExternalLink, Map, Wifi, Zap, Radio, Satellite, Globe, ArrowDownUp, Server
 } from "lucide-react";
 
 const US_STATES = [
