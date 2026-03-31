@@ -297,27 +297,25 @@ router.get("/service-availability", requirePartnerAuth, async (req: PartnerReque
     if (zip?.trim()) parts.push(zip.trim());
     const formattedAddress = parts.join(", ");
 
-    // Try providers in order: internetproviders.ai → Netomnia → Hum
-    console.log("[Service Availability] Trying internetproviders.ai for:", formattedAddress);
-    let result = await tryInternetProvidersAi(formattedAddress);
+    // Query ALL providers in parallel and combine results
+    console.log("[Service Availability] Querying all providers for:", formattedAddress);
+    
+    const [ipaResult, netomiaResult, humResult] = await Promise.all([
+      tryInternetProvidersAi(formattedAddress),
+      tryNetomnia(address, city || "", state, zip || ""),
+      tryHum(address, city || "", state, zip || ""),
+    ]);
 
-    if (!result.success && result.error?.toLowerCase().includes("not find")) {
-      console.log("[Service Availability] Primary failed, trying Netomnia failover...");
-      result = await tryNetomnia(address, city || "", state, zip || "");
-    }
-
-    if (!result.success && result.error?.toLowerCase().includes("not find")) {
-      console.log("[Service Availability] Netomnia failed, trying Hum failover...");
-      result = await tryHum(address, city || "", state, zip || "");
-    }
-
-    // Handle final result
-    if (!result.success) {
-      const msg = result.error || "Address not found";
+    // Collect all successful results
+    const successfulResults = [ipaResult, netomiaResult, humResult].filter(r => r.success && r.data);
+    
+    if (successfulResults.length === 0) {
+      const allErrors = [ipaResult.error, netomiaResult.error, humResult.error].filter(Boolean).join("; ");
+      const msg = allErrors || "Address not found";
       if (msg.toLowerCase().includes("not find")) {
         res.status(404).json({
           error: "address_not_found",
-          message: "This address could not be found in available databases. Please verify the address and try again.",
+          message: "This address could not be found in any available database. Please verify the address and try again.",
         });
       } else {
         res.status(422).json({ error: "lookup_failed", message: msg });
@@ -325,11 +323,21 @@ router.get("/service-availability", requirePartnerAuth, async (req: PartnerReque
       return;
     }
 
-    const d = result.data!;
+    // Use the first successful result as the base (for address, coordinates)
+    const primaryData = successfulResults[0].data!;
+    const d = primaryData;
+    
+    // Collect ALL providers from ALL successful sources
+    const allProviders: IspProvider[] = [];
+    for (const result of successfulResults) {
+      if (result.data?.providers) {
+        allProviders.push(...result.data.providers);
+      }
+    }
 
     // Deduplicate providers (same brand + technology → keep highest speeds)
     const seen = new Map<string, IspProvider>();
-    for (const p of (d.providers || [])) {
+    for (const p of allProviders) {
       const key = `${p.providerId}-${p.technology}`;
       const existing = seen.get(key);
       if (!existing || p.maxDownload > existing.maxDownload) {
