@@ -1,0 +1,153 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Arial",
+      "role": "body"
+    },
+    {
+      "family": "Inter",
+      "role": "body"
+    },
+    {
+      "family": "Helvetica",
+      "role": "body"
+    },
+    {
+      "family": "Aeonik",
+      "role": "heading"
+    },
+    {
+      "family": "Montserrat",
+      "role": "unknown"
+    }
+  ],
+  "colors": {
+    "primary": "#007CC0",
+    "secondary": "#E34843",
+    "accent": "#1662DD",
+    "background": "#F9F9F9",
+    "textPrimary": "#5E5E5E",
+    "link": "#4CBF9C"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Arial",
+      "heading": "Aeonik"
+    },
+    "fontStacks": {
+      "heading": [
+        "Aeonik",
+        "Inter",
+        "Arial",
+        "Helvetica",
+        "sans-serif"
+      ],
+      "body": [
+        "Aeonik",
+        "Inter",
+        "Arial",
+        "Helvetica",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Aeonik",
+        "Inter",
+        "Arial",
+        "Helvetica",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "24px",
+      "h2": "15px",
+      "body": "14px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "3px"
+  },
+  "components": {
+    "input": {
+      "background": "transparent",
+      "textColor": "#1D1D21",
+      "borderColor": null,
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "rgb(81, 203, 238) 0px 0px 8px 0px"
+    },
+    "buttonPrimary": {
+      "background": "#1662DD",
+      "textColor": "#FFFFFF",
+      "borderColor": "#1662DD",
+      "borderRadius": "3px",
+      "borderRadiusCorners": {
+        "topLeft": "3px",
+        "topRight": "3px",
+        "bottomRight": "3px",
+        "bottomLeft": "3px"
+      },
+      "shadow": "rgba(0, 0, 0, 0.15) 0px 1px 0px 0px, rgba(255, 255, 255, 0.1) 0px 1px 0px 0px inset"
+    }
+  },
+  "images": {
+    "favicon": "https://integrator-3295524.okta.com/favicon.ico",
+    "ogImage": null
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": -1,
+    "reasoning": "Neither logo candidate clearly represents the brand 'siebertrservices'. Candidate #0 is associated with Okta, and Candidate #1 is too small and not in the header. No suitable logo found.",
+    "confidence": 0.3,
+    "rejected": true,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Next",
+      "reasoning": "The button with text 'Next' has a vibrant blue background (#1662DD), which is a strong indicator of a primary call-to-action. It is also labeled as 'button-primary', reinforcing its primary status."
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "There is only one button detected, so no secondary button is available with a different color."
+    },
+    "confidence": 0.9
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "business professionals"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.9,
+    "colors": 0.9,
+    "overall": 0.9
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": -1,
+        "selectedLogoReasoning": "Neither logo candidate clearly represents the brand 'siebertrservices'. Candidate #0 is associated with Okta, and Candidate #1 is too small and not in the header. No suitable logo found.",
+        "confidence": 0.3
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
