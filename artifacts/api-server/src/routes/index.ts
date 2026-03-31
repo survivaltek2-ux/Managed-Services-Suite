@@ -17,6 +17,7 @@ import invoicesRouter from "./invoices";
 import reportsRouter from "./reports";
 import serviceAvailabilityRouter from "./service-availability.js";
 import placesRouter from "./places.js";
+import affiliateRouter from "./affiliate.js";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(invoicesRouter);
 router.use(reportsRouter);
 router.use(serviceAvailabilityRouter);
 router.use(placesRouter);
+router.use(affiliateRouter);
 
 export default router;

@@ -28,7 +28,8 @@ import {
   CreditCard,
   ShieldCheck,
   AlertCircle,
-  MapPin
+  MapPin,
+  MousePointerClick
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
   { href: "/admin/documents", label: "Documents (Admin)", icon: FileText },
   { href: "/admin/invoices", label: "Invoices", icon: FileText },
+  { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -271,6 +273,7 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
     { href: "/admin/documents", label: "Documents", icon: FileText },
     { href: "/admin/invoices", label: "Invoices", icon: FileText },
+    { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
   ];
 
   return (

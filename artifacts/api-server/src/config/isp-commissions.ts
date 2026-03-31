@@ -4,12 +4,19 @@
  * Sources and rates based on publicly documented affiliate programs (2025-2026).
  * Update commission rates here as you negotiate or confirm real rates.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * HOW TO ACTIVATE AFFILIATE LINKS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 1. Sign up at CJ Affiliate: https://www.cj.com  (publisher account)
+ * 2. Apply to each ISP program (search by brand name in the CJ marketplace)
+ * 3. Once approved, generate a deep link to each ISP's order/shopping page
+ * 4. Paste those links into the `affiliateUrl` fields below (replace null)
+ *
  * Networks:
  * - CJ Affiliate (Commission Junction): https://www.cj.com
  * - FlexOffers: https://www.flexoffers.com
  * - CarrierFinder Partner: https://www.carrierfinder.com/partner
- *
- * To activate: join CJ Affiliate and apply to each ISP program individually.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 export interface CommissionEntry {

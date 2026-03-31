@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import {
   MapPin, Search, AlertCircle, CheckCircle, Loader2,
@@ -65,6 +65,26 @@ export default function InternetPlans() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AvailabilityResult | null>(null);
   const [userType, setUserType] = useState<"business" | "home" | null>(null);
+
+  const trackClick = useCallback((provider: IspProvider, searchedAddress: string, flow: "home" | "business") => {
+    fetch("/api/affiliate/click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerName: provider.brandName,
+        technology: provider.technology,
+        addressSearched: searchedAddress,
+        stateCode: state || null,
+        userType: flow,
+        referrerPath: window.location.pathname,
+        sessionId: sessionStorage.getItem("aff_sid") || (() => {
+          const id = Math.random().toString(36).slice(2);
+          sessionStorage.setItem("aff_sid", id);
+          return id;
+        })(),
+      }),
+    }).catch(() => {}); // fire-and-forget
+  }, [state]);
 
   const handleAddressSelect = (result: { address: string; city: string; state: string; zip: string; lat: number; lng: number }) => {
     setAddress(result.address);
@@ -354,6 +374,7 @@ export default function InternetPlans() {
                                           href={p.affiliateUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
+                                          onClick={() => trackClick(p, result?.location?.address ?? "", "business")}
                                           className="bg-[#032d60] hover:bg-[#0160b0] text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm whitespace-nowrap"
                                         >
                                           {p.affiliateButtonLabel || "Get Started"}
@@ -445,6 +466,7 @@ export default function InternetPlans() {
                                     href={p.affiliateUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => trackClick(p, result?.location?.address ?? "", "home")}
                                     className="bg-[#0176d3] hover:bg-[#0160b0] text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition text-sm whitespace-nowrap"
                                   >
                                     {p.affiliateButtonLabel || "Get Started"}

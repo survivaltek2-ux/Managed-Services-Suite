@@ -9,3 +9,4 @@ export * from "./partners";
 export * from "./conversations";
 export * from "./messages";
 export * from "./invoices";
+export * from "./affiliate";

@@ -26,6 +26,7 @@ import AdminTsdVendorRouting from "./pages/AdminTsdVendorRouting";
 import AdminDocuments from "./pages/AdminDocuments";
 import AdminInvoices from "./pages/AdminInvoices";
 import AdminLeads from "./pages/AdminLeads";
+import AdminAffiliateClicks from "./pages/AdminAffiliateClicks";
 import ServiceAvailability from "./pages/ServiceAvailability";
 import NotFound from "./pages/not-found";
 
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/admin/tsd-vendor-routing"><ProtectedRoute component={AdminTsdVendorRouting} /></Route>
       <Route path="/admin/documents"><ProtectedRoute component={AdminDocuments} /></Route>
       <Route path="/admin/invoices"><ProtectedRoute component={AdminInvoices} /></Route>
+      <Route path="/admin/affiliate-clicks"><ProtectedRoute component={AdminAffiliateClicks} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
 
       <Route component={NotFound} />
