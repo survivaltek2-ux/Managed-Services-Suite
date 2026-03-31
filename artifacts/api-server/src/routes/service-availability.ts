@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
+import { getResidentialCommissionRate, lookupResidentialCommission } from "../config/isp-commissions.js";
 
 const router = Router();
 
@@ -32,6 +33,10 @@ interface IspProvider {
   affiliateButtonLabel?: string;
   affiliateToken?: string;
   minPlanPrice?: { amount_cents: number; currency: string };
+  // Commission data (for dynamic sorting by revenue potential)
+  estimatedCommissionUsd: number;
+  commissionNetwork?: string;
+  commissionAffiliateSignupUrl?: string;
 }
 
 interface ApiResponseData {
@@ -355,12 +360,32 @@ router.get("/service-availability", async (req: Request, res: Response) => {
       }
     }
 
-    const providers = Array.from(seen.values()).sort((a, b) => {
-      const ao = TECH_ORDER[a.technology] ?? 5;
-      const bo = TECH_ORDER[b.technology] ?? 5;
-      if (ao !== bo) return ao - bo;
-      return b.maxDownload - a.maxDownload;
-    });
+    // Enrich each provider with commission data and sort by revenue potential:
+    // Primary: estimated commission (highest first)
+    // Secondary: technology order (Fiber > Cable > DSL > Fixed Wireless > Satellite)
+    // Tertiary: download speed (fastest first)
+    const providers = Array.from(seen.values())
+      .map(p => {
+        const commission = lookupResidentialCommission(p.brandName);
+        return {
+          ...p,
+          estimatedCommissionUsd: commission?.rateUsd ?? 0,
+          commissionNetwork: commission?.network,
+          commissionAffiliateSignupUrl: commission?.affiliateSignupUrl,
+        };
+      })
+      .sort((a, b) => {
+        // Sort by commission first
+        if (b.estimatedCommissionUsd !== a.estimatedCommissionUsd) {
+          return b.estimatedCommissionUsd - a.estimatedCommissionUsd;
+        }
+        // Then by technology
+        const ao = TECH_ORDER[a.technology] ?? 5;
+        const bo = TECH_ORDER[b.technology] ?? 5;
+        if (ao !== bo) return ao - bo;
+        // Then by speed
+        return b.maxDownload - a.maxDownload;
+      });
 
     res.json({
       location: {
@@ -372,6 +397,9 @@ router.get("/service-availability", async (req: Request, res: Response) => {
       summary: d.summary,
       fccMapUrl: `https://broadbandmap.fcc.gov/home?addr=${encodeURIComponent(d.address.matched)}&lat=${d.coordinates.lat.toFixed(6)}&lon=${d.coordinates.lng.toFixed(6)}&unit=ft&speed=25&tech=300&zoom=14`,
       googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${d.coordinates.lat},${d.coordinates.lng}`,
+      // CarrierFinder link for business flow
+      carrierFinderUrl: "https://www.carrierfinder.com",
+      carrierFinderPartnerUrl: "https://www.carrierfinder.com/partner",
     });
   } catch (err: any) {
     console.error("[Service Availability] Error:", err);

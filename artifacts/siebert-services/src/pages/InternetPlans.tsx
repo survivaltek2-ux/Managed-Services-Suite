@@ -42,6 +42,10 @@ interface IspProvider {
   affiliateUrl?: string;
   affiliateButtonLabel?: string;
   minPlanPrice?: { amount_cents: number; currency: string };
+  // Commission data from backend (auto-sorted by revenue potential)
+  estimatedCommissionUsd?: number;
+  commissionNetwork?: string;
+  commissionAffiliateSignupUrl?: string;
 }
 
 interface AvailabilityResult {
@@ -53,6 +57,7 @@ interface AvailabilityResult {
     state: string;
   };
   fccMapUrl: string;
+  carrierFinderUrl?: string;
 }
 
 export default function InternetPlans() {
@@ -260,6 +265,23 @@ export default function InternetPlans() {
             ) : userType === "business" ? (
               /* BUSINESS FLOW - Show business-grade providers */
               <>
+                {/* CarrierFinder business CTA — primary revenue source for business leads */}
+                <div className="bg-gradient-to-r from-[#032d60] to-[#0160b0] rounded-lg p-6 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-bold mb-1">Business Fiber & Dedicated Circuits</h3>
+                    <p className="text-white/90 text-sm">Search 115M+ serviceable locations for enterprise-grade connectivity.</p>
+                  </div>
+                  <a
+                    href={result.carrierFinderUrl || "https://www.carrierfinder.com"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 bg-white text-[#032d60] font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition flex items-center gap-2 text-sm"
+                  >
+                    Search Business Providers
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
                   <p className="font-semibold mb-1">Affiliate Disclosure</p>
                   <p>We may receive a referral commission when you order service through links on this page. This helps support our website at no additional cost to you. We can also manage installation and security setup for your business.</p>
