@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
 
 const router = Router();
@@ -291,7 +291,7 @@ async function tryHum(address: string, city: string, state: string, zip: string)
   }
 }
 
-router.get("/service-availability", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+router.get("/service-availability", async (req: Request, res: Response) => {
   try {
     const { address, city, state, zip } = req.query as Record<string, string>;
 
