@@ -4,6 +4,8 @@ import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.j
 const router = Router();
 
 const NETOMNIA_API_KEY = process.env.NETOMNIA_API_KEY || "";
+const HUM_API_KEY = process.env.HUM_API_KEY || "";
+const HUM_BASE_URL = process.env.HUM_BASE_URL || "https://api-sandbox.letshum.com";
 
 const TECH_ORDER: Record<string, number> = {
   Fiber: 0,
@@ -167,6 +169,118 @@ function getTechCode(tech: string): number {
   return map[tech] || 0;
 }
 
+async function tryHum(address: string, city: string, state: string, zip: string): Promise<{ success: boolean; data?: ApiResponseData; error?: string }> {
+  if (!HUM_API_KEY) {
+    return { success: false, error: "Hum API not configured" };
+  }
+
+  try {
+    // Hum requires creating a session first with address info, then querying services
+    const sessionUrl = `${HUM_BASE_URL}/sessions`;
+    const sessionRes = await fetch(sessionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${HUM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        street1: address.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        zip: zip.trim(),
+        campaign_id: "siebert-services", // Optional campaign identifier
+      }),
+    });
+
+    if (!sessionRes.ok) {
+      return { success: false, error: `Hum session creation failed: ${sessionRes.status}` };
+    }
+
+    let sessionData: any;
+    try {
+      sessionData = await sessionRes.json();
+    } catch {
+      return { success: false, error: "Failed to parse Hum session response" };
+    }
+
+    if (!sessionData.meta?.session_token) {
+      return { success: false, error: "No session token from Hum" };
+    }
+
+    // Now fetch internet services for this session
+    const token = sessionData.meta.session_token;
+    const servicesUrl = `${HUM_BASE_URL}/sessions/${token}/services/internet`;
+    const servicesRes = await fetch(servicesUrl, {
+      headers: {
+        "Authorization": `Bearer ${HUM_API_KEY}`,
+      },
+    });
+
+    if (!servicesRes.ok) {
+      return { success: false, error: `Hum services request failed: ${servicesRes.status}` };
+    }
+
+    let servicesData: any;
+    try {
+      servicesData = await servicesRes.json();
+    } catch {
+      return { success: false, error: "Failed to parse Hum services response" };
+    }
+
+    const humProviders = servicesData.data?.internet || [];
+    if (humProviders.length === 0) {
+      return { success: false, error: "No providers found" };
+    }
+
+    // Transform Hum providers to our format
+    const providers: IspProvider[] = humProviders.map((p: any, idx: number) => {
+      const offering = p.offerings?.[0] || {};
+      return {
+        providerId: p.provider_id || `hum-${idx}`,
+        brandName: p.provider_name || "Unknown",
+        technology: offering.technology || "Other",
+        technologyCode: getTechCode(offering.technology || "Other"),
+        technologyDetail: `${offering.technology}${offering.technology_category ? ` (${offering.technology_category})` : ""}`,
+        maxDownload: offering.max_download_speed || 0,
+        maxUpload: offering.max_upload_speed || 0,
+        lowLatency: (offering.max_download_speed || 0) >= 100,
+      };
+    });
+
+    const sessionParams = sessionData.meta?.session_params || {};
+    return {
+      success: true,
+      data: {
+        address: {
+          input: `${address}, ${city}, ${state}, ${zip}`,
+          matched: sessionData.meta?.service_address || `${address}, ${city}, ${state}, ${zip}`,
+          components: { streetAddress: address, city, state, zip },
+        },
+        coordinates: {
+          lat: sessionParams.latitude || 0,
+          lng: sessionParams.longitude || 0,
+        },
+        providers,
+        summary: {
+          totalProviders: providers.length,
+          totalOptions: providers.length,
+          hasFiber: providers.some(p => p.technology.includes("Fiber")),
+          hasCable: providers.some(p => p.technology.includes("Cable")),
+          hasDSL: providers.some(p => p.technology.includes("DSL")),
+          hasFixedWireless: providers.some(p => p.technology.includes("Wireless")),
+          hasSatellite: providers.some(p => p.technology.includes("Satellite")),
+          maxDownloadSpeed: Math.max(...providers.map(p => p.maxDownload), 0),
+          maxUploadSpeed: Math.max(...providers.map(p => p.maxUpload), 0),
+          state,
+        },
+      },
+    };
+  } catch (err: any) {
+    console.error("[Service Availability] Hum error:", err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 router.get("/service-availability", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
     const { address, city, state, zip } = req.query as Record<string, string>;
@@ -183,14 +297,18 @@ router.get("/service-availability", requirePartnerAuth, async (req: PartnerReque
     if (zip?.trim()) parts.push(zip.trim());
     const formattedAddress = parts.join(", ");
 
-    // Try primary provider first
+    // Try providers in order: internetproviders.ai → Netomnia → Hum
     console.log("[Service Availability] Trying internetproviders.ai for:", formattedAddress);
     let result = await tryInternetProvidersAi(formattedAddress);
 
-    // If primary fails with "not found", try failover
     if (!result.success && result.error?.toLowerCase().includes("not find")) {
       console.log("[Service Availability] Primary failed, trying Netomnia failover...");
       result = await tryNetomnia(address, city || "", state, zip || "");
+    }
+
+    if (!result.success && result.error?.toLowerCase().includes("not find")) {
+      console.log("[Service Availability] Netomnia failed, trying Hum failover...");
+      result = await tryHum(address, city || "", state, zip || "");
     }
 
     // Handle final result

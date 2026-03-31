@@ -1,0 +1,158 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Inter",
+      "role": "body"
+    },
+    {
+      "family": "SFMono-Regular",
+      "role": "monospace"
+    }
+  ],
+  "colors": {
+    "primary": "#111827",
+    "secondary": "#D5EFE3",
+    "accent": "#2AB673",
+    "background": "#F4F6FA",
+    "textPrimary": "#717377",
+    "link": "#E0E9FA"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Inter",
+      "heading": "Inter"
+    },
+    "fontStacks": {
+      "heading": [
+        "Inter",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "system-ui",
+        "sans-serif"
+      ],
+      "body": [
+        "Inter",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "system-ui",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Inter",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "system-ui",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "30px",
+      "h2": "27px",
+      "body": "12px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "4px"
+  },
+  "components": {
+    "input": {
+      "background": "transparent",
+      "textColor": "#181A1E",
+      "borderColor": null,
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    },
+    "buttonPrimary": {
+      "background": "#2AB673",
+      "textColor": "#FFFFFF",
+      "borderRadius": "12px",
+      "borderRadiusCorners": {
+        "topLeft": "12px",
+        "topRight": "12px",
+        "bottomRight": "12px",
+        "bottomLeft": "12px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#FAFBFD",
+      "textColor": "#515357",
+      "borderColor": "#E5E8EC",
+      "borderRadius": "12px",
+      "borderRadiusCorners": {
+        "topLeft": "12px",
+        "topRight": "12px",
+        "bottomRight": "12px",
+        "bottomLeft": "12px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "https://hum.mintlify.app/mintlify-assets/_next/image?url=%2F_mintlify%2Fapi%2Fog%3Fdivision%3DService%2BAvailability%26title%3DGet%2BInternet%2BService%2BAvailability%26description%3DRetrieves%2Bavailable%2BInternet%2Bservice%2Bproviders%2Band%2Btheir%2Bofferings%2Bfor%2Bthe%2Bservice%2Baddress%2Bassociated%2Bwith%2B%250Athe%2Bcurrent%2Bsession.%250A%250A%2523%2523%2BData%2BProvided%250A-%2BInternet%2BSe%26logoLight%3Dhttps%253A%252F%252Fmintcdn.com%252Fhum%252FEGVZNDogcsGNqYtL%252Flogo%252Fhum.svg%253Ffit%253Dmax%2526auto%253Dformat%2526n%253DEGVZNDogcsGNqYtL%2526q%253D85%2526s%253D8bd29d065c4bb046f4c7c7f49da36bbb%26logoDark%3Dhttps%253A%252F%252Fmintcdn.com%252Fhum%252FEO5jHcOxNKbOuoxY%252Flogo%252Fhum_white.png%253Ffit%253Dmax%2526auto%253Dformat%2526n%253DEO5jHcOxNKbOuoxY%2526q%253D85%2526s%253D3827bdfbb39a028c883c7893813b1b64%26primaryColor%3D%25232a77fa%26lightColor%3D%2523F1F5F9%26darkColor%3D%25230c76f9%26backgroundLight%3D%2523ffffff%26backgroundDark%3D%2523000000&w=1200&q=100",
+    "logoHref": "File saved at: attached_assets/logoHref.html",
+    "logoAlt": "light logo"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand inferred from the URL and page title.",
+    "confidence": 0.9,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Try it",
+      "reasoning": "Button #0 has a vibrant green background (#2AB673), which is a strong indicator of a primary call-to-action. The text 'Try it' is action-oriented, making it the most likely primary CTA."
+    },
+    "secondary": {
+      "index": 1,
+      "text": "Yes",
+      "reasoning": "Button #1 has a different background color (#FAFBFD) and serves as a secondary option with less emphasis, suitable for a secondary CTA."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "developers and technical users"
+  },
+  "designSystem": {
+    "framework": "tailwind",
+    "componentLibrary": "mintlify"
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand inferred from the URL and page title.",
+        "confidence": 0.9
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
