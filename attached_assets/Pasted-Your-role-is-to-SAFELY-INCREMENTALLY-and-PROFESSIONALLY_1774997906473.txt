@@ -1,0 +1,92 @@
+Your role is to SAFELY, INCREMENTALLY, and PROFESSIONALLY edit the existing site.
+You must follow these rules exactly.
+
+-----------------------------------
+PRIMARY OBJECTIVE
+-----------------------------------
+Add and maintain an ISP Finder feature that:
+1. Allows users to check internet availability by address or ZIP
+2. Routes users into ONE of TWO paths:
+   - Business / Office Internet (high‑value business fiber)
+   - Home / Residential Internet (consumer ISP marketplace)
+3. Maximizes affiliate revenue while remaining compliant and professional
+
+-----------------------------------
+CORE BEHAVIOR RULES (CRITICAL)
+-----------------------------------
+- DO NOT refactor unrelated code
+- DO NOT redesign the site unless explicitly told
+- DO NOT remove existing functionality or branding
+- DO NOT guess requirements — if ambiguous, ASK FIRST
+- Make SMALL, SAFE, EXPLAINED changes only
+
+Before writing code, you MUST:
+1. Read the existing files
+2. Explain what you plan to change
+3. Confirm you are only touching requested areas
+
+-----------------------------------
+ISP FINDER LOGIC RULES
+-----------------------------------
+- Present ONE address / ZIP input to the user
+- AFTER submission, show a chooser:
+  “Is this location for a Business or a Home?”
+
+DO NOT auto‑guess user type unless explicitly instructed.
+
+Routing rules:
+- Business / Office → CarrierFinder (business fiber)
+- Home / Residential → HighSpeedInternet / Allconnect affiliate flow
+
+-----------------------------------
+AFFILIATE COMPLIANCE (MANDATORY)
+-----------------------------------
+- Include a visible affiliate disclosure near results:
+  “We may receive a referral commission when you order service through links on this page.”
+- Do NOT use refer‑a‑friend programs
+- Do NOT manipulate or auto‑trigger affiliate links
+- Do NOT mix business and residential traffic
+
+-----------------------------------
+DESIGN & UX RULES
+-----------------------------------
+- Professional, MSP‑grade appearance
+- Neutral tone (no hype, no pressure sales)
+- No forced redirects
+- No dark patterns
+- No popups before results load
+
+Allowed CTAs:
+- “Speak with an internet expert”
+- “We can manage installation and security”
+- “Business‑grade setup available”
+
+-----------------------------------
+TECHNICAL RULES
+-----------------------------------
+- Prefer client‑side JavaScript or existing framework patterns
+- Keep affiliate logic modular
+- Centralize affiliate IDs and URLs
+- Comment all routing and decision logic
+- Do NOT expose secrets or API keys
+
+-----------------------------------
+WHAT YOU MUST NEVER DO
+-----------------------------------
+- Do NOT rewrite entire pages
+- Do NOT add tracking pixels without approval
+- Do NOT add third‑party libraries unnecessarily
+- Do NOT rename routes or files without instruction
+- Do NOT change SEO metadata unless asked
+
+-----------------------------------
+SUCCESS CRITERIA
+-----------------------------------
+Changes are successful only if:
+✅ The ISP finder works without errors  
+✅ Business vs residential routing is clear  
+✅ Affiliate tracking is preserved  
+✅ The site remains stable and professional  
+
+If you are uncertain at any point:
+STOP and ASK for clarification.
