@@ -10,6 +10,26 @@ import {
   CreditCard, User, Building, Phone, Mail, CalendarDays, Save, Edit2
 } from "lucide-react";
 
+function MicrosoftIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  );
+}
+
+function OktaIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#007DC1" />
+      <circle cx="12" cy="12" r="5.5" fill="white" />
+    </svg>
+  );
+}
+
 
 const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -75,6 +95,18 @@ export default function Portal() {
   const [replyLoading, setReplyLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const handleMicrosoftSSO = () => {
+    setSsoError("");
+    setSsoLoading(true);
+    window.location.href = `${API_BASE}/api/auth/sso/microsoft?type=client`;
+  };
+
+  const handleOktaSSO = () => {
+    setSsoError("");
+    setSsoLoading(true);
+    window.location.href = `${API_BASE}/api/auth/sso/okta?type=client`;
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ssoToken = params.get("sso_token");
@@ -107,6 +139,7 @@ export default function Portal() {
         profile_failed: "Could not retrieve your profile.",
         server_error: "An error occurred during sign-in. Please try again.",
         no_email: "Could not retrieve your email.",
+        no_account: "No account found for your email. Please register first.",
       };
       setSsoError(messages[ssoErr] || "Sign-in failed. Please try again.");
       window.history.replaceState({}, "", window.location.pathname);
@@ -339,6 +372,33 @@ export default function Portal() {
               </div>
             ) : (
               <>
+                {!isRegistering && (
+                  <>
+                    <div className="flex flex-col gap-3 mb-4">
+                      <button
+                        type="button"
+                        onClick={handleMicrosoftSSO}
+                        className="w-full flex items-center justify-center gap-3 h-11 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors font-semibold text-sm text-gray-800 shadow-sm"
+                      >
+                        <MicrosoftIcon />
+                        Sign in with Microsoft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOktaSSO}
+                        className="w-full flex items-center justify-center gap-3 h-11 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors font-semibold text-sm text-gray-800 shadow-sm"
+                      >
+                        <OktaIcon />
+                        Sign in with Okta
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex-1 border-t border-gray-200" />
+                      <span className="text-xs text-muted-foreground font-medium">or sign in with email</span>
+                      <div className="flex-1 border-t border-gray-200" />
+                    </div>
+                  </>
+                )}
                 <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
                   {isRegistering && (
                     <>

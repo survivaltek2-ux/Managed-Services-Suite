@@ -17,14 +17,23 @@ function MicrosoftIcon() {
   );
 }
 
+function OktaIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#007DC1" />
+      <circle cx="12" cy="12" r="5.5" fill="white" />
+    </svg>
+  );
+}
+
 const SSO_ERROR_MESSAGES: Record<string, string> = {
   access_denied: "Sign-in was cancelled. Please try again.",
   token_failed: "Could not complete sign-in. Please try again.",
-  profile_failed: "Could not retrieve your Microsoft profile. Please try again.",
-  no_account: "No partner account found for your Microsoft email. Please contact your account manager to get access.",
+  profile_failed: "Could not retrieve your profile. Please try again.",
+  no_account: "No partner account found for your email. Please contact your account manager to get access.",
   wrong_tenant: "Your Microsoft account belongs to an unauthorized organization. Please sign in with your company account.",
   server_error: "An error occurred during sign-in. Please try again.",
-  no_email: "Could not retrieve your email from Microsoft. Please try again.",
+  no_email: "Could not retrieve your email. Please try again.",
 };
 
 export default function Login() {
@@ -121,6 +130,12 @@ export default function Login() {
     window.location.href = "/api/auth/sso/microsoft?type=partner";
   };
 
+  const handleOktaSSO = () => {
+    setError("");
+    setSsoLoading(true);
+    window.location.href = "/api/auth/sso/okta?type=partner";
+  };
+
   const switchMode = (m: "password" | "code") => {
     setMode(m);
     setError("");
@@ -174,7 +189,16 @@ export default function Login() {
                   className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                 >
                   <MicrosoftIcon />
-                  {ssoLoading ? "Redirecting to Microsoft..." : "Sign in with Microsoft"}
+                  {ssoLoading ? "Redirecting..." : "Sign in with Microsoft"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOktaSSO}
+                  disabled={ssoLoading || isLoggingIn}
+                  className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <OktaIcon />
+                  {ssoLoading ? "Redirecting..." : "Sign in with Okta"}
                 </button>
               </div>
 
