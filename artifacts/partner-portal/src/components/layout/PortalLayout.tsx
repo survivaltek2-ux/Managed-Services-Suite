@@ -27,7 +27,8 @@ import {
   RefreshCw,
   CreditCard,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  MapPin
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ const BASE_NAV_ITEMS = [
   { href: "/documents", label: "Documents", icon: FolderOpen },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/training", label: "Training", icon: Award },
+  { href: "/service-availability", label: "Check Service", icon: MapPin },
   { href: "/support", label: "Support", icon: Headphones },
   { href: "/announcements", label: "News", icon: Bell },
 ];

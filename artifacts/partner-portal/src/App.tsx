@@ -26,6 +26,7 @@ import AdminTsdVendorRouting from "./pages/AdminTsdVendorRouting";
 import AdminDocuments from "./pages/AdminDocuments";
 import AdminInvoices from "./pages/AdminInvoices";
 import AdminLeads from "./pages/AdminLeads";
+import ServiceAvailability from "./pages/ServiceAvailability";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -77,6 +78,7 @@ function Router() {
       <Route path="/admin/tsd-vendor-routing"><ProtectedRoute component={AdminTsdVendorRouting} /></Route>
       <Route path="/admin/documents"><ProtectedRoute component={AdminDocuments} /></Route>
       <Route path="/admin/invoices"><ProtectedRoute component={AdminInvoices} /></Route>
+      <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
 
       <Route component={NotFound} />
     </Switch>
