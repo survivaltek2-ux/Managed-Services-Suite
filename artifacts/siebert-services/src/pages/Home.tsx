@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Shield, Cloud, Server, Headphones, Video, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Shield, Cloud, Server, Headphones, Video, ArrowRight, CheckCircle2, Wifi } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
 
 export default function Home() {
@@ -98,6 +98,34 @@ export default function Home() {
               <Button variant="link" className="text-lg">View all services <ArrowRight className="w-4 h-4 ml-2" /></Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* INTERNET PLANS FINDER */}
+      <section className="py-24 bg-gradient-to-r from-[#032d60] to-[#0176d3] text-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="flex justify-center mb-6">
+              <Wifi className="w-16 h-16 text-white/80" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Find Internet Providers in Your Area</h2>
+            <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
+              Search available ISPs and plans at your address. Compare speeds, technologies, and pricing from multiple providers.
+            </p>
+            <Link href="/internet-plans">
+              <Button 
+                size="lg" 
+                className="bg-white text-[#0176d3] hover:bg-white/90 h-14 px-10 text-lg font-semibold"
+              >
+                Search Internet Plans <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </section>
 
