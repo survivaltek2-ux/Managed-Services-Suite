@@ -20,6 +20,7 @@ import placesRouter from "./places.js";
 import affiliateRouter from "./affiliate.js";
 import impactRouter from "./impact.js";
 import marketplaceRouter from "./marketplace.js";
+import partnerProposalsRouter from "./partner-proposals.js";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(placesRouter);
 router.use(affiliateRouter);
 router.use(impactRouter);
 router.use("/marketplace", marketplaceRouter);
+router.use("/partner/proposals", partnerProposalsRouter);
 
 export default router;

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, pgEnum, integer, decimal, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, pgEnum, integer, decimal, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -26,6 +26,7 @@ export const quotesTable = pgTable("quotes", {
 export const quoteProposalsTable = pgTable("quote_proposals", {
   id: serial("id").primaryKey(),
   quoteId: integer("quote_id").references(() => quotesTable.id),
+  partnerId: integer("partner_id"),
   proposalNumber: text("proposal_number").notNull().unique(),
   clientName: text("client_name").notNull(),
   clientEmail: text("client_email").notNull(),
@@ -66,11 +67,30 @@ export const quoteLineItemsTable = pgTable("quote_line_items", {
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
+export const proposalTemplatesTable = pgTable("proposal_templates", {
+  id: serial("id").primaryKey(),
+  partnerId: integer("partner_id"),
+  name: text("name").notNull(),
+  description: text("description"),
+  title: text("title").notNull(),
+  summary: text("summary"),
+  terms: text("terms"),
+  discountType: text("discount_type").notNull().default("fixed"),
+  discount: decimal("discount", { precision: 12, scale: 2 }).notNull().default("0"),
+  tax: decimal("tax", { precision: 12, scale: 2 }).notNull().default("0"),
+  lineItems: jsonb("line_items").notNull().default("[]"),
+  isGlobal: boolean("is_global").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertQuoteSchema = createInsertSchema(quotesTable).omit({ id: true, createdAt: true, status: true });
 export const insertProposalSchema = createInsertSchema(quoteProposalsTable).omit({ id: true, createdAt: true, updatedAt: true, version: true });
 export const insertLineItemSchema = createInsertSchema(quoteLineItemsTable).omit({ id: true });
+export const insertTemplateSchema = createInsertSchema(proposalTemplatesTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type Quote = typeof quotesTable.$inferSelect;
 export type QuoteProposal = typeof quoteProposalsTable.$inferSelect;
 export type QuoteLineItem = typeof quoteLineItemsTable.$inferSelect;
+export type ProposalTemplate = typeof proposalTemplatesTable.$inferSelect;
