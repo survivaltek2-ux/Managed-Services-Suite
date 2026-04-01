@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Download, Eye, Send, X, BookOpen, Search } from "lucide-react";
+import { Plus, Trash2, Download, Eye, Send, X, BookOpen, Search, Loader } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,17 @@ import { Badge } from "@/components/ui/Badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useTsdProducts, type TsdProduct } from "@/hooks/use-tsd-products";
+
+interface MarketplaceProduct {
+  id: number;
+  vendorId: number;
+  title: string;
+  description: string;
+  category: string;
+  price: string | null;
+  commissionRate: string;
+  vendorName?: string;
+}
 
 interface LineItem {
   name: string;
@@ -40,14 +51,34 @@ function ProductPickerModal({
   onSelect,
   onClose,
 }: {
-  onSelect: (product: TsdProduct) => void;
+  onSelect: (product: TsdProduct | MarketplaceProduct) => void;
   onClose: () => void;
 }) {
-  const { data, isLoading } = useTsdProducts();
+  const { data: tsdData, isLoading: tsdLoading } = useTsdProducts();
+  const [mpProducts, setMpProducts] = useState<MarketplaceProduct[]>([]);
+  const [mpLoading, setMpLoading] = useState(true);
+  const [tab, setTab] = useState<"tsd" | "marketplace">("tsd");
   const [search, setSearch] = useState("");
 
-  const allProducts = data?.products ?? [];
-  const filtered = allProducts.filter(
+  useEffect(() => {
+    const fetchMarketplaceProducts = async () => {
+      try {
+        const res = await fetch("/api/marketplace/products");
+        if (res.ok) {
+          const data = await res.json();
+          setMpProducts(data.products ?? []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch marketplace products:", err);
+      } finally {
+        setMpLoading(false);
+      }
+    };
+    fetchMarketplaceProducts();
+  }, []);
+
+  const tsdProducts = tsdData?.products ?? [];
+  const filteredTsd = tsdProducts.filter(
     (p) =>
       p.active &&
       (search === "" ||
@@ -56,11 +87,28 @@ function ProductPickerModal({
         (p.description ?? "").toLowerCase().includes(search.toLowerCase()))
   );
 
-  const grouped: Record<string, TsdProduct[]> = {};
-  for (const p of filtered) {
-    if (!grouped[p.category]) grouped[p.category] = [];
-    grouped[p.category].push(p);
+  const filteredMp = mpProducts.filter(
+    (p) =>
+      search === "" ||
+      p.title.toLowerCase().includes(search.toLowerCase()) ||
+      p.category.toLowerCase().includes(search.toLowerCase()) ||
+      (p.description ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const groupedTsd: Record<string, TsdProduct[]> = {};
+  for (const p of filteredTsd) {
+    if (!groupedTsd[p.category]) groupedTsd[p.category] = [];
+    groupedTsd[p.category].push(p);
   }
+
+  const groupedMp: Record<string, MarketplaceProduct[]> = {};
+  for (const p of filteredMp) {
+    if (!groupedMp[p.category]) groupedMp[p.category] = [];
+    groupedMp[p.category].push(p);
+  }
+
+  const isLoading = tab === "tsd" ? tsdLoading : mpLoading;
+  const isEmpty = tab === "tsd" ? filteredTsd.length === 0 : filteredMp.length === 0;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -70,6 +118,26 @@ function ProductPickerModal({
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b bg-muted/50 px-6">
+          <button
+            onClick={() => setTab("tsd")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "tsd" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"
+            }`}
+          >
+            TSD Products
+          </button>
+          <button
+            onClick={() => setTab("marketplace")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "marketplace" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"
+            }`}
+          >
+            Partner Products
+          </button>
         </div>
 
         <div className="px-6 py-3 border-b">
@@ -87,14 +155,16 @@ function ProductPickerModal({
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Loading catalog...</p>
-          ) : filtered.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : isEmpty ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               {search ? "No products match your search." : "No products in catalog."}
             </p>
           ) : (
             <div className="space-y-5">
-              {Object.entries(grouped).map(([category, products]) => (
+              {(tab === "tsd" ? Object.entries(groupedTsd) : Object.entries(groupedMp)).map(([category, products]) => (
                 <div key={category}>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     {category}
@@ -109,10 +179,15 @@ function ProductPickerModal({
                           onClose();
                         }}
                       >
-                        <p className="text-sm font-medium">{product.name}</p>
-                        {product.description && (
+                        <p className="text-sm font-medium">{tab === "tsd" ? (product as TsdProduct).name : (product as MarketplaceProduct).title}</p>
+                        {(product.description ?? "") && (
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {product.description}
+                          </p>
+                        )}
+                        {tab === "marketplace" && (product as MarketplaceProduct).vendorName && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            by {(product as MarketplaceProduct).vendorName}
                           </p>
                         )}
                       </button>
@@ -175,13 +250,17 @@ export default function ProposalGenerator() {
     setProductPickerOpen(true);
   };
 
-  const handleProductSelect = (product: TsdProduct) => {
+  const handleProductSelect = (product: TsdProduct | MarketplaceProduct) => {
+    const productName = "name" in product ? product.name : product.title;
+    const productDesc = product.description ?? "";
+    const basePrice = "price" in product && product.price ? parseFloat(product.price) : 0;
+
     if (productPickerTargetIdx === null) {
       setForm(p => ({
         ...p,
         lineItems: [
           ...p.lineItems,
-          { name: product.name, description: product.description ?? "", quantity: 1, unitPrice: 0, unit: "each", recurring: false, recurringInterval: "monthly" },
+          { name: productName, description: productDesc, quantity: 1, unitPrice: basePrice, unit: "each", recurring: false, recurringInterval: "monthly" },
         ],
       }));
     } else {
@@ -189,7 +268,7 @@ export default function ProposalGenerator() {
         ...p,
         lineItems: p.lineItems.map((item, i) =>
           i === productPickerTargetIdx
-            ? { ...item, name: product.name, description: product.description ?? "" }
+            ? { ...item, name: productName, description: productDesc, unitPrice: basePrice }
             : item
         ),
       }));
