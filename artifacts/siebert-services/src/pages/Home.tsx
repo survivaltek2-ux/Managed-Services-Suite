@@ -138,15 +138,29 @@ export default function Home() {
               As a hybrid MSP, we pair our managed services with products from our authorized vendor partners. Partner-level pricing, priority support, and expert deployment — all included.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {[
+              { name: "Comcast Business", href: "/comcast-business", desc: "ISP Partner" },
+              { name: "Spectrum Business", href: "/spectrum-business", desc: "ISP Partner" },
+              { name: "AT&T Business", href: "/att-business", desc: "ISP Partner" },
+              { name: "Verizon Business", href: "/verizon-business", desc: "Fiber + 5G" },
+              { name: "Cox Business", href: "/cox-business", desc: "ISP Partner" },
+              { name: "Altice / Optimum", href: "/altice", desc: "ISP Partner" },
+              { name: "Lumen Technologies", href: "/lumen", desc: "Enterprise Fiber" },
+              { name: "T-Mobile Business", href: "/t-mobile-business", desc: "5G Network" },
               { name: "Zoom", href: "/zoom", desc: "Certified Partner" },
-              { name: "HP", href: "/hp", desc: "Amplify Partner" },
-              { name: "Dell", href: "/dell", desc: "Partner Program" },
+              { name: "RingCentral", href: "/ringcentral", desc: "UCaaS Partner" },
+              { name: "Microsoft 365", href: "/microsoft-365", desc: "CSP Partner" },
+              { name: "8x8", href: "/8x8", desc: "UCaaS + CCaaS" },
+              { name: "Cisco / Meraki", href: "/cisco-meraki", desc: "Gold Partner" },
+              { name: "Fortinet", href: "/fortinet", desc: "NGFW Partner" },
+              { name: "Palo Alto Networks", href: "/palo-alto-networks", desc: "Security Partner" },
               { name: "Extreme Networks", href: "/extreme-networks", desc: "Partner First" },
               { name: "Juniper Networks", href: "/juniper-networks", desc: "Partner Advantage" },
+              { name: "HP", href: "/hp", desc: "Amplify Partner" },
+              { name: "Dell", href: "/dell", desc: "Partner Program" },
               { name: "Vivint", href: "/vivint", desc: "Smart Home Partner" },
-              { name: "Altice / Optimum", href: "/altice", desc: "Business Connectivity" }
+              { name: "ADT Business", href: "/adt-business", desc: "Security Partner" },
             ].map((vendor, i) => (
               <motion.div
                 key={i}

@@ -25,6 +25,20 @@ import JuniperNetworks from "./pages/JuniperNetworks";
 import Vivint from "./pages/Vivint";
 import VivintForm from "./pages/VivintForm";
 import Altice from "./pages/Altice";
+import ComcastBusiness from "./pages/ComcastBusiness";
+import SpectrumBusiness from "./pages/SpectrumBusiness";
+import ATTBusiness from "./pages/ATTBusiness";
+import VerizonBusiness from "./pages/VerizonBusiness";
+import CoxBusiness from "./pages/CoxBusiness";
+import RingCentral from "./pages/RingCentral";
+import Microsoft365 from "./pages/Microsoft365";
+import CiscoMeraki from "./pages/CiscoMeraki";
+import Fortinet from "./pages/Fortinet";
+import ADTBusiness from "./pages/ADTBusiness";
+import Lumen from "./pages/Lumen";
+import TMobileBusiness from "./pages/TMobileBusiness";
+import EightByEight from "./pages/EightByEight";
+import PaloAltoNetworks from "./pages/PaloAltoNetworks";
 import InternetPlans from "./pages/InternetPlans";
 import NotFound from "./pages/not-found";
 
@@ -59,6 +73,20 @@ function PublicRouter() {
         <Route path="/vivint" component={Vivint} />
         <Route path="/vivint/inquiry" component={VivintForm} />
         <Route path="/altice" component={Altice} />
+        <Route path="/comcast-business" component={ComcastBusiness} />
+        <Route path="/spectrum-business" component={SpectrumBusiness} />
+        <Route path="/att-business" component={ATTBusiness} />
+        <Route path="/verizon-business" component={VerizonBusiness} />
+        <Route path="/cox-business" component={CoxBusiness} />
+        <Route path="/ringcentral" component={RingCentral} />
+        <Route path="/microsoft-365" component={Microsoft365} />
+        <Route path="/cisco-meraki" component={CiscoMeraki} />
+        <Route path="/fortinet" component={Fortinet} />
+        <Route path="/adt-business" component={ADTBusiness} />
+        <Route path="/lumen" component={Lumen} />
+        <Route path="/t-mobile-business" component={TMobileBusiness} />
+        <Route path="/8x8" component={EightByEight} />
+        <Route path="/palo-alto-networks" component={PaloAltoNetworks} />
 
         {/* Blog */}
         <Route path="/blog" component={Blog} />

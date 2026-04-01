@@ -5,15 +5,34 @@ import { useState, useEffect, useRef } from "react";
 import { Menu, X, PhoneCall, ChevronRight, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
-const partnerLinks = [
+const connectivityPartners = [
+  { name: "Comcast Business", href: "/comcast-business" },
+  { name: "Spectrum Business", href: "/spectrum-business" },
+  { name: "AT&T Business", href: "/att-business" },
+  { name: "Verizon Business", href: "/verizon-business" },
+  { name: "Cox Business", href: "/cox-business" },
+  { name: "Altice / Optimum", href: "/altice" },
+  { name: "Lumen Technologies", href: "/lumen" },
+  { name: "T-Mobile Business", href: "/t-mobile-business" },
+];
+
+const techPartners = [
   { name: "Zoom", href: "/zoom" },
+  { name: "RingCentral", href: "/ringcentral" },
+  { name: "Microsoft 365", href: "/microsoft-365" },
+  { name: "8x8", href: "/8x8" },
+  { name: "Cisco / Meraki", href: "/cisco-meraki" },
+  { name: "Fortinet", href: "/fortinet" },
+  { name: "Palo Alto Networks", href: "/palo-alto-networks" },
   { name: "Extreme Networks", href: "/extreme-networks" },
+  { name: "Juniper Networks", href: "/juniper-networks" },
   { name: "HP", href: "/hp" },
   { name: "Dell", href: "/dell" },
-  { name: "Juniper Networks", href: "/juniper-networks" },
   { name: "Vivint", href: "/vivint" },
-  { name: "Altice / Optimum", href: "/altice" },
+  { name: "ADT Business", href: "/adt-business" },
 ];
+
+const allPartnerLinks = [...connectivityPartners, ...techPartners];
 
 const topNavLinks = [
   { name: "Home", href: "/" },
@@ -48,7 +67,7 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const isPartnerActive = partnerLinks.some((l) => location === l.href);
+  const isPartnerActive = allPartnerLinks.some((l) => location === l.href);
 
   return (
     <header
@@ -106,24 +125,43 @@ export function Navbar() {
               </button>
 
               {partnersOpen && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-52 bg-white rounded-2xl shadow-xl border border-border py-2 z-50">
-                  <div className="px-3 pb-2 pt-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Vendor Partners</p>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[540px] bg-white rounded-2xl shadow-xl border border-border py-4 z-50">
+                  <div className="grid grid-cols-2 gap-0 divide-x divide-border">
+                    <div className="px-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Connectivity & ISP</p>
+                      {connectivityPartners.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setPartnersOpen(false)}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2 text-sm font-semibold transition-colors rounded-xl",
+                            location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+                          )}
+                        >
+                          {link.name}
+                          <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="px-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Technology & Security</p>
+                      {techPartners.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setPartnersOpen(false)}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2 text-sm font-semibold transition-colors rounded-xl",
+                            location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+                          )}
+                        >
+                          {link.name}
+                          <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                  {partnerLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setPartnersOpen(false)}
-                      className={cn(
-                        "flex items-center justify-between px-4 py-2.5 text-sm font-semibold transition-colors mx-1 rounded-xl",
-                        location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
-                      )}
-                    >
-                      {link.name}
-                      <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-                    </Link>
-                  ))}
                 </div>
               )}
             </div>
@@ -186,7 +224,7 @@ export function Navbar() {
           </button>
           {mobilePartnersOpen && (
             <div className="pl-4 flex flex-col gap-1">
-              {partnerLinks.map((link) => (
+              {allPartnerLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

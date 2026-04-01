@@ -2,10 +2,36 @@ import { Link } from "wouter";
 import { Mail, MapPin, Phone, ArrowRight } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 
+const connectivityPartners = [
+  { label: "Comcast Business", href: "/comcast-business" },
+  { label: "Spectrum Business", href: "/spectrum-business" },
+  { label: "AT&T Business", href: "/att-business" },
+  { label: "Verizon Business", href: "/verizon-business" },
+  { label: "Cox Business", href: "/cox-business" },
+  { label: "Altice / Optimum", href: "/altice" },
+  { label: "Lumen Technologies", href: "/lumen" },
+  { label: "T-Mobile Business", href: "/t-mobile-business" },
+];
+
+const techPartners = [
+  { label: "Zoom", href: "/zoom" },
+  { label: "RingCentral", href: "/ringcentral" },
+  { label: "Microsoft 365", href: "/microsoft-365" },
+  { label: "8x8", href: "/8x8" },
+  { label: "Cisco / Meraki", href: "/cisco-meraki" },
+  { label: "Fortinet", href: "/fortinet" },
+  { label: "Palo Alto Networks", href: "/palo-alto-networks" },
+  { label: "Extreme Networks", href: "/extreme-networks" },
+  { label: "Juniper Networks", href: "/juniper-networks" },
+  { label: "HP", href: "/hp" },
+  { label: "Dell", href: "/dell" },
+  { label: "Vivint", href: "/vivint" },
+  { label: "ADT Business", href: "/adt-business" },
+];
+
 export function Footer() {
   return (
     <footer className="bg-navy pt-20 pb-10 border-t-4 border-primary overflow-hidden relative">
-      {/* Decorative background element */}
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -42,13 +68,10 @@ export function Footer() {
                 { label: 'About Us', href: '/about' },
                 { label: 'Contact', href: '/contact' },
                 { label: 'Client Portal', href: '/portal' },
-                { label: 'Zoom Partner', href: '/zoom' },
-                { label: 'Extreme Networks', href: '/extreme-networks' },
-                { label: 'HP', href: '/hp' },
-                { label: 'Dell', href: '/dell' },
-                { label: 'Juniper Networks', href: '/juniper-networks' },
-                { label: 'Vivint', href: '/vivint' },
-                { label: 'Altice / Optimum', href: '/altice' },
+                { label: 'Recommended Products', href: '/recommended' },
+                { label: 'Internet Plans', href: '/internet-plans' },
+                { label: 'Blog', href: '/blog' },
+                { label: 'Privacy Policy', href: '/privacy' },
               ].map((link) => (
                 <li key={link.label}>
                   <Link 
@@ -94,6 +117,45 @@ export function Footer() {
               />
               <Button className="w-full h-12 text-base">Subscribe</Button>
             </form>
+          </div>
+        </div>
+
+        {/* Partner Vendors Section */}
+        <div className="border-t border-white/10 pt-10 mb-10">
+          <h4 className="text-white font-display font-bold text-base sm:text-lg mb-6">Vendor Partners</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div>
+              <p className="text-primary text-xs font-semibold uppercase tracking-widest mb-4">Connectivity & ISP</p>
+              <ul className="grid grid-cols-2 gap-y-3 gap-x-4">
+                {connectivityPartners.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-white/60 hover:text-primary transition-colors text-sm flex items-center gap-1.5 group"
+                    >
+                      <ArrowRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-primary text-xs font-semibold uppercase tracking-widest mb-4">Technology & Security</p>
+              <ul className="grid grid-cols-2 gap-y-3 gap-x-4">
+                {techPartners.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-white/60 hover:text-primary transition-colors text-sm flex items-center gap-1.5 group"
+                    >
+                      <ArrowRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 

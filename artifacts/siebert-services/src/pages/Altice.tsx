@@ -403,6 +403,148 @@ export default function Altice() {
           </div>
         </motion.section>
 
+        {/* Residential Services Section */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Optimum Residential Services</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Looking for home internet, TV, or phone service? Optimum (formerly Altice) offers competitive residential plans for homeowners and renters across their service footprint.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Optimum Internet 300",
+                speed: "300 Mbps",
+                price: "$40/mo",
+                priceNote: "12-mo. promotion · no annual contract",
+                color: ALTICE_BLUE,
+                features: [
+                  "300 Mbps download",
+                  "Unlimited data",
+                  "Free modem included",
+                  "Access to Wi-Fi hotspots",
+                  "Stream HD on 4+ devices",
+                ],
+              },
+              {
+                name: "Optimum Internet 500",
+                speed: "500 Mbps",
+                price: "$55/mo",
+                priceNote: "12-mo. promotion · no annual contract",
+                color: ALTICE_BLUE,
+                highlight: true,
+                features: [
+                  "500 Mbps download",
+                  "Unlimited data",
+                  "Free modem included",
+                  "Wi-Fi equipment upgrade available",
+                  "Stream 4K on 8+ devices",
+                ],
+              },
+              {
+                name: "Optimum 1 Gig",
+                speed: "1 Gbps",
+                price: "$70/mo",
+                priceNote: "12-mo. promotion · no annual contract",
+                color: ALTICE_BLUE,
+                features: [
+                  "1 Gbps download",
+                  "Unlimited data",
+                  "Advanced Wi-Fi 6 router available",
+                  "Whole-home coverage add-on",
+                  "Ideal for smart home & gaming",
+                ],
+              },
+            ].map((plan) => (
+              <motion.div
+                key={plan.name}
+                className={`rounded-xl border-2 overflow-hidden ${plan.highlight ? "border-blue-500 ring-2 ring-blue-200 shadow-xl" : "border-border"}`}
+                whileHover={{ y: -4 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                viewport={{ once: true }}
+              >
+                {plan.highlight && (
+                  <div className="px-4 py-2 text-xs font-bold text-white text-center" style={{ backgroundColor: ALTICE_BLUE }}>
+                    MOST POPULAR HOME PLAN
+                  </div>
+                )}
+                <div className="p-6 bg-card">
+                  <h3 className="text-xl font-bold text-foreground mb-1">{plan.name}</h3>
+                  <div className="text-3xl font-bold mb-1" style={{ color: ALTICE_BLUE }}>{plan.price}</div>
+                  <p className="text-xs text-muted-foreground mb-4">{plan.priceNote}</p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold mb-5" style={{ backgroundColor: `${ALTICE_BLUE}15`, color: ALTICE_BLUE }}>
+                    <Wifi className="w-3 h-3" /> {plan.speed} · Home Internet
+                  </div>
+                  <ul className="space-y-2.5">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-green-500" />
+                        <span className="text-sm text-foreground">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/contact">
+                    <a className="mt-6 block w-full text-center px-4 py-3 rounded-lg font-bold text-white transition-all" style={{ backgroundColor: plan.highlight ? ALTICE_BLUE : ALTICE_DARK }}>
+                      Get This Plan
+                    </a>
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Residential bundles */}
+          <div className="mt-10 grid md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Tv,
+                title: "Optimum TV",
+                desc: "Optimum TV packages for home include 125–420+ channels with sports, news, and entertainment. Stream on TV and mobile with the Optimum TV app.",
+                bullets: ["125–420+ channels", "4K streaming on select channels", "DVR service available", "Stream on up to 3 devices"],
+              },
+              {
+                icon: Phone,
+                title: "Home Phone",
+                desc: "Unlimited local and long-distance calling with caller ID, voicemail, call waiting, and 3-way calling — starting under $15/mo when bundled.",
+                bullets: ["Unlimited US/Canada calling", "Caller ID & voicemail", "International calling available", "Bundles save up to $20/mo"],
+              },
+              {
+                icon: Radio,
+                title: "Optimum Mobile",
+                desc: "Home customers get access to Optimum Mobile — wireless plans that piggyback on their existing Optimum internet account for simplified billing.",
+                bullets: ["Unlimited data plans", "Powered by partner 5G network", "No switching fees", "BYOD or new device options"],
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className="bg-card border border-border rounded-xl p-6">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: `${ALTICE_BLUE}15` }}>
+                    <Icon className="w-5 h-5" style={{ color: ALTICE_BLUE }} />
+                  </div>
+                  <h3 className="font-bold text-foreground mb-2">{item.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{item.desc}</p>
+                  <ul className="space-y-1.5">
+                    {item.bullets.map((b) => (
+                      <li key={b} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0 text-green-500" />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
         {/* Brand Note */}
         <motion.div
           className="border border-blue-200 bg-blue-50 rounded-xl px-8 py-6 text-sm text-muted-foreground"
