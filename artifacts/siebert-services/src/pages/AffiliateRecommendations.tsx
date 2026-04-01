@@ -43,7 +43,7 @@ export default function AffiliateRecommendations() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${import.meta.env.BASE_URL}api/admin/affiliate/programs`);
+        const res = await fetch(`${import.meta.env.BASE_URL}api/affiliate/programs/live`);
         if (!res.ok) throw new Error("Failed to fetch programs");
         const json = await res.json();
         setData(json);

@@ -110,6 +110,45 @@ router.get("/admin/affiliate/clicks", requireAdmin, async (_req: Request, res: R
 });
 
 /**
+ * GET /api/affiliate/programs/live
+ * PUBLIC — returns only live affiliate programs (those with tracking links)
+ * Used by the public Recommended Products page
+ */
+router.get("/affiliate/programs/live", (_req: Request, res: Response) => {
+  const buildCategory = (name: string, map: Record<string, any>) =>
+    Object.entries(map)
+      .filter(([, entry]) => entry.affiliateUrl !== null) // Only live programs
+      .map(([slug, entry]) => ({
+        slug,
+        category: name,
+        rateUsd: entry.rateUsd,
+        percentRate: entry.percentRate ?? null,
+        commissionType: entry.commissionType,
+        network: entry.network,
+        affiliateSignupUrl: entry.affiliateSignupUrl,
+        isLive: true,
+        notes: entry.notes,
+      }));
+
+  const programs = [
+    ...buildCategory("Residential ISP", RESIDENTIAL_COMMISSIONS),
+    ...buildCategory("Business Connectivity", BUSINESS_CONNECTIVITY_COMMISSIONS),
+    ...buildCategory("VoIP & Communications", VOIP_COMMISSIONS),
+    ...buildCategory("Cybersecurity", CYBERSECURITY_COMMISSIONS),
+    ...buildCategory("VPN & Network Security", VPN_COMMISSIONS),
+    ...buildCategory("Password Management", PASSWORD_MGMT_COMMISSIONS),
+    ...buildCategory("Backup & Storage", BACKUP_COMMISSIONS),
+    ...buildCategory("Home Security", HOME_SECURITY_COMMISSIONS),
+    ...buildCategory("Consumer Antivirus", CONSUMER_ANTIVIRUS_COMMISSIONS),
+    ...buildCategory("Identity Protection", IDENTITY_PROTECTION_COMMISSIONS),
+    ...buildCategory("Cloud Productivity", CLOUD_PRODUCTIVITY_COMMISSIONS),
+    ...buildCategory("Web Hosting & Domains", WEB_HOSTING_COMMISSIONS),
+  ];
+
+  res.json({ programs, totalLive: programs.length, totalPending: 0 });
+});
+
+/**
  * GET /api/admin/affiliate/programs
  * Admin only — returns the full catalog of affiliate programs from config,
  * grouped by category, so the team can see what's live vs. pending sign-up.
