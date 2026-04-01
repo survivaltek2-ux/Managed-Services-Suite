@@ -30,8 +30,7 @@ import {
   AlertCircle,
   MapPin,
   MousePointerClick,
-  Zap,
-  ShoppingCart
+  Zap
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -48,7 +47,6 @@ const BASE_NAV_ITEMS = [
   { href: "/service-availability", label: "Check Service", icon: MapPin },
   { href: "/support", label: "Support", icon: Headphones },
   { href: "/announcements", label: "News", icon: Bell },
-  { href: "/recommended", label: "Recommended Products", icon: ShoppingCart },
 ];
 
 const ADMIN_NAV_ITEMS = [
