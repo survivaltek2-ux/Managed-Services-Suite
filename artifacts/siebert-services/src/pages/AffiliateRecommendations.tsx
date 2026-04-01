@@ -9,6 +9,7 @@ interface AffiliateProgram {
   commissionType: string;
   network: string;
   affiliateSignupUrl: string;
+  affiliateUrl: string | null;
   isLive: boolean;
   notes: string;
 }
@@ -196,12 +197,12 @@ export default function AffiliateRecommendations() {
 
                   {/* CTA Button */}
                   <a
-                    href={p.affiliateSignupUrl}
+                    href={p.affiliateUrl || p.affiliateSignupUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 w-full justify-center px-4 py-2.5 mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
                   >
-                    Learn More
+                    {p.affiliateUrl ? "Get Started" : "Learn More"}
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>

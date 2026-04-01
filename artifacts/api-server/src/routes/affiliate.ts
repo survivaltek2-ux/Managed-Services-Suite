@@ -126,6 +126,7 @@ router.get("/affiliate/programs/live", (_req: Request, res: Response) => {
         commissionType: entry.commissionType,
         network: entry.network,
         affiliateSignupUrl: entry.affiliateSignupUrl,
+        affiliateUrl: entry.affiliateUrl,
         isLive: true,
         notes: entry.notes,
       }));
