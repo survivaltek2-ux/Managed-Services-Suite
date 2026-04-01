@@ -564,7 +564,7 @@ export default function Altice() {
                 Business or residential — tell us what you need and we'll put together an Optimum Business or Lightpath solution within one business day.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="Optimum / Altice"
                 vendorSlug="altice"
@@ -605,12 +605,13 @@ export default function Altice() {
           <p className="text-blue-100 text-lg mb-8 max-w-xl mx-auto">
             Whether you need a fast fiber connection for a single office or dedicated 100G fiber for your enterprise, we'll find the right Optimum Business plan for you.
           </p>
-          <Link href="/contact">
-            <a className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors text-lg" style={{ color: ALTICE_DARK }}>
-              <ArrowRight className="w-5 h-5" />
-              Get a Custom Quote
-            </a>
-          </Link>
+          <button
+            onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors text-lg" style={{ color: ALTICE_DARK }}
+          >
+            <ArrowRight className="w-5 h-5" />
+            Get a Custom Quote
+          </button>
           <p className="text-blue-200 text-sm mt-5">Serving businesses across 21 states · No long-term contracts required</p>
         </motion.div>
 

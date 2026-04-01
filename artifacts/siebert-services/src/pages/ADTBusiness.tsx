@@ -222,12 +222,13 @@ export default function ADTBusiness() {
             Commercial intrusion detection, HD video surveillance, smart access control, fire & life safety, and 24/7 monitoring — all from the most trusted name in American security.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors" style={{ color: ADT_BLUE }}>
-                <ArrowRight className="w-5 h-5" />
-                Get a Security Assessment
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors" style={{ color: ADT_BLUE }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Get a Security Assessment
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -412,7 +413,7 @@ export default function ADTBusiness() {
                 America's #1 security company — tell us about your facility and we'll design a comprehensive ADT Business security solution for you.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="ADT Business"
                 vendorSlug="adt-business"

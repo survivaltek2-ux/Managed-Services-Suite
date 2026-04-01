@@ -219,12 +219,13 @@ export default function EightByEight() {
             Cloud phone, video, team chat, and contact center on a single platform — with unlimited calling to 48 countries and 99.999% uptime. Built for global teams.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-green-50 transition-colors" style={{ color: EBE_DARK }}>
-                <ArrowRight className="w-5 h-5" />
-                Request a Quote
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-green-50 transition-colors" style={{ color: EBE_DARK }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Request a Quote
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -411,7 +412,7 @@ export default function EightByEight() {
                 One platform for voice, video, chat, and contact center — globally. Tell us about your team and we'll recommend the right 8x8 plan.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="8x8"
                 vendorSlug="8x8"

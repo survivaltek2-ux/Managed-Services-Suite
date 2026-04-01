@@ -219,12 +219,13 @@ export default function Microsoft365() {
             The world's leading cloud productivity platform — Office apps, Exchange email, Teams, SharePoint, OneDrive, and enterprise-grade security — all in one subscription.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors" style={{ color: MS_DARK }}>
-                <ArrowRight className="w-5 h-5" />
-                Request a Quote
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors" style={{ color: MS_DARK }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Request a Quote
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -411,7 +412,7 @@ export default function Microsoft365() {
                 As a licensed Microsoft CSP partner, we handle licensing, migration, and ongoing support. Tell us about your team and we'll get you set up the right way.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="Microsoft 365"
                 vendorSlug="microsoft-365"

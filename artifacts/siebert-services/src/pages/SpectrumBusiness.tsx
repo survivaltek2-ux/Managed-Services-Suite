@@ -222,12 +222,13 @@ export default function SpectrumBusiness() {
             No contracts. No data caps. No equipment rental fees. Business internet, voice, TV, mobile, and fiber — all from one of the top ISPs in 29 states.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors" style={{ color: SPECTRUM_BLUE }}>
-                <ArrowRight className="w-5 h-5" />
-                Request a Quote
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-blue-50 transition-colors" style={{ color: SPECTRUM_BLUE }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Request a Quote
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -414,7 +415,7 @@ export default function SpectrumBusiness() {
                 No contracts, no data caps — tell us what you need and we'll match you with the right Spectrum Business plan within one business day.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="Spectrum Business"
                 vendorSlug="spectrum-business"

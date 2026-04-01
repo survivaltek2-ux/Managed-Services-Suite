@@ -172,12 +172,13 @@ export default function Lumen() {
             Enterprise-grade dedicated internet, MPLS, SD-WAN, edge computing, and cybersecurity — built on one of the largest fiber backbones in the world, spanning 400,000 route miles.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-purple-50 transition-colors" style={{ color: LUMEN_DARK }}>
-                <ArrowRight className="w-5 h-5" />
-                Request a Quote
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-purple-50 transition-colors" style={{ color: LUMEN_DARK }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Request a Quote
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -307,7 +308,7 @@ export default function Lumen() {
                 Enterprise-grade DIA, MPLS, SD-WAN, and edge computing — tell us about your network requirements and we'll build a Lumen solution tailored to your organization.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="Lumen Technologies"
                 vendorSlug="lumen"

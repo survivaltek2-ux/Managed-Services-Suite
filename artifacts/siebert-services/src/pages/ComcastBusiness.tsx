@@ -222,12 +222,13 @@ export default function ComcastBusiness() {
             High-speed internet, cloud voice, business TV, mobile, and enterprise SD-WAN — all from one provider serving over 2 million U.S. businesses.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-red-50 transition-colors" style={{ color: COMCAST_RED }}>
-                <ArrowRight className="w-5 h-5" />
-                Request a Quote
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-red-50 transition-colors" style={{ color: COMCAST_RED }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Request a Quote
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -416,7 +417,7 @@ export default function ComcastBusiness() {
                 Tell us what you need and we'll respond within one business day with transparent, competitive pricing — at no cost to you.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="Comcast Business"
                 vendorSlug="comcast-business"

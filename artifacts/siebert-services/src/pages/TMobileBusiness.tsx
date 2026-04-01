@@ -216,12 +216,13 @@ export default function TMobileBusiness() {
             5G business internet, mobile plans, IoT connectivity, private 5G networks, and edge computing — all on America's largest 5G network with no annual contract required.
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
-            <Link href="/contact">
-              <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-pink-50 transition-colors" style={{ color: TMOB_DARK }}>
-                <ArrowRight className="w-5 h-5" />
-                Request a Quote
-              </a>
-            </Link>
+            <button
+              onClick={() => document.getElementById('inquiry-form')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white font-bold hover:bg-pink-50 transition-colors" style={{ color: TMOB_DARK }}
+            >
+              <ArrowRight className="w-5 h-5" />
+              Request a Quote
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
@@ -408,7 +409,7 @@ export default function TMobileBusiness() {
                 America's largest 5G network — tell us about your connectivity and mobility needs and we'll build a tailored T-Mobile solution within one business day.
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+            <div id="inquiry-form" className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
               <VendorInquiryForm
                 vendorName="T-Mobile for Business"
                 vendorSlug="t-mobile-business"
