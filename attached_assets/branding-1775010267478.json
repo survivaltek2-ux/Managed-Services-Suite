@@ -1,0 +1,128 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Raleway",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#6C757D",
+    "secondary": "#28A745",
+    "accent": "#007BFF",
+    "background": "#FFFFFF",
+    "textPrimary": "#007BFF",
+    "link": "#007BFF"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Raleway",
+      "heading": "Raleway"
+    },
+    "fontStacks": {
+      "heading": [
+        "Raleway",
+        "sans-serif"
+      ],
+      "body": [
+        "Raleway",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Raleway",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "16px",
+      "h2": "16px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "4px"
+  },
+  "components": {
+    "input": {
+      "background": "#FFFFFF",
+      "textColor": "#495057",
+      "borderColor": "#CED4DA",
+      "borderRadius": "800px",
+      "borderRadiusCorners": {
+        "topLeft": "800px",
+        "topRight": "800px",
+        "bottomRight": "800px",
+        "bottomLeft": "800px"
+      },
+      "shadow": "none"
+    },
+    "buttonPrimary": {
+      "background": "#007BFF",
+      "textColor": "#FFFFFF",
+      "borderColor": "#007BFF",
+      "borderRadius": "800px",
+      "borderRadiusCorners": {
+        "topLeft": "800px",
+        "topRight": "800px",
+        "bottomRight": "800px",
+        "bottomLeft": "800px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "favicon": null,
+    "ogImage": null
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": -1,
+    "reasoning": "The candidate logo is not located in the header and does not have strong indicators of being the main brand logo for 'Fiber Lookup Agent'. It is positioned in the body and lacks a link to the homepage, which are typical characteristics of a primary brand logo.",
+    "confidence": 0.3,
+    "rejected": true,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Login",
+      "reasoning": "The button with the text 'Login' has a vibrant blue background (#007BFF), which is a strong indicator of a primary call-to-action. It stands out against the page's background and is likely the main action users are expected to take on this page."
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "There is only one button detected, so no secondary button is available with a different background color."
+    },
+    "confidence": 0.9
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "Telecommunications professionals"
+  },
+  "designSystem": {
+    "framework": "bootstrap",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.9,
+    "colors": 0.9,
+    "overall": 0.9
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": -1,
+        "selectedLogoReasoning": "The candidate logo is not located in the header and does not have strong indicators of being the main brand logo for 'Fiber Lookup Agent'. It is positioned in the body and lacks a link to the homepage, which are typical characteristics of a primary brand logo.",
+        "confidence": 0.3
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
