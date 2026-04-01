@@ -19,6 +19,7 @@ import serviceAvailabilityRouter from "./service-availability.js";
 import placesRouter from "./places.js";
 import affiliateRouter from "./affiliate.js";
 import impactRouter from "./impact.js";
+import marketplaceRouter from "./marketplace.js";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(serviceAvailabilityRouter);
 router.use(placesRouter);
 router.use(affiliateRouter);
 router.use(impactRouter);
+router.use("/marketplace", marketplaceRouter);
 
 export default router;

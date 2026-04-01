@@ -15,6 +15,7 @@ import Training from "./pages/Training";
 import Announcements from "./pages/Announcements";
 import Profile from "./pages/Profile";
 import Commissions from "./pages/Commissions";
+import Marketplace from "./pages/Marketplace";
 import SupportTickets from "./pages/SupportTickets";
 import ClientTickets from "./pages/ClientTickets";
 import Documents from "./pages/Documents";
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/training"><ProtectedRoute component={Training} /></Route>
       <Route path="/announcements"><ProtectedRoute component={Announcements} /></Route>
       <Route path="/commissions"><ProtectedRoute component={Commissions} /></Route>
+      <Route path="/marketplace"><ProtectedRoute component={Marketplace} /></Route>
       <Route path="/support"><ProtectedRoute component={SupportTickets} /></Route>
       <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
       <Route path="/client-tickets"><ProtectedRoute component={ClientTickets} /></Route>
