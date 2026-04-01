@@ -168,20 +168,6 @@ export default function AffiliateRecommendations() {
                     </span>
                   </div>
 
-                  {/* Commission */}
-                  <div className="bg-blue-50 rounded p-3">
-                    <p className="text-sm text-gray-600">Commission</p>
-                    <p className="text-xl font-bold text-blue-600">
-                      {p.percentRate
-                        ? `~${p.percentRate}`
-                        : p.commissionType === "per_sale"
-                        ? `$${p.rateUsd}/sale`
-                        : p.commissionType === "per_lead"
-                        ? `$${p.rateUsd}/lead`
-                        : "Negotiated"}
-                    </p>
-                  </div>
-
                   {/* Network */}
                   <div className="text-sm">
                     <p className="text-gray-600">Network</p>
