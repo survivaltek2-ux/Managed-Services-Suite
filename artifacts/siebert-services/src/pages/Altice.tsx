@@ -614,6 +614,31 @@ export default function Altice() {
           <p className="text-blue-200 text-sm mt-5">Serving businesses across 21 states · No long-term contracts required</p>
         </motion.div>
 
+        {/* Residential Optimum Offer */}
+        <motion.div
+          className="text-white rounded-xl p-8 text-center mt-12"
+          style={{ background: `linear-gradient(135deg, #071225 0%, #0C172B 100%)` }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <p className="text-sm text-gray-200 mb-4">🏠 Looking for residential service?</p>
+          <h3 className="text-2xl font-bold mb-2">Save on Optimum Residential Internet</h3>
+          <p className="text-gray-300 mb-6 max-w-lg mx-auto">
+            Get a <span className="font-bold text-[#E66262]">$50 bill credit</span> on Optimum residential internet service using our exclusive referral link.
+          </p>
+          <a
+            href="https://refer.optimum.com/Richard0!b719e743b0!a"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-[#E66262] font-bold hover:bg-[#d45252] transition-colors text-lg"
+          >
+            Check Optimum Availability
+            <ExternalLink className="w-5 h-5" />
+          </a>
+        </motion.div>
+
       </div>
     </div>
   );

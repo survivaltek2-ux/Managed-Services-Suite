@@ -125,6 +125,7 @@ export default function Home() {
                 Search Internet Plans <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
+            <p className="text-sm text-white/70 mt-4">💡 Tip: Use our referral link to get a $50 bill credit on Optimum residential internet service</p>
           </motion.div>
         </div>
       </section>
