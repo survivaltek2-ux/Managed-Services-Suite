@@ -107,7 +107,7 @@ export default function AdminImpact() {
   useEffect(() => { load(); }, []);
 
   return (
-    <PortalLayout user={user}>
+    <PortalLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">

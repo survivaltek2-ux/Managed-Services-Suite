@@ -96,7 +96,7 @@ export default function AdminAffiliatePrograms() {
   const totalFiltered = Object.values(grouped).flat().length;
 
   return (
-    <PortalLayout user={user}>
+    <PortalLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Affiliate Program Catalog</h1>
