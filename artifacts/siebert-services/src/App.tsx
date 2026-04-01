@@ -22,6 +22,7 @@ import ExtremeNetworks from "./pages/ExtremeNetworks";
 import HP from "./pages/HP";
 import Dell from "./pages/Dell";
 import JuniperNetworks from "./pages/JuniperNetworks";
+import Vivint from "./pages/Vivint";
 import InternetPlans from "./pages/InternetPlans";
 import NotFound from "./pages/not-found";
 
@@ -53,6 +54,7 @@ function PublicRouter() {
         <Route path="/hp" component={HP} />
         <Route path="/dell" component={Dell} />
         <Route path="/juniper-networks" component={JuniperNetworks} />
+        <Route path="/vivint" component={Vivint} />
 
         {/* Blog */}
         <Route path="/blog" component={Blog} />

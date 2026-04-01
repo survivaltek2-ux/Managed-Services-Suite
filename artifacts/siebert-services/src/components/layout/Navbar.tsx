@@ -11,6 +11,7 @@ const partnerLinks = [
   { name: "HP", href: "/hp" },
   { name: "Dell", href: "/dell" },
   { name: "Juniper Networks", href: "/juniper-networks" },
+  { name: "Vivint", href: "/vivint" },
 ];
 
 const topNavLinks = [

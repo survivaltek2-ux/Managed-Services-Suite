@@ -144,7 +144,8 @@ export default function Home() {
               { name: "HP", href: "/hp", desc: "Amplify Partner" },
               { name: "Dell", href: "/dell", desc: "Partner Program" },
               { name: "Extreme Networks", href: "/extreme-networks", desc: "Partner First" },
-              { name: "Juniper Networks", href: "/juniper-networks", desc: "Partner Advantage" }
+              { name: "Juniper Networks", href: "/juniper-networks", desc: "Partner Advantage" },
+              { name: "Vivint", href: "/vivint", desc: "Smart Home Partner" }
             ].map((vendor, i) => (
               <motion.div
                 key={i}

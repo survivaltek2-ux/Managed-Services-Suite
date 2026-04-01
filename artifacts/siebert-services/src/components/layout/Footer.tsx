@@ -47,6 +47,7 @@ export function Footer() {
                 { label: 'HP', href: '/hp' },
                 { label: 'Dell', href: '/dell' },
                 { label: 'Juniper Networks', href: '/juniper-networks' },
+                { label: 'Vivint', href: '/vivint' },
               ].map((link) => (
                 <li key={link.label}>
                   <Link 
