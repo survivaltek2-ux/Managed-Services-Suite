@@ -29,7 +29,8 @@ import {
   ShieldCheck,
   AlertCircle,
   MapPin,
-  MousePointerClick
+  MousePointerClick,
+  Zap
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/invoices", label: "Invoices", icon: FileText },
   { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
   { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
+  { href: "/admin/impact", label: "Impact.com", icon: Zap },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -276,6 +278,7 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/invoices", label: "Invoices", icon: FileText },
     { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
     { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
+    { href: "/admin/impact", label: "Impact.com", icon: Zap },
   ];
 
   return (

@@ -18,6 +18,7 @@ import reportsRouter from "./reports";
 import serviceAvailabilityRouter from "./service-availability.js";
 import placesRouter from "./places.js";
 import affiliateRouter from "./affiliate.js";
+import impactRouter from "./impact.js";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(reportsRouter);
 router.use(serviceAvailabilityRouter);
 router.use(placesRouter);
 router.use(affiliateRouter);
+router.use(impactRouter);
 
 export default router;

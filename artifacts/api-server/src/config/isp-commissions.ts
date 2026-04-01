@@ -381,11 +381,11 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
   simplisafe: {
     rateUsd: 75,
     commissionType: "per_sale",
-    network: "Awin",
-    affiliateSignupUrl: "https://www.awin.com",
-    affiliateUrl: null,
+    network: "Impact",
+    affiliateSignupUrl: "https://app.impact.com",
+    affiliateUrl: "https://simplisafehomeimprovementpros.sjv.io/c/5136149/1807168/21481",
     notes:
-      "$50–$100/sale depending on tier. No contract, DIY install — easy consumer sell. Apply via Awin (awin.com).",
+      "$50–$100/sale. LIVE via Impact (SimpliSafe Home Improvement Professionals). No contract, DIY install — easy consumer sell.",
   },
   ring: {
     rateUsd: 0,

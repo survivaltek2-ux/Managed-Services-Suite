@@ -24,7 +24,7 @@ const router = Router();
  * Public endpoint — logs an affiliate button click for first-party analytics.
  * Called by the frontend when a user clicks "Get Started" on a provider card.
  */
-router.post("/api/affiliate/click", async (req: Request, res: Response) => {
+router.post("/affiliate/click", async (req: Request, res: Response) => {
   try {
     const {
       providerName,
@@ -63,7 +63,7 @@ router.post("/api/affiliate/click", async (req: Request, res: Response) => {
  * GET /api/admin/affiliate/clicks
  * Admin only — returns click analytics grouped by provider.
  */
-router.get("/api/admin/affiliate/clicks", requireAdmin, async (_req: Request, res: Response) => {
+router.get("/admin/affiliate/clicks", requireAdmin, async (_req: Request, res: Response) => {
   try {
     const [byProvider, byState, recent, total] = await Promise.all([
       // Clicks grouped by provider, last 90 days
@@ -114,7 +114,7 @@ router.get("/api/admin/affiliate/clicks", requireAdmin, async (_req: Request, re
  * Admin only — returns the full catalog of affiliate programs from config,
  * grouped by category, so the team can see what's live vs. pending sign-up.
  */
-router.get("/api/admin/affiliate/programs", requireAdmin, (_req: Request, res: Response) => {
+router.get("/admin/affiliate/programs", requireAdmin, (_req: Request, res: Response) => {
   const buildCategory = (name: string, map: Record<string, any>) =>
     Object.entries(map).map(([slug, entry]) => ({
       slug,
