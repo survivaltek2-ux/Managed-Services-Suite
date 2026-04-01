@@ -32,6 +32,7 @@ import AdminAffiliatePrograms from "./pages/AdminAffiliatePrograms";
 import AdminImpact from "./pages/AdminImpact";
 import AdminMarketplace from "./pages/AdminMarketplace";
 import ServiceAvailability from "./pages/ServiceAvailability";
+import Vivint from "./pages/Vivint";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/admin/impact"><ProtectedRoute component={AdminImpact} /></Route>
       <Route path="/admin/marketplace"><ProtectedRoute component={AdminMarketplace} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
+      <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>
 
       <Route component={NotFound} />
     </Switch>

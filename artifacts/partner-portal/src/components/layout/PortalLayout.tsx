@@ -43,6 +43,7 @@ const BASE_NAV_ITEMS = [
   { href: "/proposals/generate", label: "Generate Proposal", icon: FileText },
   { href: "/commissions", label: "Commissions", icon: DollarSign },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingCart },
+  { href: "/vivint", label: "Vivint", icon: ShieldCheck },
   { href: "/documents", label: "Documents", icon: FolderOpen },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/training", label: "Training", icon: Award },
