@@ -230,15 +230,6 @@ export default function RingCentral() {
                 Request a Quote
               </a>
             </Link>
-            <a
-              href="https://www.ringcentral.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold border border-white/40 text-white hover:bg-white/10 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Visit RingCentral
-            </a>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-10">
