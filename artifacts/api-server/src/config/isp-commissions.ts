@@ -385,7 +385,7 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.simplisafe.com/business/affiliate",
     affiliateUrl: "https://simplisafehomeimprovementpros.sjv.io/c/5136149/1807168/21481",
     notes:
-      "$50–$100/sale. LIVE via Impact (SimpliSafe Home Improvement Professionals). No contract, DIY install — easy consumer sell.",
+      "No contract required. DIY installation with professional monitoring available. Easy for customers to setup and manage.",
   },
   ring: {
     rateUsd: 0,
