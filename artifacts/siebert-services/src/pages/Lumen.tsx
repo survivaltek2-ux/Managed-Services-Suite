@@ -4,6 +4,7 @@ import {
   ExternalLink, ArrowRight, Layers, Cloud, Network, Lock
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const LUMEN_PURPLE = "#6b21a8";
 const LUMEN_DARK = "#3b0764";
@@ -297,6 +298,50 @@ export default function Lumen() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Lumen Enterprise Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Enterprise-grade DIA, MPLS, SD-WAN, and edge computing — tell us about your network requirements and we'll build a Lumen solution tailored to your organization.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Lumen Technologies"
+                vendorSlug="lumen"
+                accentColor={LUMEN_PURPLE}
+                accentDark={LUMEN_DARK}
+                services={[
+                  "Dedicated Internet Access (DIA)",
+                  "MPLS / Private IP Network",
+                  "SD-WAN (Lumen)",
+                  "DDoS Mitigation (Black Lotus Labs)",
+                  "Edge Compute Platform",
+                  "Managed Security Services / SIEM",
+                  "Global Fiber Connectivity",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Locations / Sites", type: "select", options: ["1–4", "5–19", "20–99", "100–499", "500+"], required: true },
+                  { id: "bandwidth", label: "Bandwidth Needed Per Site", type: "select", options: ["10–100 Mbps", "100 Mbps – 1 Gbps", "1 Gbps – 10 Gbps", "10 Gbps+", "Multiple tiers — varies by site"] },
+                  { id: "geography", label: "Geographic Footprint", type: "select", options: ["US only", "US + Canada / Mexico", "North America + Europe", "Global (multiple continents)"] },
+                  { id: "timeline", label: "Implementation Timeline", type: "select", options: ["ASAP (emergency)", "Within 3 months", "3–6 months", "6–12 months", "Planning stage"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Lumen enterprise services are custom-quoted based on location, bandwidth, and contract term. All pricing requires a dedicated quote.
+            </p>
           </div>
         </motion.section>
 

@@ -4,6 +4,7 @@ import {
   ExternalLink, Globe, ArrowRight, Layers, Camera, Network, Cloud
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const CISCO_BLUE = "#00bceb";
 const CISCO_DARK = "#005073";
@@ -370,6 +371,49 @@ export default function CiscoMeraki() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Cisco / Meraki Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Cloud-managed networking from the world's #1 vendor — tell us about your infrastructure and we'll design a Cisco Meraki solution for your sites.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Cisco Meraki"
+                vendorSlug="cisco-meraki"
+                accentColor={CISCO_BLUE}
+                accentDark={CISCO_DARK}
+                services={[
+                  "Meraki MR — Cloud Wi-Fi Access Points",
+                  "Meraki MS — Cloud-Managed Switches",
+                  "Meraki MX — Security Appliance / SD-WAN",
+                  "Meraki MV — Smart IP Cameras",
+                  "Cisco Catalyst — Enterprise Switching",
+                  "Meraki Dashboard License (MDM / Systems Manager)",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Sites / Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"], required: true },
+                  { id: "device_count", label: "Approximate Device Count", type: "select", options: ["Under 25 devices", "25–100 devices", "100–500 devices", "500–2,000 devices", "2,000+ devices"] },
+                  { id: "deployment_type", label: "Deployment Type", type: "select", options: ["New deployment (no existing hardware)", "Upgrade from legacy Cisco hardware", "Replace non-Cisco equipment", "Add to existing Meraki deployment"] },
+                  { id: "wifi_needed", label: "Wi-Fi / Wireless Coverage Needed?", type: "select", options: ["Yes — office/warehouse", "Yes — outdoor / campus", "Yes — high-density (stadium, hospital)", "No — wired only"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Cisco Meraki pricing includes hardware + annual licensing. Contact us for exact hardware SKUs, license tiers (Enterprise, Advanced, Plus), and volume pricing.
+            </p>
           </div>
         </motion.section>
 

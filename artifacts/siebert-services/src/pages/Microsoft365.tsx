@@ -4,6 +4,7 @@ import {
   ExternalLink, Globe, ArrowRight, Layers, Cloud, Lock, BarChart2
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const MS_BLUE = "#0078d4";
 const MS_DARK = "#004578";
@@ -401,6 +402,49 @@ export default function Microsoft365() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Microsoft 365 Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                As a licensed Microsoft CSP partner, we handle licensing, migration, and ongoing support. Tell us about your team and we'll get you set up the right way.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Microsoft 365"
+                vendorSlug="microsoft-365"
+                accentColor={MS_BLUE}
+                accentDark={MS_DARK}
+                services={[
+                  "Microsoft 365 Business Basic ($6/user/mo)",
+                  "Microsoft 365 Business Standard ($12.50/user/mo)",
+                  "Microsoft 365 Business Premium ($22/user/mo)",
+                  "Microsoft 365 E3 / E5 (Enterprise)",
+                  "Microsoft Teams Phone Add-on",
+                  "Microsoft 365 Copilot (AI Add-on)",
+                  "Microsoft Defender for Business",
+                ]}
+                extraFields={[
+                  { id: "users", label: "Number of Users (Seats)", type: "select", options: ["1–9", "10–49", "50–199", "200–999", "1,000+"], required: true },
+                  { id: "migration", label: "Migration Needed?", type: "select", options: ["Yes — migrating from Google Workspace", "Yes — migrating from on-prem Exchange / Outlook", "Yes — migrating from another platform", "No — new deployment", "Already on M365, need a better plan"] },
+                  { id: "industry", label: "Industry", type: "select", options: ["Healthcare (HIPAA compliance needed)", "Finance / Legal (compliance needs)", "Education / Nonprofit", "Government", "Retail / Hospitality", "Technology", "Manufacturing", "Other"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are annual commitment rates per user per month. Monthly billing is available at a higher rate. Contact us for nonprofit / education discounts.
+            </p>
           </div>
         </motion.section>
 

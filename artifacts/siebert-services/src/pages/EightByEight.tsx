@@ -4,6 +4,7 @@ import {
   ExternalLink, ArrowRight, Layers, Zap, Shield
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const EBE_GREEN = "#00a550";
 const EBE_DARK = "#006633";
@@ -401,6 +402,48 @@ export default function EightByEight() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get an 8x8 Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                One platform for voice, video, chat, and contact center — globally. Tell us about your team and we'll recommend the right 8x8 plan.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="8x8"
+                vendorSlug="8x8"
+                accentColor={EBE_GREEN}
+                accentDark={EBE_DARK}
+                services={[
+                  "8x8 X2 — UCaaS (Phone + Video + Chat, $24/user/mo)",
+                  "8x8 X4 — UCaaS + Supervisor Analytics ($44/user/mo)",
+                  "8x8 X6 — UCaaS + Contact Center (Custom Quote)",
+                  "8x8 X7 / X8 — Full CCaaS Platform (Custom Quote)",
+                  "Global Calling (48-Country Coverage)",
+                  "AI Agent Assist / Intelligent IVR",
+                ]}
+                extraFields={[
+                  { id: "users", label: "Number of Users (Seats)", type: "select", options: ["1–9", "10–49", "50–199", "200–999", "1,000+"], required: true },
+                  { id: "international", label: "International Calling Needed?", type: "select", options: ["No — US domestic only", "Yes — US + Canada / Mexico", "Yes — Europe / EMEA", "Yes — Asia-Pacific", "Yes — multiple regions globally"] },
+                  { id: "contact_center", label: "Contact Center Needed?", type: "select", options: ["No — internal/business calling only", "Yes — small call center (under 25 agents)", "Yes — mid-size contact center (25–200 agents)", "Yes — large enterprise contact center"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are annual per-user rates. Month-to-month rates are higher. Contact us for volume discounts across large deployments.
+            </p>
           </div>
         </motion.section>
 

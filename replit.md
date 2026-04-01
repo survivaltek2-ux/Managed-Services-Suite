@@ -47,6 +47,15 @@ Full-featured MSP/Reseller marketing + client portal website for **Siebert Repai
 - Full admin panel with dashboard, blog, services, testimonials, team, FAQ, contacts, quotes, tickets, proposals, users, activity log management
 - All data persisted to PostgreSQL
 
+**Vendor Partner Pages (15 total):**
+- Connectivity / ISP: `/comcast-business`, `/spectrum-business`, `/att-business`, `/verizon-business`, `/cox-business`, `/lumen`, `/t-mobile-business`, `/altice`
+- UCaaS: `/ringcentral`, `/microsoft-365`, `/8x8`
+- Networking / Security: `/cisco-meraki`, `/fortinet`, `/palo-alto-networks`
+- Physical Security: `/adt-business`
+- Each page: hero (brand colors + 3 stats) → pricing/plans → services grid → Why X → Who Is It For → tailored inquiry form → CTA banner
+- **VendorInquiryForm** (`src/components/forms/VendorInquiryForm.tsx`): shared configurable form with vendor-specific service checkboxes, extra fields, brand colors, and submit to `/api/contact`
+- Pricing disclaimers on all 15 pages; custom-quote pages (Lumen, Cisco, Fortinet, Palo Alto, ADT) show enterprise disclaimers
+
 ### `artifacts/partner-portal` — Partner Portal (Salesforce Lightning Design)
 Reseller/MSP partner portal at `/partners/` base path. Fully redesigned with Salesforce Lightning design system.
 

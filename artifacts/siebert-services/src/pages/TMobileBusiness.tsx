@@ -4,6 +4,7 @@ import {
   ExternalLink, Globe, ArrowRight, Layers, Smartphone, Server
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const TMOB_PINK = "#e20074";
 const TMOB_DARK = "#8b0042";
@@ -398,6 +399,49 @@ export default function TMobileBusiness() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a T-Mobile for Business Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                America's largest 5G network — tell us about your connectivity and mobility needs and we'll build a tailored T-Mobile solution within one business day.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="T-Mobile for Business"
+                vendorSlug="t-mobile-business"
+                accentColor={TMOB_PINK}
+                accentDark={TMOB_DARK}
+                services={[
+                  "5G Business Internet (Fixed Wireless)",
+                  "Business Mobile Plans (Advantage / All-In)",
+                  "IoT / SIM Connectivity",
+                  "Private 5G Network (on-premises)",
+                  "T-Mobile Business Protect (Cybersecurity)",
+                  "T-Mobile for Government / FirstNet Alternative",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"], required: true },
+                  { id: "mobile_lines", label: "Mobile Lines Needed", type: "select", options: ["None", "1–9 lines", "10–49 lines", "50–199 lines", "200+ lines"] },
+                  { id: "business_type", label: "Industry / Business Type", type: "select", options: ["Retail", "Healthcare", "Hospitality / Restaurant", "Logistics / Fleet", "Manufacturing", "Education", "Government", "Technology", "Other"] },
+                  { id: "internet_priority", label: "5G Business Internet Priority?", type: "select", options: ["Yes — primary connection needed", "Yes — backup/failover connection", "No — mobile only", "Not sure — advise me"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Business Internet Rely starts at $50/mo standalone or $35/mo with a T-Mobile voice line + AutoPay. All prices vary by plan and location.
+            </p>
           </div>
         </motion.section>
 

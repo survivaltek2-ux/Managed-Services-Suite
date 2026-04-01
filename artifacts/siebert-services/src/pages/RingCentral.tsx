@@ -4,6 +4,7 @@ import {
   ExternalLink, Globe, ArrowRight, Layers, Headphones, BarChart2
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const RC_ORANGE = "#ff6600";
 const RC_DARK = "#c94f00";
@@ -429,6 +430,49 @@ export default function RingCentral() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a RingCentral Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Tell us about your team and communication needs — we'll recommend the right RingCentral plan and handle the full deployment for you.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="RingCentral"
+                vendorSlug="ringcentral"
+                accentColor={RC_ORANGE}
+                accentDark={RC_DARK}
+                services={[
+                  "RingCentral Core (Phone + Video + Messaging)",
+                  "RingCentral Advanced (+ Analytics & Reporting)",
+                  "RingCentral Ultra (+ Unlimited Storage & AI)",
+                  "RingCX Contact Center",
+                  "Microsoft Teams / Google Workspace Integration",
+                  "Industry-Specific Plans (Healthcare, Finance, Legal)",
+                ]}
+                extraFields={[
+                  { id: "users", label: "Number of Users (Seats)", type: "select", options: ["1–9", "10–49", "50–199", "200–999", "1,000+"], required: true },
+                  { id: "locations", label: "Number of Office Locations", type: "select", options: ["1", "2–5", "6–20", "21+"] },
+                  { id: "current_system", label: "Current Phone System", type: "select", options: ["Legacy PBX / On-prem", "Zoom Phone", "Microsoft Teams Phone", "Cisco / Webex", "Another UCaaS platform", "No system yet"] },
+                  { id: "contact_center", label: "Contact Center / Call Center Needed?", type: "select", options: ["Yes — inbound only", "Yes — inbound + outbound", "No — internal communications only"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are annual per-user rates. Month-to-month rates are higher. Minimum 2 users. Contact us for volume discounts and enterprise pricing.
+            </p>
           </div>
         </motion.section>
 

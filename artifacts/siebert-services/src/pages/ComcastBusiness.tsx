@@ -4,6 +4,7 @@ import {
   ExternalLink, Server, Globe, ArrowRight, Layers, Radio, Cloud
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const COMCAST_RED = "#e52b0e";
 const COMCAST_DARK = "#1a1a1a";
@@ -406,6 +407,49 @@ export default function ComcastBusiness() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Comcast Business Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Tell us what you need and we'll respond within one business day with transparent, competitive pricing — at no cost to you.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Comcast Business"
+                vendorSlug="comcast-business"
+                accentColor={COMCAST_RED}
+                accentDark={COMCAST_DARK}
+                services={[
+                  "Business Internet (Cable / HSD)",
+                  "Gigabit Pro Fiber DIA",
+                  "Business SD-WAN",
+                  "Business VoiceEdge (Cloud PBX)",
+                  "SmartOffice IoT & Automation",
+                  "Video Surveillance",
+                  "Marketing Analytics Wi-Fi",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"], required: true },
+                  { id: "employees", label: "Number of Employees", type: "select", options: ["1–25", "26–100", "101–500", "501–1,000", "1,000+"] },
+                  { id: "speed", label: "Desired Internet Speed", type: "select", options: ["Up to 300 Mbps", "Up to 600 Mbps", "1 Gbps (Standard)", "Multi-Gig / DIA", "Not sure — advise me"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are estimated starting rates and vary by location, contract term, and configuration. Contact us for an exact quote.
+            </p>
           </div>
         </motion.section>
 

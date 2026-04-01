@@ -4,6 +4,7 @@ import {
   ExternalLink, ArrowRight, Layers, Server, Lock, Eye, Zap
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const FORT_RED = "#ee3124";
 const FORT_DARK = "#8b0000";
@@ -370,6 +371,50 @@ export default function Fortinet() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Fortinet Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                The world's #1 deployed network security platform — tell us about your environment and we'll size the right Fortinet Security Fabric for your organization.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Fortinet"
+                vendorSlug="fortinet"
+                accentColor={FORT_RED}
+                accentDark={FORT_DARK}
+                services={[
+                  "FortiGate NGFW (Next-Gen Firewall)",
+                  "Fortinet SD-WAN (built into FortiGate)",
+                  "FortiSASE / ZTNA (Zero Trust Network Access)",
+                  "FortiSwitch (LAN Access)",
+                  "FortiAP (Wi-Fi Access Points)",
+                  "FortiSIEM / FortiSOAR (Security Operations)",
+                  "OT / Industrial Security (FortiGuard OT)",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Sites / Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"], required: true },
+                  { id: "users", label: "Number of Users / Endpoints", type: "select", options: ["Under 50", "50–200", "200–1,000", "1,000–5,000", "5,000+"] },
+                  { id: "environment", label: "Environment Type", type: "select", options: ["Corporate office", "Distributed branch offices", "Data center / hybrid cloud", "Industrial / OT (manufacturing, utilities)", "K-12 or higher education", "Healthcare"] },
+                  { id: "existing_firewall", label: "Existing Firewall / Security Stack", type: "text", placeholder: "e.g. Cisco ASA, Palo Alto, pfSense, none…" },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Fortinet pricing varies by hardware model, throughput tier, and FortiCare / FortiGuard subscription. Contact us for a full BOM and licensing quote.
+            </p>
           </div>
         </motion.section>
 

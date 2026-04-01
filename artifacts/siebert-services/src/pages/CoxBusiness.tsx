@@ -4,6 +4,7 @@ import {
   ExternalLink, Globe, ArrowRight, Layers, Server
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const COX_BLUE = "#0076ce";
 const COX_DARK = "#004899";
@@ -404,6 +405,48 @@ export default function CoxBusiness() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Cox Business Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                From cable internet and dedicated fiber to SD-WAN and managed security — tell us what you need and we'll put together a Cox Business solution within one business day.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Cox Business"
+                vendorSlug="cox-business"
+                accentColor={COX_BLUE}
+                accentDark={COX_DARK}
+                services={[
+                  "Business Internet (Coax Cable)",
+                  "Dedicated Fiber DIA",
+                  "Business Phone (VoiceManager)",
+                  "Business TV",
+                  "SD-WAN & Managed Networking",
+                  "Managed Network Security",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"], required: true },
+                  { id: "employees", label: "Number of Employees", type: "select", options: ["1–25", "26–100", "101–500", "501–1,000", "1,000+"] },
+                  { id: "need_dedicated", label: "Do You Need Dedicated / Guaranteed Bandwidth?", type: "select", options: ["No — shared business internet is fine", "Yes — we need a dedicated SLA-backed circuit", "Not sure — advise me"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are estimated starting rates with a 12-month agreement. Prices vary by location and configuration. Contact us for exact pricing.
+            </p>
           </div>
         </motion.section>
 

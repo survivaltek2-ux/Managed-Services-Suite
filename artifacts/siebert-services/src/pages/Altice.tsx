@@ -4,6 +4,7 @@ import {
   ExternalLink, Server, Globe, ArrowRight, Layers, Radio
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const ALTICE_BLUE = "#00a0e3";
 const ALTICE_DARK = "#003087";
@@ -556,6 +557,49 @@ export default function Altice() {
             <strong className="text-foreground">Brand Note:</strong> Altice USA officially rebranded as <strong className="text-foreground">Optimum Communications</strong> in November 2025. Business services are now marketed under <strong className="text-foreground">Optimum Business</strong> (SMB) and <strong className="text-foreground">Lightpath</strong> (enterprise). Both brands operate under the same network infrastructure and service organization.
           </p>
         </motion.div>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get an Optimum / Altice Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Business or residential — tell us what you need and we'll put together an Optimum Business or Lightpath solution within one business day.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Optimum / Altice"
+                vendorSlug="altice"
+                accentColor={ALTICE_BLUE}
+                accentDark={ALTICE_DARK}
+                services={[
+                  "Optimum Business Internet (SMB)",
+                  "Optimum Business Phone",
+                  "Optimum Business TV",
+                  "Lightpath Dedicated Fiber DIA (Enterprise)",
+                  "Lightpath MPLS / Private Network",
+                  "Residential Internet (Optimum 300/500/1Gig)",
+                  "Residential TV / Phone / Optimum Mobile",
+                ]}
+                extraFields={[
+                  { id: "service_type", label: "Service Type", type: "select", options: ["Business (SMB)", "Enterprise (Lightpath)", "Residential", "Both Business + Residential"], required: true },
+                  { id: "locations", label: "Number of Business Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"] },
+                  { id: "bandwidth", label: "Bandwidth Needed", type: "select", options: ["Up to 300 Mbps", "Up to 500 Mbps", "Up to 1 Gbps", "Dedicated 1 Gbps – 10 Gbps (Lightpath)", "Residential — advise me"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are estimated starting rates and vary by location and plan. Optimum Business / Lightpath availability is primarily in the Tri-State area (NY, NJ, CT).
+            </p>
+          </div>
+        </motion.section>
 
         {/* Final CTA */}
         <motion.div

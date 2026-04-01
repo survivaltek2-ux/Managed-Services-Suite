@@ -4,6 +4,7 @@ import {
   ExternalLink, ArrowRight, Layers, Server, Network
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const PA_BLUE = "#0070c0";
 const PA_DARK = "#003d6b";
@@ -370,6 +371,50 @@ export default function PaloAltoNetworks() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get a Palo Alto Networks Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                The leader in cybersecurity — tell us about your environment and we'll design a Palo Alto Networks solution that consolidates your security across network, cloud, and endpoint.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="Palo Alto Networks"
+                vendorSlug="palo-alto-networks"
+                accentColor={PA_BLUE}
+                accentDark={PA_DARK}
+                services={[
+                  "PA-Series NGFW (On-Premises Firewall)",
+                  "VM-Series / CN-Series (Cloud & Container Firewall)",
+                  "Prisma Access (SASE / Cloud-Delivered Security)",
+                  "Prisma SD-WAN (Autonomous SD-WAN)",
+                  "Cortex XDR (Endpoint Detection & Response)",
+                  "Cortex XSIAM (AI-Powered Security Operations)",
+                  "Unit 42 Threat Intelligence & IR Retainer",
+                ]}
+                extraFields={[
+                  { id: "users", label: "Number of Users / Endpoints", type: "select", options: ["Under 100", "100–500", "500–2,000", "2,000–10,000", "10,000+"], required: true },
+                  { id: "locations", label: "Number of Locations / Sites", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"] },
+                  { id: "priority", label: "Primary Security Objective", type: "select", options: ["Replace legacy firewall (Cisco ASA, Fortinet, etc.)", "Secure remote users / SASE", "Protect cloud workloads (AWS / Azure / GCP)", "Build or modernize SOC", "Endpoint / XDR consolidation", "Full platform consolidation (Strata + Prisma + Cortex)"] },
+                  { id: "existing_stack", label: "Current Security Stack", type: "text", placeholder: "e.g. Cisco ASA, Fortinet, CrowdStrike, SentinelOne…" },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Palo Alto Networks pricing is based on platform, throughput, and subscription tier. All solutions require a custom quote — contact us to start a detailed assessment.
+            </p>
           </div>
         </motion.section>
 

@@ -4,6 +4,7 @@ import {
   ExternalLink, Globe, ArrowRight, Layers, Radio, Satellite
 } from "lucide-react";
 import { Link } from "wouter";
+import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
 
 const ATT_BLUE = "#00a8e0";
 const ATT_DARK = "#0057a8";
@@ -404,6 +405,49 @@ export default function ATTBusiness() {
                 <p className="text-sm text-muted-foreground">{plans}</p>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Inquiry Form */}
+        <motion.section
+          className="py-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-foreground mb-3">Get an AT&T Business Quote</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Fiber, 5G, FirstNet, or enterprise networking — tell us what you need and we'll build a tailored AT&T solution within one business day.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-border">
+              <VendorInquiryForm
+                vendorName="AT&T Business"
+                vendorSlug="att-business"
+                accentColor={ATT_BLUE}
+                accentDark={ATT_DARK}
+                services={[
+                  "AT&T Business Fiber (300 Mbps – 5 Gbps)",
+                  "5G Business Internet (Fixed Wireless)",
+                  "FirstNet (First Responders & Public Safety)",
+                  "MPLS / Private IP Network",
+                  "AT&T Business Phone",
+                  "Business Mobile Plans",
+                  "AT&T Cybersecurity / Managed Security",
+                ]}
+                extraFields={[
+                  { id: "locations", label: "Number of Locations", type: "select", options: ["1", "2–5", "6–20", "21–100", "100+"], required: true },
+                  { id: "bandwidth", label: "Bandwidth Needed", type: "select", options: ["Up to 300 Mbps", "300 Mbps – 1 Gbps", "1 Gbps – 5 Gbps", "5 Gbps+ / Enterprise", "Not sure — advise me"] },
+                  { id: "industry", label: "Industry / Organization Type", type: "select", options: ["Healthcare", "Education", "Government / Public Safety", "Retail", "Finance", "Manufacturing", "Real Estate", "Technology", "Other"] },
+                ]}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              * Prices shown are estimated starting rates with a 12-month agreement, AutoPay, and Paperless Bill. Prices vary by location and configuration.
+            </p>
           </div>
         </motion.section>
 
