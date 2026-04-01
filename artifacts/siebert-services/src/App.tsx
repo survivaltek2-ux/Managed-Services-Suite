@@ -17,6 +17,7 @@ import ProposalView from "./pages/ProposalView";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Privacy from "./pages/Privacy";
+import AffiliateRecommendations from "./pages/AffiliateRecommendations";
 import ExtremeNetworks from "./pages/ExtremeNetworks";
 import HP from "./pages/HP";
 import Dell from "./pages/Dell";
@@ -45,6 +46,7 @@ function PublicRouter() {
         {/* Partner programs */}
         <Route path="/zoom" component={ZoomPartner} />
         <Route path="/portal" component={Portal} />
+        <Route path="/recommended" component={AffiliateRecommendations} />
 
         {/* Vendor partner pages */}
         <Route path="/extreme-networks" component={ExtremeNetworks} />
