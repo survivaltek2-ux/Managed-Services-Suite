@@ -415,6 +415,25 @@ export default function InternetPlans() {
                   <p>We may receive a referral commission when you order service through links on this page. This helps support our website at no additional cost to you.</p>
                 </div>
 
+                {/* Optimum Referral Banner */}
+                <div className="bg-gradient-to-r from-[#071225] to-[#0C172B] border border-[#E66262] rounded-lg p-6 text-white">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">Save on Optimum Internet</h3>
+                      <p className="text-sm text-gray-200 mb-3">Get a <span className="font-semibold text-[#E66262]">$50 bill credit</span> when you sign up for Optimum internet service using our referral link. Available in select areas.</p>
+                    </div>
+                    <a
+                      href="https://refer.optimum.com/Richard0!b719e743b0!a"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-[#E66262] hover:bg-[#d45252] text-white font-bold py-2 px-6 rounded-full flex items-center justify-center gap-2 transition whitespace-nowrap"
+                    >
+                      Check Optimum Availability
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+
                 <p className="text-gray-600 font-semibold">
                   {result.summary.totalProviders} provider{result.summary.totalProviders !== 1 ? 's' : ''} available • Max speed: {formatSpeed(result.summary.maxDownloadSpeed)}
                 </p>

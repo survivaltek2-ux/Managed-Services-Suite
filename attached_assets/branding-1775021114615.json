@@ -1,0 +1,135 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Arial",
+      "role": "body"
+    },
+    {
+      "family": "Lato",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#071225",
+    "secondary": "#E66262",
+    "accent": "#0C172B",
+    "background": "#FFFFFF",
+    "textPrimary": "#4D4F53",
+    "link": "#0C172B"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Arial",
+      "heading": "Arial"
+    },
+    "fontStacks": {
+      "heading": [
+        "Lato",
+        "Arial",
+        "sans-serif"
+      ],
+      "body": [
+        "Lato",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Lato",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "45px",
+      "h2": "16px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "3px"
+  },
+  "components": {
+    "input": {
+      "background": "#FFFFFF",
+      "textColor": "#000000",
+      "borderColor": "#FFFFFF",
+      "borderRadius": "50px",
+      "borderRadiusCorners": {
+        "topLeft": "50px",
+        "topRight": "50px",
+        "bottomRight": "50px",
+        "bottomLeft": "50px"
+      },
+      "shadow": "none"
+    },
+    "buttonPrimary": {
+      "background": "#0C172B",
+      "textColor": "#FFFFFF",
+      "borderRadius": "50px",
+      "borderRadiusCorners": {
+        "topLeft": "50px",
+        "topRight": "50px",
+        "bottomRight": "50px",
+        "bottomLeft": "50px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#FFFFFF",
+      "textColor": "#000000",
+      "borderRadius": "50px",
+      "borderRadiusCorners": {
+        "topLeft": "50px",
+        "topRight": "50px",
+        "bottomRight": "50px",
+        "bottomLeft": "50px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": null,
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "File saved at: attached_assets/ogImage.jpg"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "GET STARTED",
+      "reasoning": "Button #0 has a vibrant, dark background color (#0C172B) which stands out as a strong call-to-action with the text 'GET STARTED'. This color is more aligned with typical primary CTA colors compared to the lighter button."
+    },
+    "secondary": {
+      "index": 1,
+      "text": "GET STARTED\n            \n\n\n    \n    Pending\n\n\n\n    \n    Error\n\n\n\n    \n    Success",
+      "reasoning": "Button #1 has a light background color (#FFFFFF) and includes additional text elements, making it less prominent. It serves as a secondary option due to its less vibrant appearance."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "consumers looking for referral incentives"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": false,
+      "llmSucceeded": false,
+      "finalSource": "none"
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
