@@ -28,6 +28,7 @@ interface IspProvider {
   maxUpload: number;
   lowLatency: boolean;
   locationCount?: number;
+  serviceType?: "internet" | "phone" | "tv"; // New: service type
   // Affiliate fields from Hum
   affiliateUrl?: string;
   affiliateButtonLabel?: string;
@@ -217,32 +218,45 @@ async function tryHum(address: string, city: string, state: string, zip: string)
       return { success: false, error: "No session token from Hum" };
     }
 
-    // Now fetch internet services for this session
+    // Now fetch internet, phone, and TV services for this session
     const token = sessionData.meta.session_token;
-    const servicesUrl = `${HUM_BASE_URL}/sessions/${token}/services/internet`;
-    const servicesRes = await fetch(servicesUrl, {
-      headers: {
-        "Authorization": `Bearer ${HUM_API_KEY}`,
-      },
-    });
+    const serviceTypes = ["internet", "phone", "tv"];
+    const allProviders: any[] = [];
 
-    if (!servicesRes.ok) {
-      return { success: false, error: `Hum services request failed: ${servicesRes.status}` };
+    for (const serviceType of serviceTypes) {
+      const servicesUrl = `${HUM_BASE_URL}/sessions/${token}/services/${serviceType}`;
+      const servicesRes = await fetch(servicesUrl, {
+        headers: {
+          "Authorization": `Bearer ${HUM_API_KEY}`,
+        },
+      });
+
+      if (!servicesRes.ok) {
+        // Skip if service type not available
+        continue;
+      }
+
+      let servicesData: any;
+      try {
+        servicesData = await servicesRes.json();
+      } catch {
+        continue;
+      }
+
+      const providers = servicesData.data?.[serviceType] || [];
+      // Tag each provider with its service type
+      providers.forEach((p: any) => {
+        p._serviceType = serviceType;
+      });
+      allProviders.push(...providers);
     }
 
-    let servicesData: any;
-    try {
-      servicesData = await servicesRes.json();
-    } catch {
-      return { success: false, error: "Failed to parse Hum services response" };
-    }
-
-    const humProviders = servicesData.data?.internet || [];
+    const humProviders = allProviders;
     if (humProviders.length === 0) {
       return { success: false, error: "No providers found" };
     }
 
-    // Transform Hum providers to our format (with affiliate data)
+    // Transform Hum providers to our format (with affiliate data and service type)
     const providers: IspProvider[] = humProviders.map((p: any, idx: number) => {
       const offering = p.offerings?.[0] || {};
       return {
@@ -254,6 +268,7 @@ async function tryHum(address: string, city: string, state: string, zip: string)
         maxDownload: offering.max_download_speed || 0,
         maxUpload: offering.max_upload_speed || 0,
         lowLatency: (offering.max_download_speed || 0) >= 100,
+        serviceType: p._serviceType as "internet" | "phone" | "tv",
         // Affiliate fields from Hum
         affiliateUrl: p.url,
         affiliateButtonLabel: p.button_label,
