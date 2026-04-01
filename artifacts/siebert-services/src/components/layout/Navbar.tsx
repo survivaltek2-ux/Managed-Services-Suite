@@ -12,6 +12,7 @@ const partnerLinks = [
   { name: "Dell", href: "/dell" },
   { name: "Juniper Networks", href: "/juniper-networks" },
   { name: "Vivint", href: "/vivint" },
+  { name: "Altice / Optimum", href: "/altice" },
 ];
 
 const topNavLinks = [

@@ -48,6 +48,7 @@ export function Footer() {
                 { label: 'Dell', href: '/dell' },
                 { label: 'Juniper Networks', href: '/juniper-networks' },
                 { label: 'Vivint', href: '/vivint' },
+                { label: 'Altice / Optimum', href: '/altice' },
               ].map((link) => (
                 <li key={link.label}>
                   <Link 

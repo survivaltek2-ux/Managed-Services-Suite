@@ -145,7 +145,8 @@ export default function Home() {
               { name: "Dell", href: "/dell", desc: "Partner Program" },
               { name: "Extreme Networks", href: "/extreme-networks", desc: "Partner First" },
               { name: "Juniper Networks", href: "/juniper-networks", desc: "Partner Advantage" },
-              { name: "Vivint", href: "/vivint", desc: "Smart Home Partner" }
+              { name: "Vivint", href: "/vivint", desc: "Smart Home Partner" },
+              { name: "Altice / Optimum", href: "/altice", desc: "Business Connectivity" }
             ].map((vendor, i) => (
               <motion.div
                 key={i}

@@ -24,6 +24,7 @@ import Dell from "./pages/Dell";
 import JuniperNetworks from "./pages/JuniperNetworks";
 import Vivint from "./pages/Vivint";
 import VivintForm from "./pages/VivintForm";
+import Altice from "./pages/Altice";
 import InternetPlans from "./pages/InternetPlans";
 import NotFound from "./pages/not-found";
 
@@ -57,6 +58,7 @@ function PublicRouter() {
         <Route path="/juniper-networks" component={JuniperNetworks} />
         <Route path="/vivint" component={Vivint} />
         <Route path="/vivint/inquiry" component={VivintForm} />
+        <Route path="/altice" component={Altice} />
 
         {/* Blog */}
         <Route path="/blog" component={Blog} />
