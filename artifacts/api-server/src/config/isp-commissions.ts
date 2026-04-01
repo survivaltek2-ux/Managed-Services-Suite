@@ -42,7 +42,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "Up to $135/activated order. 30-day cookie. Apply at CJ Affiliate.",
+    notes: "High-speed internet and cable services for homes with reliable nationwide coverage and flexible plan options.",
   },
   comcast: {
     rateUsd: 135,
@@ -50,7 +50,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "Same program as Xfinity. Apply at CJ Affiliate.",
+    notes: "Reliable high-speed internet service with nationwide coverage and flexible plan options for every household.",
   },
   "at&t": {
     rateUsd: 100,
@@ -66,7 +66,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "AT&T alias. Up to $100/sale.",
+    notes: "AT&T high-speed internet with bundled wireless options and nationwide coverage.",
   },
   spectrum: {
     rateUsd: 92,
@@ -74,7 +74,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "$65–$120/sale range; midpoint estimate. Apply at CJ Affiliate.",
+    notes: "No-contract internet plans with speeds up to 1 Gbps and a free modem included.",
   },
   charter: {
     rateUsd: 92,
@@ -82,7 +82,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "Charter/Spectrum brand. Same program.",
+    notes: "Charter Spectrum high-speed internet with no annual contracts and reliable nationwide service.",
   },
   verizon: {
     rateUsd: 75,
@@ -90,7 +90,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate / FlexOffers",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "Up to $75/sale. Available on CJ Affiliate and FlexOffers.",
+    notes: "5G and fiber internet with top-rated reliability and consistent speeds for home and business.",
   },
   frontier: {
     rateUsd: 37,
@@ -98,7 +98,7 @@ export const RESIDENTIAL_COMMISSIONS: Record<string, CommissionEntry> = {
     network: "CJ Affiliate",
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
-    notes: "$20–$55/item range; midpoint estimate. Apply at CJ Affiliate.",
+    notes: "Fiber internet service with transparent pricing and no data caps in select areas.",
   },
 };
 
@@ -114,7 +114,7 @@ export const BUSINESS_CONNECTIVITY_COMMISSIONS: Record<string, CommissionEntry> 
     affiliateSignupUrl: "https://www.carrierfinder.com/partner",
     affiliateUrl: null,
     notes:
-      "Commission paid after circuit installed and billing starts. Contact partnersupport@carrierfinder.com. Typical business circuit commissions: $200–$2,000+ per deal.",
+      "Compare business internet carriers to find the best pricing, speeds, and service agreements for your location.",
   },
 };
 
@@ -131,7 +131,7 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "Up to $100/sale (paid plan) or $25/lead (free trial). 30-day cookie. Search 'RingCentral' in CJ marketplace.",
+      "All-in-one cloud communications platform with voice, video, and team messaging for businesses of all sizes.",
   },
   nextiva: {
     rateUsd: 50,
@@ -140,7 +140,7 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://partnerstack.com",
     affiliateUrl: null,
     notes:
-      "Commission varies by plan. Apply via PartnerStack or Nextiva's partner page at nextiva.com/partners.",
+      "Business VoIP and contact center platform trusted by over 100,000 businesses nationwide.",
   },
   vonage: {
     rateUsd: 50,
@@ -149,7 +149,7 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "Business VoIP plans. Commission varies; search 'Vonage' in CJ marketplace.",
+      "Flexible business communications with UCaaS solutions and easy integrations with existing tools.",
   },
   talkroute: {
     rateUsd: 175,
@@ -158,7 +158,7 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://talkroute.com/affiliate-program/",
     affiliateUrl: null,
     notes:
-      "$100–$250/sale depending on plan. Self-managed program at talkroute.com. High commission for a VoIP brand.",
+      "Virtual business phone system with no hardware required — work from any device, anywhere.",
   },
   grasshopper: {
     rateUsd: 40,
@@ -167,7 +167,7 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "Virtual phone system for small business. Search 'Grasshopper' in CJ marketplace.",
+      "Professional virtual phone system designed specifically for small businesses and entrepreneurs.",
   },
   ooma: {
     rateUsd: 50,
@@ -176,7 +176,7 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.flexoffers.com",
     affiliateUrl: null,
     notes:
-      "Business and home VoIP. Apply via FlexOffers.",
+      "Affordable VoIP service for home and business with crystal-clear call quality and easy setup.",
   },
   "8x8": {
     rateUsd: 100,
@@ -202,7 +202,7 @@ export const CYBERSECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.malwarebytes.com/affiliate",
     affiliateUrl: null,
     notes:
-      "30–40% per sale (sliding scale). Great for recommending to small business clients. Apply at malwarebytes.com/affiliate.",
+      "Advanced threat protection that stops ransomware, malware, and zero-day attacks in real time.",
   },
   acronis: {
     rateUsd: 0,
@@ -212,7 +212,7 @@ export const CYBERSECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.acronis.com/en-us/partners/",
     affiliateUrl: null,
     notes:
-      "15% base, up to 25%+ for top performers. Backup + cyber protection — perfect for MSP upsell. Apply at acronis.com/partners.",
+      "Integrated backup and cybersecurity protection in a single platform — ideal for business continuity.",
   },
   bitdefender: {
     rateUsd: 0,
@@ -222,7 +222,7 @@ export const CYBERSECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "20% base, up to 36% for top affiliates. B2B and consumer plans. Search 'Bitdefender' in CJ marketplace.",
+      "Award-winning cybersecurity with AI-driven threat detection for businesses and individuals.",
   },
   kaspersky: {
     rateUsd: 0,
@@ -232,7 +232,7 @@ export const CYBERSECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://impact.com",
     affiliateUrl: null,
     notes:
-      "Business and consumer tiers. Apply at impact.com — search 'Kaspersky'.",
+      "Enterprise-grade cybersecurity with real-time threat intelligence and comprehensive endpoint protection.",
   },
   carbonblack: {
     rateUsd: 0,
@@ -241,7 +241,7 @@ export const CYBERSECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.vmware.com/partners.html",
     affiliateUrl: null,
     notes:
-      "Enterprise EDR platform. Commission negotiated through VMware/Broadcom partner program. Best for enterprise clients.",
+      "VMware Carbon Black enterprise platform for advanced threat detection and incident response.",
   },
 };
 
@@ -258,7 +258,7 @@ export const VPN_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://affiliates.nordvpn.com",
     affiliateUrl: null,
     notes:
-      "100% of 1-month plan, 40% of 6-month and 1-year plans, 30% on renewals. Consumer-focused. Apply at affiliates.nordvpn.com.",
+      "Fast, secure VPN with thousands of servers worldwide and a strict no-logs privacy policy.",
   },
   nordlayer: {
     rateUsd: 0,
@@ -268,7 +268,7 @@ export const VPN_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://nordlayer.com/partner-program/",
     affiliateUrl: null,
     notes:
-      "Business VPN (NordVPN's B2B product). Recurring commissions on subscriptions. Apply at nordlayer.com/partner-program — better fit than NordVPN for business clients.",
+      "Business VPN and network access platform built for growing remote and hybrid teams.",
   },
   expressvpn: {
     rateUsd: 36,
@@ -277,7 +277,7 @@ export const VPN_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://impact.com",
     affiliateUrl: null,
     notes:
-      "$13–$36/sale depending on plan. Consumer-grade but popular. Apply at impact.com.",
+      "Blazing-fast VPN with best-in-class encryption and servers in 94+ countries worldwide.",
   },
   privateinternetaccess: {
     rateUsd: 0,
@@ -287,7 +287,7 @@ export const VPN_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "33% per sale. Search 'Private Internet Access' in CJ marketplace.",
+      "Proven VPN service with strong privacy features and unlimited device connections.",
   },
 };
 
@@ -313,7 +313,7 @@ export const PASSWORD_MGMT_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://impact.com",
     affiliateUrl: null,
     notes:
-      "25% per sale. Business and personal plans. Apply at impact.com — search 'LastPass'.",
+      "Easy-to-use password manager with enterprise SSO and multi-factor authentication built in.",
   },
   dashlane: {
     rateUsd: 0,
@@ -323,7 +323,7 @@ export const PASSWORD_MGMT_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://impact.com",
     affiliateUrl: null,
     notes:
-      "25% per sale. Business-tier plans available. Apply at impact.com — search 'Dashlane'.",
+      "Business password manager with dark web monitoring and secure credential sharing for teams.",
   },
   keeper: {
     rateUsd: 0,
@@ -333,7 +333,7 @@ export const PASSWORD_MGMT_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "20% per sale. Business and personal plans. Strong enterprise focus. Search 'Keeper Security' in CJ marketplace.",
+      "Zero-knowledge password manager and digital vault with enterprise compliance and audit features.",
   },
 };
 
@@ -350,7 +350,7 @@ export const BACKUP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "Business Backup + B2 Cloud Storage. 10–25% per sale. Search 'Backblaze' in CJ marketplace.",
+      "Simple, affordable cloud backup for business data and computers with S3-compatible storage.",
   },
   idriveenterprise: {
     rateUsd: 0,
@@ -360,7 +360,7 @@ export const BACKUP_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.flexoffers.com",
     affiliateUrl: null,
     notes:
-      "IDrive for Business/Enterprise. Good fit for MSP upsell. Apply via FlexOffers.",
+      "Enterprise cloud backup supporting unlimited devices, continuous sync, and hybrid backup options.",
   },
 };
 
@@ -376,7 +376,7 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.adt.com/business/affiliates",
     affiliateUrl: null,
     notes:
-      "$200 Visa gift card per confirmed residential sale. Highest flat-rate home security commission available. Search 'ADT' in CJ Affiliate.",
+      "America's #1 smart home security provider with professional installation and 24/7 monitoring.",
   },
   simplisafe: {
     rateUsd: 75,
@@ -385,7 +385,7 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.simplisafe.com/business/affiliate",
     affiliateUrl: "https://simplisafehomeimprovementpros.sjv.io/c/5136149/1807168/21481",
     notes:
-      "No contract required. DIY installation with professional monitoring available. Easy for customers to setup and manage.",
+      "No contract required. DIY installation with professional monitoring available. Easy for customers to set up and manage.",
   },
   ring: {
     rateUsd: 0,
@@ -395,7 +395,7 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://affiliate-program.amazon.com",
     affiliateUrl: null,
     notes:
-      "~10% per sale via Amazon Associates (Ring is Amazon-owned). Good for bundling with ISP recommendations. Apply at affiliate-program.amazon.com.",
+      "Smart home security cameras, doorbells, and alarm systems by Amazon — easy to install and manage remotely.",
   },
   vivint: {
     rateUsd: 150,
@@ -404,7 +404,7 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.vivint.com/business/affiliates",
     affiliateUrl: null,
     notes:
-      "Smart home + professional monitoring. $100–$200/sale range. Search 'Vivint' in CJ Affiliate.",
+      "Premium smart home security with professional installation, smart device integration, and 24/7 monitoring.",
   },
   brinks: {
     rateUsd: 100,
@@ -413,7 +413,7 @@ export const HOME_SECURITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.brinks.com/business/affiliate-partners",
     affiliateUrl: null,
     notes:
-      "Brinks Home Security. Up to $100/sale. Search 'Brinks Home Security' in CJ Affiliate.",
+      "Trusted home security solutions with professional monitoring and full smart home integration.",
   },
 };
 
@@ -431,7 +431,7 @@ export const CONSUMER_ANTIVIRUS_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "25% base on CJ, up to 50% on Impact for top publishers. Norton 360 + LifeLock bundles available. Search 'Norton' in CJ marketplace.",
+      "All-in-one security suite including antivirus, VPN, identity theft protection, and dark web monitoring.",
   },
   mcafee: {
     rateUsd: 0,
@@ -441,7 +441,7 @@ export const CONSUMER_ANTIVIRUS_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.mcafee.com/business/partners",
     affiliateUrl: null,
     notes:
-      "25% per sale OR $10 flat (varies by deal). Consumer and family plans. Search 'McAfee' in CJ Affiliate.",
+      "Comprehensive online protection for your devices, identity, and personal privacy.",
   },
   avast: {
     rateUsd: 0,
@@ -451,7 +451,7 @@ export const CONSUMER_ANTIVIRUS_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.avast.com/business/affiliates",
     affiliateUrl: null,
     notes:
-      "25% base, up to 40% at higher volumes. Consumer antivirus — high conversion alongside ISP/internet plans. Search 'Avast' in CJ Affiliate.",
+      "Real-time protection against viruses, malware, ransomware, and online threats for every device.",
   },
   avgantivirus: {
     rateUsd: 0,
@@ -461,7 +461,7 @@ export const CONSUMER_ANTIVIRUS_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "AVG (owned by Avast/Gen Digital). Same commission structure. Search 'AVG' in CJ Affiliate.",
+      "Essential antivirus protection for home and small business use with automatic threat updates.",
   },
   totalav: {
     rateUsd: 0,
@@ -471,7 +471,7 @@ export const CONSUMER_ANTIVIRUS_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.totalav.com/affiliate",
     affiliateUrl: null,
     notes:
-      "One of the highest consumer antivirus commission rates (up to 70%). Budget-friendly product that converts well. Search 'TotalAV' in CJ Affiliate.",
+      "Powerful antivirus and device optimization tools for Windows, Mac, iOS, and Android.",
   },
 };
 
@@ -489,7 +489,7 @@ export const IDENTITY_PROTECTION_COMMISSIONS: Record<string, CommissionEntry> = 
     affiliateSignupUrl: "https://www.lifelock.com/business/affiliates",
     affiliateUrl: null,
     notes:
-      "Up to 20% per sale (LifeLock/Norton brand). Annual plans yield the highest commission. Search 'LifeLock' in CJ Affiliate.",
+      "Award-winning identity theft protection backed by Norton for individuals and families.",
   },
   aura: {
     rateUsd: 95,
@@ -498,7 +498,7 @@ export const IDENTITY_PROTECTION_COMMISSIONS: Record<string, CommissionEntry> = 
     affiliateSignupUrl: "https://www.aura.com/business/affiliates",
     affiliateUrl: null,
     notes:
-      "$65–$125 per qualified enrollment (using midpoint $95). All-in-one ID theft + antivirus + VPN. Apply at impact.com — search 'Aura'.",
+      "All-in-one identity theft protection, antivirus, and VPN coverage in a single subscription.",
   },
   identityguard: {
     rateUsd: 0,
@@ -508,7 +508,7 @@ export const IDENTITY_PROTECTION_COMMISSIONS: Record<string, CommissionEntry> = 
     affiliateSignupUrl: "https://www.cj.com",
     affiliateUrl: null,
     notes:
-      "Identity Guard (Aura-owned brand). 15–20% per sale. Consumer and family plans. Search 'Identity Guard' in CJ Affiliate.",
+      "AI-powered identity protection monitoring your personal information across the web and dark web.",
   },
 };
 
@@ -525,7 +525,7 @@ export const CLOUD_PRODUCTIVITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.microsoft.com/en-us/partners",
     affiliateUrl: null,
     notes:
-      "$10/annual signup, $5/monthly signup (flat per-account, not per-user). Search 'Microsoft' in CJ Affiliate. Also consider Microsoft CSP (Cloud Solution Provider) reseller program for higher ongoing revenue.",
+      "Microsoft's cloud productivity suite with Word, Excel, Teams, Outlook, and enterprise-grade security.",
   },
   googleworkspace: {
     rateUsd: 13,
@@ -534,7 +534,7 @@ export const CLOUD_PRODUCTIVITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://workspace.google.com/partners",
     affiliateUrl: null,
     notes:
-      "$9–$18 per new user (Business Starter $9, Standard $18). Scales well for business clients. Search 'Google Workspace' in CJ Affiliate. Also consider becoming a Google Workspace Reseller.",
+      "Google's cloud collaboration tools including Gmail, Drive, Docs, and Meet — built for business.",
   },
   dropboxbusiness: {
     rateUsd: 0,
@@ -544,7 +544,7 @@ export const CLOUD_PRODUCTIVITY_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://impact.com",
     affiliateUrl: null,
     notes:
-      "Dropbox Business and Plus plans. 15–25% per sale. Apply at impact.com — search 'Dropbox'.",
+      "Secure cloud storage and collaboration platform for teams with advanced sharing and workflow tools.",
   },
 };
 
@@ -561,7 +561,7 @@ export const WEB_HOSTING_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.bluehost.com/affiliates",
     affiliateUrl: null,
     notes:
-      "$65/sale base, tiered higher at volume. Popular consumer/SMB host. Search 'Bluehost' in CJ Affiliate.",
+      "Reliable web hosting recommended by WordPress.org, perfect for small to medium-sized businesses.",
   },
   siteground: {
     rateUsd: 50,
@@ -570,7 +570,7 @@ export const WEB_HOSTING_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.siteground.com/affiliates",
     affiliateUrl: null,
     notes:
-      "$50–$100/sale (tiered by volume). Strong brand and good conversions. Apply at siteground.com/affiliates.",
+      "High-performance managed hosting with exceptional support, free SSL, and built-in security tools.",
   },
   hostgator: {
     rateUsd: 65,
@@ -579,7 +579,7 @@ export const WEB_HOSTING_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.hostgator.com/affiliates",
     affiliateUrl: null,
     notes:
-      "$65/sale base. Budget-friendly hosting — strong consumer market appeal. Search 'HostGator' in CJ Affiliate.",
+      "Affordable web hosting with easy setup, unlimited storage, and 24/7 customer support.",
   },
   godaddy: {
     rateUsd: 0,
@@ -589,7 +589,7 @@ export const WEB_HOSTING_COMMISSIONS: Record<string, CommissionEntry> = {
     affiliateSignupUrl: "https://www.godaddy.com/affiliates",
     affiliateUrl: null,
     notes:
-      "15% per sale on hosting, domains, and add-ons. Massive brand recognition. Search 'GoDaddy' in CJ Affiliate.",
+      "Domain registration, web hosting, and website builder tools trusted by millions of businesses worldwide.",
   },
 };
 
