@@ -168,12 +168,6 @@ export default function AffiliateRecommendations() {
                     </span>
                   </div>
 
-                  {/* Network */}
-                  <div className="text-sm">
-                    <p className="text-gray-600">Network</p>
-                    <p className="font-medium text-gray-900">{p.network}</p>
-                  </div>
-
                   {/* Notes */}
                   {p.notes && (
                     <p className="text-xs text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
