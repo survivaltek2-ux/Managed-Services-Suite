@@ -30,6 +30,7 @@ import AdminLeads from "./pages/AdminLeads";
 import AdminAffiliateClicks from "./pages/AdminAffiliateClicks";
 import AdminAffiliatePrograms from "./pages/AdminAffiliatePrograms";
 import AdminImpact from "./pages/AdminImpact";
+import AdminMarketplace from "./pages/AdminMarketplace";
 import ServiceAvailability from "./pages/ServiceAvailability";
 import NotFound from "./pages/not-found";
 
@@ -86,6 +87,7 @@ function Router() {
       <Route path="/admin/affiliate-clicks"><ProtectedRoute component={AdminAffiliateClicks} /></Route>
       <Route path="/admin/affiliate-programs"><ProtectedRoute component={AdminAffiliatePrograms} /></Route>
       <Route path="/admin/impact"><ProtectedRoute component={AdminImpact} /></Route>
+      <Route path="/admin/marketplace"><ProtectedRoute component={AdminMarketplace} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
 
       <Route component={NotFound} />

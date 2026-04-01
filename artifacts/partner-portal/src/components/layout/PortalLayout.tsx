@@ -63,6 +63,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
   { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
   { href: "/admin/impact", label: "Impact.com", icon: Zap },
+  { href: "/admin/marketplace", label: "Marketplace", icon: ShoppingCart },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {

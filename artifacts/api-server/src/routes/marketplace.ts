@@ -1,16 +1,37 @@
 import { Router, type IRouter } from "express";
-import { db, marketplaceProductsTable, marketplaceVendorsTable, marketplaceOrdersTable, marketplacePayoutsTable, partnersTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import {
+  db,
+  marketplaceProductsTable,
+  marketplaceVendorsTable,
+  marketplaceOrdersTable,
+  partnersTable,
+} from "@workspace/db";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
-// ─── Public Routes ─────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// GET /marketplace/vendors - List all approved vendors
+async function isMainAdmin(partnerId: number): Promise<boolean> {
+  const rows = await db
+    .select({ isAdmin: partnersTable.isAdmin })
+    .from(partnersTable)
+    .where(eq(partnersTable.id, partnerId))
+    .limit(1);
+  return rows.length > 0 && rows[0].isAdmin === true;
+}
+
+// ─── Public Routes ────────────────────────────────────────────────────────────
+
+// GET /marketplace/vendors — all approved vendors
 router.get("/vendors", async (_req, res) => {
   try {
-    const vendors = await db.select().from(marketplaceVendorsTable).where(eq(marketplaceVendorsTable.status, "approved"));
+    const vendors = await db
+      .select()
+      .from(marketplaceVendorsTable)
+      .where(eq(marketplaceVendorsTable.status, "approved"))
+      .orderBy(marketplaceVendorsTable.name);
     res.json({ vendors });
   } catch (error) {
     console.error("Error fetching vendors:", error);
@@ -18,34 +39,43 @@ router.get("/vendors", async (_req, res) => {
   }
 });
 
-// GET /marketplace/products - List all active products, optionally filtered by vendor or category
+// GET /marketplace/products — active products with vendor name, optional ?category= filter
 router.get("/products", async (req, res) => {
   try {
-    let query = db.select({
-      id: marketplaceProductsTable.id,
-      vendorId: marketplaceProductsTable.vendorId,
-      title: marketplaceProductsTable.title,
-      description: marketplaceProductsTable.description,
-      category: marketplaceProductsTable.category,
-      price: marketplaceProductsTable.price,
-      commissionRate: marketplaceProductsTable.commissionRate,
-      createdAt: marketplaceProductsTable.createdAt,
-    }).from(marketplaceProductsTable)
-      .where(eq(marketplaceProductsTable.status, "active"));
+    const { category, vendorId } = req.query;
 
-    const { vendorId, category } = req.query;
-    
-    if (vendorId) {
-      const vendorIdNum = parseInt(vendorId as string);
-      if (!isNaN(vendorIdNum)) {
-        query = query.where(eq(marketplaceProductsTable.vendorId, vendorIdNum));
-      }
-    }
+    const conditions = [
+      eq(marketplaceProductsTable.status, "active"),
+      eq(marketplaceVendorsTable.status, "approved"),
+    ];
     if (category) {
-      query = query.where(eq(marketplaceProductsTable.category, category as string));
+      conditions.push(eq(marketplaceProductsTable.category, category as string));
+    }
+    if (vendorId) {
+      const vid = parseInt(vendorId as string);
+      if (!isNaN(vid)) conditions.push(eq(marketplaceProductsTable.vendorId, vid));
     }
 
-    const products = await query;
+    const products = await db
+      .select({
+        id: marketplaceProductsTable.id,
+        vendorId: marketplaceProductsTable.vendorId,
+        vendorName: marketplaceVendorsTable.name,
+        title: marketplaceProductsTable.title,
+        description: marketplaceProductsTable.description,
+        category: marketplaceProductsTable.category,
+        price: marketplaceProductsTable.price,
+        commissionRate: marketplaceProductsTable.commissionRate,
+        createdAt: marketplaceProductsTable.createdAt,
+      })
+      .from(marketplaceProductsTable)
+      .innerJoin(
+        marketplaceVendorsTable,
+        eq(marketplaceProductsTable.vendorId, marketplaceVendorsTable.id)
+      )
+      .where(and(...conditions))
+      .orderBy(marketplaceProductsTable.category, marketplaceProductsTable.title);
+
     res.json({ products });
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -53,73 +83,86 @@ router.get("/products", async (req, res) => {
   }
 });
 
-// ─── Partner Routes ─────────────────────────────────────────────────────────────
+// ─── Partner Routes ───────────────────────────────────────────────────────────
 
-// POST /marketplace/orders - Create a marketplace order (partner records a sale)
+// POST /marketplace/orders — record a sale
 router.post("/orders", requireAuth, async (req: AuthRequest, res) => {
   try {
     const { productId, amount, notes } = req.body;
-    const partnerId = req.userId;
+    const partnerId = req.userId!;
 
-    if (!productId || !amount) {
+    if (!productId || amount === undefined) {
       res.status(400).json({ error: "Missing required fields: productId, amount" });
       return;
     }
 
-    // Get product details to find vendor and commission rate
-    const product = await db.select().from(marketplaceProductsTable).where(eq(marketplaceProductsTable.id, productId)).limit(1);
-    if (!product.length) {
+    const [product] = await db
+      .select()
+      .from(marketplaceProductsTable)
+      .where(eq(marketplaceProductsTable.id, Number(productId)))
+      .limit(1);
+
+    if (!product) {
       res.status(404).json({ error: "Product not found" });
       return;
     }
 
-    const vendorId = product[0].vendorId;
-    const commissionRate = parseFloat(product[0].commissionRate);
     const amountNum = parseFloat(amount);
-    const commissionAmount = amountNum * (commissionRate / 100);
+    const commissionAmount = amountNum * (parseFloat(product.commissionRate) / 100);
 
-    // Insert order
-    const result = await db.insert(marketplaceOrdersTable).values({
-      partnerId: partnerId!,
-      productId,
-      vendorId,
-      amount: amountNum.toString(),
-      commissionAmount: commissionAmount.toString(),
-      notes,
-    }).returning();
+    const [order] = await db
+      .insert(marketplaceOrdersTable)
+      .values({
+        partnerId,
+        productId: Number(productId),
+        vendorId: product.vendorId,
+        amount: amountNum.toFixed(2),
+        commissionAmount: commissionAmount.toFixed(2),
+        notes: notes || null,
+      })
+      .returning();
 
-    res.status(201).json({ order: result[0] });
+    res.status(201).json({ order });
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ error: "Failed to create order" });
   }
 });
 
-// GET /partner/marketplace/orders - Get all orders for authenticated partner with commission summary
+// GET /marketplace/partner/orders — partner's own order history + summary
 router.get("/partner/orders", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const partnerId = req.userId;
+    const partnerId = req.userId!;
 
-    // Get all orders for this partner
-    const orders = await db.select({
-      id: marketplaceOrdersTable.id,
-      productId: marketplaceOrdersTable.productId,
-      vendorId: marketplaceOrdersTable.vendorId,
-      status: marketplaceOrdersTable.status,
-      amount: marketplaceOrdersTable.amount,
-      commissionAmount: marketplaceOrdersTable.commissionAmount,
-      notes: marketplaceOrdersTable.notes,
-      createdAt: marketplaceOrdersTable.createdAt,
-      productTitle: marketplaceProductsTable.title,
-      vendorName: marketplaceVendorsTable.name,
-    }).from(marketplaceOrdersTable)
-      .innerJoin(marketplaceProductsTable, eq(marketplaceOrdersTable.productId, marketplaceProductsTable.id))
-      .innerJoin(marketplaceVendorsTable, eq(marketplaceOrdersTable.vendorId, marketplaceVendorsTable.id))
-      .where(eq(marketplaceOrdersTable.partnerId, partnerId!))
+    const orders = await db
+      .select({
+        id: marketplaceOrdersTable.id,
+        productId: marketplaceOrdersTable.productId,
+        vendorId: marketplaceOrdersTable.vendorId,
+        status: marketplaceOrdersTable.status,
+        amount: marketplaceOrdersTable.amount,
+        commissionAmount: marketplaceOrdersTable.commissionAmount,
+        notes: marketplaceOrdersTable.notes,
+        createdAt: marketplaceOrdersTable.createdAt,
+        productTitle: marketplaceProductsTable.title,
+        vendorName: marketplaceVendorsTable.name,
+      })
+      .from(marketplaceOrdersTable)
+      .innerJoin(
+        marketplaceProductsTable,
+        eq(marketplaceOrdersTable.productId, marketplaceProductsTable.id)
+      )
+      .innerJoin(
+        marketplaceVendorsTable,
+        eq(marketplaceOrdersTable.vendorId, marketplaceVendorsTable.id)
+      )
+      .where(eq(marketplaceOrdersTable.partnerId, partnerId))
       .orderBy(desc(marketplaceOrdersTable.createdAt));
 
-    // Calculate total commissions
-    const totalCommissions = orders.reduce((sum, order) => sum + parseFloat(order.commissionAmount), 0);
+    const totalCommissions = orders.reduce(
+      (sum, o) => sum + parseFloat(o.commissionAmount),
+      0
+    );
 
     res.json({
       orders,
@@ -129,24 +172,26 @@ router.get("/partner/orders", requireAuth, async (req: AuthRequest, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching orders:", error);
+    console.error("Error fetching partner orders:", error);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 });
 
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
 
-// GET /admin/marketplace/vendors - List all vendors (admin)
+// GET /marketplace/admin/vendors — all vendors with product counts
 router.get("/admin/vendors", requireAuth, async (req: AuthRequest, res) => {
   try {
-    // Check if user is main site admin by looking at partners table
-    const partner = await db.select().from(partnersTable).where(eq(partnersTable.id, req.userId!)).limit(1);
-    if (!partner.length || !partner[0].isAdmin) {
+    if (!(await isMainAdmin(req.userId!))) {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
 
-    const vendors = await db.select().from(marketplaceVendorsTable).orderBy(desc(marketplaceVendorsTable.createdAt));
+    const vendors = await db
+      .select()
+      .from(marketplaceVendorsTable)
+      .orderBy(desc(marketplaceVendorsTable.createdAt));
+
     res.json({ vendors });
   } catch (error) {
     console.error("Error fetching vendors:", error);
@@ -154,11 +199,10 @@ router.get("/admin/vendors", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-// POST /admin/marketplace/vendors - Create vendor (admin only)
+// POST /marketplace/admin/vendors — create vendor
 router.post("/admin/vendors", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const partner = await db.select().from(partnersTable).where(eq(partnersTable.id, req.userId!)).limit(1);
-    if (!partner.length || !partner[0].isAdmin) {
+    if (!(await isMainAdmin(req.userId!))) {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
@@ -169,51 +213,248 @@ router.post("/admin/vendors", requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    const result = await db.insert(marketplaceVendorsTable).values({
-      name,
-      description,
-      contactEmail,
-      website,
-      commissionPercent: commissionPercent || "15.00",
-      status: status || "pending",
-    }).returning();
+    const [vendor] = await db
+      .insert(marketplaceVendorsTable)
+      .values({
+        name,
+        description: description || null,
+        contactEmail,
+        website: website || null,
+        commissionPercent: (commissionPercent || "15.00").toString(),
+        status: status || "pending",
+      })
+      .returning();
 
-    res.status(201).json({ vendor: result[0] });
+    res.status(201).json({ vendor });
   } catch (error) {
     console.error("Error creating vendor:", error);
     res.status(500).json({ error: "Failed to create vendor" });
   }
 });
 
-// POST /admin/marketplace/products - Create product (admin only)
+// PATCH /marketplace/admin/vendors/:id — update vendor status or details
+router.patch("/admin/vendors/:id", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    if (!(await isMainAdmin(req.userId!))) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const vendorId = parseInt(req.params.id);
+    const { status, commissionPercent, name, description, website } = req.body;
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (status) updates.status = status;
+    if (commissionPercent !== undefined) updates.commissionPercent = commissionPercent.toString();
+    if (name) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (website !== undefined) updates.website = website;
+
+    const [vendor] = await db
+      .update(marketplaceVendorsTable)
+      .set(updates)
+      .where(eq(marketplaceVendorsTable.id, vendorId))
+      .returning();
+
+    if (!vendor) {
+      res.status(404).json({ error: "Vendor not found" });
+      return;
+    }
+
+    res.json({ vendor });
+  } catch (error) {
+    console.error("Error updating vendor:", error);
+    res.status(500).json({ error: "Failed to update vendor" });
+  }
+});
+
+// GET /marketplace/admin/products — all products (admin)
+router.get("/admin/products", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    if (!(await isMainAdmin(req.userId!))) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const products = await db
+      .select({
+        id: marketplaceProductsTable.id,
+        vendorId: marketplaceProductsTable.vendorId,
+        vendorName: marketplaceVendorsTable.name,
+        title: marketplaceProductsTable.title,
+        description: marketplaceProductsTable.description,
+        category: marketplaceProductsTable.category,
+        price: marketplaceProductsTable.price,
+        commissionRate: marketplaceProductsTable.commissionRate,
+        status: marketplaceProductsTable.status,
+        createdAt: marketplaceProductsTable.createdAt,
+      })
+      .from(marketplaceProductsTable)
+      .innerJoin(
+        marketplaceVendorsTable,
+        eq(marketplaceProductsTable.vendorId, marketplaceVendorsTable.id)
+      )
+      .orderBy(marketplaceProductsTable.category, marketplaceProductsTable.title);
+
+    res.json({ products });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
+// POST /marketplace/admin/products — create product
 router.post("/admin/products", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const partner = await db.select().from(partnersTable).where(eq(partnersTable.id, req.userId!)).limit(1);
-    if (!partner.length || !partner[0].isAdmin) {
+    if (!(await isMainAdmin(req.userId!))) {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
 
     const { vendorId, title, description, category, price, commissionRate, status } = req.body;
     if (!vendorId || !title || !description || !category) {
-      res.status(400).json({ error: "Missing required fields" });
+      res.status(400).json({ error: "Missing required fields: vendorId, title, description, category" });
       return;
     }
 
-    const result = await db.insert(marketplaceProductsTable).values({
-      vendorId,
-      title,
-      description,
-      category,
-      price: price ? price.toString() : null,
-      commissionRate: commissionRate || "15.00",
-      status: status || "draft",
-    }).returning();
+    const [product] = await db
+      .insert(marketplaceProductsTable)
+      .values({
+        vendorId: Number(vendorId),
+        title,
+        description,
+        category,
+        price: price ? price.toString() : null,
+        commissionRate: (commissionRate || "15.00").toString(),
+        status: status || "draft",
+      })
+      .returning();
 
-    res.status(201).json({ product: result[0] });
+    res.status(201).json({ product });
   } catch (error) {
     console.error("Error creating product:", error);
     res.status(500).json({ error: "Failed to create product" });
+  }
+});
+
+// PATCH /marketplace/admin/products/:id — update product
+router.patch("/admin/products/:id", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    if (!(await isMainAdmin(req.userId!))) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const productId = parseInt(req.params.id);
+    const { title, description, category, price, commissionRate, status } = req.body;
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (title) updates.title = title;
+    if (description) updates.description = description;
+    if (category) updates.category = category;
+    if (price !== undefined) updates.price = price ? price.toString() : null;
+    if (commissionRate !== undefined) updates.commissionRate = commissionRate.toString();
+    if (status) updates.status = status;
+
+    const [product] = await db
+      .update(marketplaceProductsTable)
+      .set(updates)
+      .where(eq(marketplaceProductsTable.id, productId))
+      .returning();
+
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    res.json({ product });
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Failed to update product" });
+  }
+});
+
+// GET /marketplace/admin/orders — all orders across all partners
+router.get("/admin/orders", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    if (!(await isMainAdmin(req.userId!))) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const orders = await db
+      .select({
+        id: marketplaceOrdersTable.id,
+        partnerId: marketplaceOrdersTable.partnerId,
+        partnerCompany: partnersTable.companyName,
+        productId: marketplaceOrdersTable.productId,
+        vendorId: marketplaceOrdersTable.vendorId,
+        status: marketplaceOrdersTable.status,
+        amount: marketplaceOrdersTable.amount,
+        commissionAmount: marketplaceOrdersTable.commissionAmount,
+        notes: marketplaceOrdersTable.notes,
+        createdAt: marketplaceOrdersTable.createdAt,
+        productTitle: marketplaceProductsTable.title,
+        vendorName: marketplaceVendorsTable.name,
+      })
+      .from(marketplaceOrdersTable)
+      .innerJoin(partnersTable, eq(marketplaceOrdersTable.partnerId, partnersTable.id))
+      .innerJoin(
+        marketplaceProductsTable,
+        eq(marketplaceOrdersTable.productId, marketplaceProductsTable.id)
+      )
+      .innerJoin(
+        marketplaceVendorsTable,
+        eq(marketplaceOrdersTable.vendorId, marketplaceVendorsTable.id)
+      )
+      .orderBy(desc(marketplaceOrdersTable.createdAt));
+
+    const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.amount), 0);
+    const totalCommissions = orders.reduce(
+      (sum, o) => sum + parseFloat(o.commissionAmount),
+      0
+    );
+
+    res.json({
+      orders,
+      summary: {
+        totalOrders: orders.length,
+        totalRevenue: totalRevenue.toFixed(2),
+        totalCommissions: totalCommissions.toFixed(2),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admin orders:", error);
+    res.status(500).json({ error: "Failed to fetch orders" });
+  }
+});
+
+// PATCH /marketplace/admin/orders/:id — update order status
+router.patch("/admin/orders/:id", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    if (!(await isMainAdmin(req.userId!))) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const orderId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    const [order] = await db
+      .update(marketplaceOrdersTable)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(marketplaceOrdersTable.id, orderId))
+      .returning();
+
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    res.json({ order });
+  } catch (error) {
+    console.error("Error updating order:", error);
+    res.status(500).json({ error: "Failed to update order" });
   }
 });
 
