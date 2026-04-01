@@ -16,6 +16,7 @@ const partnerLinks = [
 const topNavLinks = [
   { name: "Home", href: "/" },
   { name: "Services", href: "/services" },
+  { name: "Recommended Products", href: "/recommended" },
   { name: "About", href: "/about" },
   { name: "Contact", href: "/contact" },
 ];
