@@ -1042,3 +1042,72 @@ export async function sendQuoteStatusUpdate(quote: {
 
   await sendEmail(quote.email, `Quote Request Update — ${info.label}`, html);
 }
+
+export async function sendVivintInquiryNotification(inquiry: {
+  type: string;
+  name: string;
+  email: string;
+  phone: string;
+  zipCode?: string;
+  propertyType?: string;
+  currentSystem?: string;
+  interestedIn?: string[];
+  budget?: string;
+  timeframe?: string;
+  notes?: string;
+}) {
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #0176d3, #014fa3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Vivint Inquiry</h1>
+      </div>
+      <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; background: #fafafa;">
+        <p style="margin: 0 0 20px; font-size: 14px;">A ${inquiry.type} inquiry has been submitted through the Vivint form.</p>
+        
+        <table style="width: 100%; margin-bottom: 20px; font-size: 13px;">
+          <tr style="background: #fff; border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; font-weight: 700; color: #374151; width: 30%;">Type:</td>
+            <td style="padding: 12px; color: #6b7280;">${inquiry.type.charAt(0).toUpperCase() + inquiry.type.slice(1)}</td>
+          </tr>
+          <tr style="background: #fff; border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; font-weight: 700; color: #374151;">Name:</td>
+            <td style="padding: 12px; color: #6b7280;">${inquiry.name}</td>
+          </tr>
+          <tr style="background: #fff; border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; font-weight: 700; color: #374151;">Email:</td>
+            <td style="padding: 12px; color: #6b7280;"><a href="mailto:${inquiry.email}" style="color: #0176d3;">${inquiry.email}</a></td>
+          </tr>
+          <tr style="background: #fff; border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; font-weight: 700; color: #374151;">Phone:</td>
+            <td style="padding: 12px; color: #6b7280;"><a href="tel:${inquiry.phone}" style="color: #0176d3;">${inquiry.phone}</a></td>
+          </tr>
+          ${inquiry.zipCode ? `<tr style="background: #fff; border-bottom: 1px solid #e5e7eb;"><td style="padding: 12px; font-weight: 700; color: #374151;">Zip Code:</td><td style="padding: 12px; color: #6b7280;">${inquiry.zipCode}</td></tr>` : ""}
+          ${inquiry.propertyType ? `<tr style="background: #fff; border-bottom: 1px solid #e5e7eb;"><td style="padding: 12px; font-weight: 700; color: #374151;">Property Type:</td><td style="padding: 12px; color: #6b7280;">${inquiry.propertyType}</td></tr>` : ""}
+          ${inquiry.currentSystem ? `<tr style="background: #fff; border-bottom: 1px solid #e5e7eb;"><td style="padding: 12px; font-weight: 700; color: #374151;">Current System:</td><td style="padding: 12px; color: #6b7280;">${inquiry.currentSystem}</td></tr>` : ""}
+          ${inquiry.budget ? `<tr style="background: #fff; border-bottom: 1px solid #e5e7eb;"><td style="padding: 12px; font-weight: 700; color: #374151;">Budget:</td><td style="padding: 12px; color: #6b7280;">${inquiry.budget}</td></tr>` : ""}
+          ${inquiry.timeframe ? `<tr style="background: #fff; border-bottom: 1px solid #e5e7eb;"><td style="padding: 12px; font-weight: 700; color: #374151;">Timeframe:</td><td style="padding: 12px; color: #6b7280;">${inquiry.timeframe}</td></tr>` : ""}
+        </table>
+
+        ${inquiry.interestedIn && inquiry.interestedIn.length > 0 ? `
+          <div style="margin-bottom: 20px;">
+            <p style="margin: 0 0 8px; font-weight: 700; font-size: 13px;">Interested In:</p>
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">${inquiry.interestedIn.join(", ")}</p>
+          </div>
+        ` : ""}
+
+        ${inquiry.notes ? `
+          <div style="margin-bottom: 20px; padding: 12px; background: #fff; border-left: 4px solid #0176d3; border-radius: 2px;">
+            <p style="margin: 0 0 4px; font-weight: 700; font-size: 12px; color: #374151;">Notes:</p>
+            <p style="margin: 0; font-size: 13px; color: #6b7280; white-space: pre-wrap;">${inquiry.notes}</p>
+          </div>
+        ` : ""}
+
+        <p style="margin: 0; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+          Reply to <a href="mailto:${inquiry.email}" style="color: #0176d3;">${inquiry.email}</a> to follow up with this lead.
+        </p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(process.env.SALES_EMAIL || "sales@siebertrservices.com", `New Vivint Inquiry — ${inquiry.name}`, html);
+}

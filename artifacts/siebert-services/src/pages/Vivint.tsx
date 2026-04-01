@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import {
   Shield, Camera, Lock, Thermometer, Smartphone, Star, CheckCircle,
-  ExternalLink, DollarSign, Users, Zap, Home, AlertTriangle, Layers
+  ExternalLink, DollarSign, Users, Zap, Home, AlertTriangle, Layers, Send
 } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
@@ -161,6 +161,25 @@ export default function Vivint() {
       </motion.div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+
+        {/* CTA Banner */}
+        <motion.div
+          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-8 flex items-center justify-between"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div>
+            <h2 className="text-2xl font-bold mb-1">Ready to Get Started?</h2>
+            <p className="text-blue-100">Join thousands of customers with Vivint smart home security.</p>
+          </div>
+          <Link href="/vivint/inquiry">
+            <a className="ml-4 inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-blue-600 font-semibold hover:bg-blue-50 transition-colors whitespace-nowrap">
+              <Send className="w-4 h-4" />
+              Request a Quote
+            </a>
+          </Link>
+        </motion.div>
 
         {/* About */}
         <motion.section
