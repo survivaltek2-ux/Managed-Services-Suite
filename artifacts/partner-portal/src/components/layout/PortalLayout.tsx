@@ -116,12 +116,12 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
-
-            {/* Admin Dropdown (visible only to admins) */}
-            {user.isAdmin && (
-              <AdminNavDropdown location={location} />
-            )}
           </nav>
+
+          {/* Admin Dropdown (outside nav to avoid overflow clipping) */}
+          {user.isAdmin && (
+            <AdminNavDropdown location={location} />
+          )}
 
           {/* Mobile Menu Toggle */}
           <button className="lg:hidden p-1 sm:p-1.5 hover:bg-white/10 rounded ml-auto" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen}>
