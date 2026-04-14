@@ -147,7 +147,9 @@ function ProductPickerModal({ onSelect, onClose }: {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch("/api/marketplace/products")
+    const token = localStorage.getItem("partner_token");
+    const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+    fetch("/api/marketplace/partner/products", { headers })
       .then(r => r.ok ? r.json() : { products: [] })
       .then(d => setMpProducts(d.products ?? []))
       .catch(() => {})

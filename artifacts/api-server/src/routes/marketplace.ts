@@ -85,6 +85,43 @@ router.get("/products", async (req, res) => {
 
 // ─── Partner Routes ───────────────────────────────────────────────────────────
 
+// GET /marketplace/partner/products — active products for authenticated partners (no vendor approval filter)
+router.get("/partner/products", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { category } = req.query;
+
+    const conditions: any[] = [eq(marketplaceProductsTable.status, "active")];
+    if (category) {
+      conditions.push(eq(marketplaceProductsTable.category, category as string));
+    }
+
+    const products = await db
+      .select({
+        id: marketplaceProductsTable.id,
+        vendorId: marketplaceProductsTable.vendorId,
+        vendorName: marketplaceVendorsTable.name,
+        title: marketplaceProductsTable.title,
+        description: marketplaceProductsTable.description,
+        category: marketplaceProductsTable.category,
+        price: marketplaceProductsTable.price,
+        commissionRate: marketplaceProductsTable.commissionRate,
+        createdAt: marketplaceProductsTable.createdAt,
+      })
+      .from(marketplaceProductsTable)
+      .leftJoin(
+        marketplaceVendorsTable,
+        eq(marketplaceProductsTable.vendorId, marketplaceVendorsTable.id)
+      )
+      .where(and(...conditions))
+      .orderBy(marketplaceProductsTable.category, marketplaceProductsTable.title);
+
+    res.json({ products });
+  } catch (error) {
+    console.error("Error fetching partner products:", error);
+    res.status(500).json({ error: "Failed to fetch products" });
+  }
+});
+
 // POST /marketplace/orders — record a sale
 router.post("/orders", requireAuth, async (req: AuthRequest, res) => {
   try {

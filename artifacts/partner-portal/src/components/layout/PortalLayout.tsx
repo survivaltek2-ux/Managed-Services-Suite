@@ -32,7 +32,8 @@ import {
   MousePointerClick,
   Zap,
   ShoppingCart,
-  Sparkles
+  Sparkles,
+  Package,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/leads", label: "Manage Leads", icon: AlertCircle },
   { href: "/admin/partners", label: "Partners", icon: Building2 },
   { href: "/admin/commissions", label: "Commissions (Admin)", icon: CreditCard },
+  { href: "/admin/tsd-products", label: "TSD Products", icon: Package },
   { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
   { href: "/admin/documents", label: "Documents (Admin)", icon: FileText },
   { href: "/admin/invoices", label: "Invoices", icon: FileText },
@@ -279,7 +281,8 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/leads", label: "Manage Leads", icon: AlertCircle },
     { href: "/admin/partners", label: "Partners", icon: Building2 },
     { href: "/admin/commissions", label: "Commissions", icon: CreditCard },
-    { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
+    { href: "/admin/tsd-products", label: "TSD Products", icon: Package },
+  { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
     { href: "/admin/documents", label: "Documents", icon: FileText },
     { href: "/admin/invoices", label: "Invoices", icon: FileText },
     { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
