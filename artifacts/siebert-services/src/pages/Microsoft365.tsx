@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const MS_BLUE = "#0078d4";
 const MS_DARK = "#004578";
@@ -195,6 +196,11 @@ const idealFor = [
 ];
 
 export default function Microsoft365() {
+  const content = usePageContent("microsoft-365", {
+    heroTitle: "Microsoft 365",
+    heroSubtitle: "Productivity · Security · Collaboration",
+    heroDescription: "The world's leading cloud productivity platform — Office apps, Exchange email, Teams, SharePoint, OneDrive, and enterprise-grade security — all in one subscription.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -211,12 +217,12 @@ export default function Microsoft365() {
               <Cloud className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Productivity · Security · Collaboration</div>
-              <h1 className="text-4xl font-bold">Microsoft 365</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            The world's leading cloud productivity platform — Office apps, Exchange email, Teams, SharePoint, OneDrive, and enterprise-grade security — all in one subscription.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

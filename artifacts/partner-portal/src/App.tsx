@@ -31,6 +31,7 @@ import AdminAffiliateClicks from "./pages/AdminAffiliateClicks";
 import AdminAffiliatePrograms from "./pages/AdminAffiliatePrograms";
 import AdminImpact from "./pages/AdminImpact";
 import AdminMarketplace from "./pages/AdminMarketplace";
+import AIPageEditor from "./pages/admin/AIPageEditor";
 import ServiceAvailability from "./pages/ServiceAvailability";
 import Vivint from "./pages/Vivint";
 import NotFound from "./pages/not-found";
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/admin/affiliate-programs"><ProtectedRoute component={AdminAffiliatePrograms} /></Route>
       <Route path="/admin/impact"><ProtectedRoute component={AdminImpact} /></Route>
       <Route path="/admin/marketplace"><ProtectedRoute component={AdminMarketplace} /></Route>
+      <Route path="/admin/ai-page-editor"><ProtectedRoute component={AIPageEditor} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>
 

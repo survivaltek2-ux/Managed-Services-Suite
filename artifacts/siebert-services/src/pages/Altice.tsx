@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const ALTICE_BLUE = "#00a0e3";
 const ALTICE_DARK = "#003087";
@@ -144,6 +145,11 @@ const idealFor = [
 ];
 
 export default function Altice() {
+  const content = usePageContent("altice", {
+    heroTitle: "Optimum Business",
+    heroSubtitle: "Formerly Altice Business",
+    heroDescription: "Symmetric fiber internet, business voice, TV, mobile, and enterprise dedicated fiber — all from one of the largest connectivity providers on the East Coast.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -160,12 +166,12 @@ export default function Altice() {
               <Wifi className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Formerly Altice Business</div>
-              <h1 className="text-4xl font-bold">Optimum Business</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Symmetric fiber internet, business voice, TV, mobile, and enterprise dedicated fiber — all from one of the largest connectivity providers on the East Coast.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <Link href="/contact">

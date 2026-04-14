@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const COX_BLUE = "#0076ce";
 const COX_DARK = "#004899";
@@ -198,6 +199,11 @@ const idealFor = [
 ];
 
 export default function CoxBusiness() {
+  const content = usePageContent("cox-business", {
+    heroTitle: "Cox Business",
+    heroSubtitle: "Internet · Voice · TV · Fiber",
+    heroDescription: "Internet, phone, TV, dedicated fiber, and SD-WAN from a leading regional provider serving 350,000+ businesses across 18 states.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -214,12 +220,12 @@ export default function CoxBusiness() {
               <Wifi className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Internet · Voice · TV · Fiber</div>
-              <h1 className="text-4xl font-bold">Cox Business</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Internet, phone, TV, dedicated fiber, and SD-WAN from a leading regional provider serving 350,000+ businesses across 18 states.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

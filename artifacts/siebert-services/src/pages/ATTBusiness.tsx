@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const ATT_BLUE = "#00a8e0";
 const ATT_DARK = "#0057a8";
@@ -198,6 +199,11 @@ const idealFor = [
 ];
 
 export default function ATTBusiness() {
+  const content = usePageContent("att-business", {
+    heroTitle: "AT&T Business",
+    heroSubtitle: "Fiber · 5G · FirstNet · UCaaS",
+    heroDescription: "Symmetric fiber internet, 5G wireless, FirstNet for public safety, cloud voice, SD-WAN, and enterprise security — all from America's largest telecommunications company.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -214,12 +220,12 @@ export default function ATTBusiness() {
               <Globe className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Fiber · 5G · FirstNet · UCaaS</div>
-              <h1 className="text-4xl font-bold">AT&T Business</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Symmetric fiber internet, 5G wireless, FirstNet for public safety, cloud voice, SD-WAN, and enterprise security — all from America's largest telecommunications company.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

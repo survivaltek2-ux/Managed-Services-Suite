@@ -85,6 +85,17 @@ export const activityLogTable = pgTable("activity_log", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const pageSectionsTable = pgTable("page_sections", {
+  id: serial("id").primaryKey(),
+  pageSlug: text("page_slug").notNull(),
+  sectionKey: text("section_key").notNull(),
+  content: text("content").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type PageSection = typeof pageSectionsTable.$inferSelect;
+export const insertPageSectionSchema = createInsertSchema(pageSectionsTable).omit({ id: true, updatedAt: true });
+
 export const insertSiteSettingSchema = createInsertSchema(siteSettingsTable).omit({ id: true, updatedAt: true });
 export const insertServiceSchema = createInsertSchema(servicesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTestimonialSchema = createInsertSchema(testimonialsTable).omit({ id: true, createdAt: true });

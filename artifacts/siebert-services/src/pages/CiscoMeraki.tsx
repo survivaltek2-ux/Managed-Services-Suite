@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const CISCO_BLUE = "#00bceb";
 const CISCO_DARK = "#005073";
@@ -172,6 +173,11 @@ const idealFor = [
 ];
 
 export default function CiscoMeraki() {
+  const content = usePageContent("cisco-meraki", {
+    heroTitle: "Cisco Meraki",
+    heroSubtitle: "Cloud-Managed Networking · Gartner Leader",
+    heroDescription: "The world's leading cloud-managed networking platform. Wi-Fi, switching, security, cameras, and SD-WAN — all managed from a single Meraki dashboard with zero-touch provisioning.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -188,12 +194,12 @@ export default function CiscoMeraki() {
               <Network className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-cyan-200 text-sm font-semibold uppercase tracking-wide">Cloud-Managed Networking · Gartner Leader</div>
-              <h1 className="text-4xl font-bold">Cisco Meraki</h1>
+              <div className="text-cyan-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-cyan-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            The world's leading cloud-managed networking platform. Wi-Fi, switching, security, cameras, and SD-WAN — all managed from a single Meraki dashboard with zero-touch provisioning.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

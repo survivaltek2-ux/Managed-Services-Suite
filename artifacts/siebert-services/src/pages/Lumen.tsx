@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const LUMEN_PURPLE = "#6b21a8";
 const LUMEN_DARK = "#3b0764";
@@ -148,6 +149,11 @@ const idealFor = [
 ];
 
 export default function Lumen() {
+  const content = usePageContent("lumen", {
+    heroTitle: "Lumen Technologies",
+    heroSubtitle: "Formerly CenturyLink · Enterprise Fiber & Cloud Networking",
+    heroDescription: "Enterprise-grade dedicated internet, MPLS, SD-WAN, edge computing, and cybersecurity — built on one of the largest fiber backbones in the world, spanning 400,000 route miles.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -164,12 +170,12 @@ export default function Lumen() {
               <Globe className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-purple-200 text-sm font-semibold uppercase tracking-wide">Formerly CenturyLink · Enterprise Fiber & Cloud Networking</div>
-              <h1 className="text-4xl font-bold">Lumen Technologies</h1>
+              <div className="text-purple-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-purple-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Enterprise-grade dedicated internet, MPLS, SD-WAN, edge computing, and cybersecurity — built on one of the largest fiber backbones in the world, spanning 400,000 route miles.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

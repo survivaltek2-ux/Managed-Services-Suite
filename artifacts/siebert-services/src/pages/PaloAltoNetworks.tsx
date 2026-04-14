@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const PA_BLUE = "#0070c0";
 const PA_DARK = "#003d6b";
@@ -172,6 +173,11 @@ const idealFor = [
 ];
 
 export default function PaloAltoNetworks() {
+  const content = usePageContent("palo-alto-networks", {
+    heroTitle: "Palo Alto Networks",
+    heroSubtitle: "Gartner Leader · 13+ Years · NGFW, SASE & AI SOC",
+    heroDescription: "The world's most comprehensive cybersecurity platform — covering network firewall (Strata), cloud-delivered SASE (Prisma), and AI-powered security operations (Cortex) — all from one vendor.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -188,12 +194,12 @@ export default function PaloAltoNetworks() {
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Gartner Leader · 13+ Years · NGFW, SASE & AI SOC</div>
-              <h1 className="text-4xl font-bold">Palo Alto Networks</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            The world's most comprehensive cybersecurity platform — covering network firewall (Strata), cloud-delivered SASE (Prisma), and AI-powered security operations (Cortex) — all from one vendor.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

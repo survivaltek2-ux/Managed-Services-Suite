@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const SPECTRUM_BLUE = "#0072ce";
 const SPECTRUM_DARK = "#003087";
@@ -198,6 +199,11 @@ const idealFor = [
 ];
 
 export default function SpectrumBusiness() {
+  const content = usePageContent("spectrum-business", {
+    heroTitle: "Spectrum Business",
+    heroSubtitle: "Charter Communications",
+    heroDescription: "No contracts. No data caps. No equipment rental fees. Business internet, voice, TV, mobile, and fiber — all from one of the top ISPs in 29 states.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -214,12 +220,12 @@ export default function SpectrumBusiness() {
               <Wifi className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Charter Communications</div>
-              <h1 className="text-4xl font-bold">Spectrum Business</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            No contracts. No data caps. No equipment rental fees. Business internet, voice, TV, mobile, and fiber — all from one of the top ISPs in 29 states.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

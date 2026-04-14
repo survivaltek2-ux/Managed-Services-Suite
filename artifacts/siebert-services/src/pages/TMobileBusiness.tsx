@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const TMOB_PINK = "#e20074";
 const TMOB_DARK = "#8b0042";
@@ -192,6 +193,11 @@ const idealFor = [
 ];
 
 export default function TMobileBusiness() {
+  const content = usePageContent("t-mobile-business", {
+    heroTitle: "T-Mobile for Business",
+    heroSubtitle: "America's Largest 5G Network · No Annual Contracts",
+    heroDescription: "5G business internet, mobile plans, IoT connectivity, private 5G networks, and edge computing — all on America's largest 5G network with no annual contract required.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -208,12 +214,12 @@ export default function TMobileBusiness() {
               <Radio className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-pink-200 text-sm font-semibold uppercase tracking-wide">America's Largest 5G Network · No Annual Contracts</div>
-              <h1 className="text-4xl font-bold">T-Mobile for Business</h1>
+              <div className="text-pink-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-pink-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            5G business internet, mobile plans, IoT connectivity, private 5G networks, and edge computing — all on America's largest 5G network with no annual contract required.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

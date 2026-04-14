@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const RC_ORANGE = "#ff6600";
 const RC_DARK = "#c94f00";
@@ -200,6 +201,11 @@ const idealFor = [
 ];
 
 export default function RingCentral() {
+  const content = usePageContent("ringcentral", {
+    heroTitle: "RingCentral",
+    heroSubtitle: "Gartner Magic Quadrant Leader · 10 Years Running",
+    heroDescription: "Cloud phone, video meetings, team messaging, and AI-powered contact center — all in one platform trusted by 400,000+ businesses across 46 countries.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -216,12 +222,12 @@ export default function RingCentral() {
               <Phone className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-orange-200 text-sm font-semibold uppercase tracking-wide">Gartner Magic Quadrant Leader · 10 Years Running</div>
-              <h1 className="text-4xl font-bold">RingCentral</h1>
+              <div className="text-orange-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-orange-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Cloud phone, video meetings, team messaging, and AI-powered contact center — all in one platform trusted by 400,000+ businesses across 46 countries.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

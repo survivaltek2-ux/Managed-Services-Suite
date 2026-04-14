@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const COMCAST_RED = "#e52b0e";
 const COMCAST_DARK = "#1a1a1a";
@@ -198,6 +199,11 @@ const idealFor = [
 ];
 
 export default function ComcastBusiness() {
+  const content = usePageContent("comcast-business", {
+    heroTitle: "Comcast Business",
+    heroSubtitle: "America's Largest Business ISP",
+    heroDescription: "High-speed internet, cloud voice, business TV, mobile, and enterprise SD-WAN — all from one provider serving over 2 million U.S. businesses.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -214,12 +220,12 @@ export default function ComcastBusiness() {
               <Wifi className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-red-200 text-sm font-semibold uppercase tracking-wide">America's Largest Business ISP</div>
-              <h1 className="text-4xl font-bold">Comcast Business</h1>
+              <div className="text-red-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-red-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            High-speed internet, cloud voice, business TV, mobile, and enterprise SD-WAN — all from one provider serving over 2 million U.S. businesses.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

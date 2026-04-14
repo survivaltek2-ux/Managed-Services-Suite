@@ -31,7 +31,8 @@ import {
   MapPin,
   MousePointerClick,
   Zap,
-  ShoppingCart
+  ShoppingCart,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
   { href: "/admin/impact", label: "Impact.com", icon: Zap },
   { href: "/admin/marketplace", label: "Marketplace", icon: ShoppingCart },
+  { href: "/admin/ai-page-editor", label: "AI Page Editor", icon: Sparkles },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -283,6 +285,7 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
     { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
     { href: "/admin/impact", label: "Impact.com", icon: Zap },
+    { href: "/admin/ai-page-editor", label: "AI Page Editor", icon: Sparkles },
   ];
 
   return (

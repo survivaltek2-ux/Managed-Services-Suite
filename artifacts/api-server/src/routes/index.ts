@@ -22,6 +22,7 @@ import impactRouter from "./impact.js";
 import marketplaceRouter from "./marketplace.js";
 import partnerProposalsRouter from "./partner-proposals.js";
 import vivintRouter from "./vivint.js";
+import pageContentRouter from "./page-content";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(impactRouter);
 router.use("/marketplace", marketplaceRouter);
 router.use("/partner/proposals", partnerProposalsRouter);
 router.use("/vivint", vivintRouter);
+router.use(pageContentRouter);
 
 export default router;

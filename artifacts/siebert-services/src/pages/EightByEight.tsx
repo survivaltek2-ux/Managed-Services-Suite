@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const EBE_GREEN = "#00a550";
 const EBE_DARK = "#006633";
@@ -195,6 +196,11 @@ const idealFor = [
 ];
 
 export default function EightByEight() {
+  const content = usePageContent("8x8", {
+    heroTitle: "8x8",
+    heroSubtitle: "UCaaS + CCaaS · 48 Countries · Gartner Recognized",
+    heroDescription: "Cloud phone, video, team chat, and contact center on a single platform — with unlimited calling to 48 countries and 99.999% uptime. Built for global teams.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -211,12 +217,12 @@ export default function EightByEight() {
               <Phone className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-green-200 text-sm font-semibold uppercase tracking-wide">UCaaS + CCaaS · 48 Countries · Gartner Recognized</div>
-              <h1 className="text-4xl font-bold">8x8</h1>
+              <div className="text-green-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-green-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Cloud phone, video, team chat, and contact center on a single platform — with unlimited calling to 48 countries and 99.999% uptime. Built for global teams.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

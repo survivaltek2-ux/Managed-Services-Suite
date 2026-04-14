@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const ADT_BLUE = "#00529b";
 const ADT_RED = "#d32f2f";
@@ -198,6 +199,11 @@ const idealFor = [
 ];
 
 export default function ADTBusiness() {
+  const content = usePageContent("adt-business", {
+    heroTitle: "ADT Business Security",
+    heroSubtitle: "150+ Years Protecting Business · America's #1 Security Company",
+    heroDescription: "Commercial intrusion detection, HD video surveillance, smart access control, fire & life safety, and 24/7 monitoring — all from the most trusted name in American security.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -214,12 +220,12 @@ export default function ADTBusiness() {
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">150+ Years Protecting Business · America's #1 Security Company</div>
-              <h1 className="text-4xl font-bold">ADT Business Security</h1>
+              <div className="text-blue-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-blue-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            Commercial intrusion detection, HD video surveillance, smart access control, fire & life safety, and 24/7 monitoring — all from the most trusted name in American security.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

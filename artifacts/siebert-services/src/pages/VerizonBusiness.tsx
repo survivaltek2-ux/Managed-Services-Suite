@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const VZ_RED = "#cd040b";
 const VZ_DARK = "#1a1a1a";
@@ -198,6 +199,11 @@ const idealFor = [
 ];
 
 export default function VerizonBusiness() {
+  const content = usePageContent("verizon-business", {
+    heroTitle: "Verizon Business",
+    heroSubtitle: "Fios Fiber · 5G · Enterprise WAN",
+    heroDescription: "America's most reliable 5G network combined with 100% fiber Fios, private IP networking, cloud voice, and enterprise cybersecurity — from a global telecommunications leader.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -214,12 +220,12 @@ export default function VerizonBusiness() {
               <Globe className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-red-200 text-sm font-semibold uppercase tracking-wide">Fios Fiber · 5G · Enterprise WAN</div>
-              <h1 className="text-4xl font-bold">Verizon Business</h1>
+              <div className="text-red-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-red-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            America's most reliable 5G network combined with 100% fiber Fios, private IP networking, cloud voice, and enterprise cybersecurity — from a global telecommunications leader.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button

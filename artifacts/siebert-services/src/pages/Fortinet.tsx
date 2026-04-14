@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { VendorInquiryForm } from "@/components/forms/VendorInquiryForm";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const FORT_RED = "#ee3124";
 const FORT_DARK = "#8b0000";
@@ -172,6 +173,11 @@ const idealFor = [
 ];
 
 export default function Fortinet() {
+  const content = usePageContent("fortinet", {
+    heroTitle: "Fortinet",
+    heroSubtitle: "Gartner Leader · World's #1 Firewall",
+    heroDescription: "The world's most deployed network firewall platform. FortiGate NGFW, SD-WAN (included), SASE, Zero Trust, and OT security — all on one operating system with unified management.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -188,12 +194,12 @@ export default function Fortinet() {
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-red-200 text-sm font-semibold uppercase tracking-wide">Gartner Leader · World's #1 Firewall</div>
-              <h1 className="text-4xl font-bold">Fortinet</h1>
+              <div className="text-red-200 text-sm font-semibold uppercase tracking-wide">{content.heroSubtitle}</div>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
             </div>
           </div>
           <p className="text-red-100 text-lg mt-4 max-w-2xl leading-relaxed">
-            The world's most deployed network firewall platform. FortiGate NGFW, SD-WAN (included), SASE, Zero Trust, and OT security — all on one operating system with unified management.
+            {content.heroDescription}
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <button
