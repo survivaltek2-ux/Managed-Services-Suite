@@ -32,6 +32,48 @@ const EMPTY_PARTNER_FORM = {
   tier: "registered", status: "approved",
 };
 
+type PartnerFormData = typeof EMPTY_PARTNER_FORM;
+
+interface PartnerFormProps {
+  isCreate: boolean;
+  form: PartnerFormData;
+  setForm: React.Dispatch<React.SetStateAction<PartnerFormData>>;
+}
+
+function PartnerForm({ isCreate, form, setForm }: PartnerFormProps) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+      <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+        <div className="space-y-1"><Label className="text-xs">Company Name *</Label><Input value={form.companyName} onChange={e => setForm(p => ({ ...p, companyName: e.target.value }))} placeholder="Acme Corp" /></div>
+        <div className="space-y-1"><Label className="text-xs">Contact Name *</Label><Input value={form.contactName} onChange={e => setForm(p => ({ ...p, contactName: e.target.value }))} placeholder="Jane Doe" /></div>
+      </div>
+      <div className="space-y-1"><Label className="text-xs">Email *</Label><Input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@acme.com" /></div>
+      <div className="space-y-1"><Label className="text-xs">Phone</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" /></div>
+      {isCreate && <div className="sm:col-span-2 space-y-1"><Label className="text-xs">Password *</Label><Input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 8 characters" /></div>}
+      <div className="space-y-1"><Label className="text-xs">Website</Label><Input value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://acme.com" /></div>
+      <div className="space-y-1"><Label className="text-xs">Business Type</Label><Input value={form.businessType} onChange={e => setForm(p => ({ ...p, businessType: e.target.value }))} placeholder="MSP, VAR, Reseller…" /></div>
+      <div className="space-y-1"><Label className="text-xs">Address</Label><Input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="123 Main St" /></div>
+      <div className="space-y-1"><Label className="text-xs">City</Label><Input value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></div>
+      <div className="space-y-1"><Label className="text-xs">State</Label><Input value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} placeholder="CA" /></div>
+      <div className="space-y-1"><Label className="text-xs">ZIP</Label><Input value={form.zip} onChange={e => setForm(p => ({ ...p, zip: e.target.value }))} /></div>
+      <div className="space-y-1"><Label className="text-xs">Years in Business</Label><Input value={form.yearsInBusiness} onChange={e => setForm(p => ({ ...p, yearsInBusiness: e.target.value }))} placeholder="5" /></div>
+      <div className="space-y-1"><Label className="text-xs">Employee Count</Label><Input value={form.employeeCount} onChange={e => setForm(p => ({ ...p, employeeCount: e.target.value }))} placeholder="10-50" /></div>
+      <div className="space-y-1">
+        <Label className="text-xs">Tier</Label>
+        <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.tier} onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}>
+          {["registered", "silver", "gold", "platinum"].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+        </select>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Status</Label>
+        <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+          {["pending", "approved", "rejected", "suspended"].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPartners() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -135,37 +177,6 @@ export default function AdminPartners() {
     } catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
-  const PartnerForm = ({ isCreate }: { isCreate: boolean }) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-1">
-      <div className="sm:col-span-2 grid grid-cols-2 gap-3">
-        <div className="space-y-1"><Label className="text-xs">Company Name *</Label><Input value={form.companyName} onChange={e => setForm(p => ({ ...p, companyName: e.target.value }))} placeholder="Acme Corp" /></div>
-        <div className="space-y-1"><Label className="text-xs">Contact Name *</Label><Input value={form.contactName} onChange={e => setForm(p => ({ ...p, contactName: e.target.value }))} placeholder="Jane Doe" /></div>
-      </div>
-      <div className="space-y-1"><Label className="text-xs">Email *</Label><Input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@acme.com" /></div>
-      <div className="space-y-1"><Label className="text-xs">Phone</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" /></div>
-      {isCreate && <div className="sm:col-span-2 space-y-1"><Label className="text-xs">Password *</Label><Input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 8 characters" /></div>}
-      <div className="space-y-1"><Label className="text-xs">Website</Label><Input value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://acme.com" /></div>
-      <div className="space-y-1"><Label className="text-xs">Business Type</Label><Input value={form.businessType} onChange={e => setForm(p => ({ ...p, businessType: e.target.value }))} placeholder="MSP, VAR, Reseller…" /></div>
-      <div className="space-y-1"><Label className="text-xs">Address</Label><Input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="123 Main St" /></div>
-      <div className="space-y-1"><Label className="text-xs">City</Label><Input value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></div>
-      <div className="space-y-1"><Label className="text-xs">State</Label><Input value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} placeholder="CA" /></div>
-      <div className="space-y-1"><Label className="text-xs">ZIP</Label><Input value={form.zip} onChange={e => setForm(p => ({ ...p, zip: e.target.value }))} /></div>
-      <div className="space-y-1"><Label className="text-xs">Years in Business</Label><Input value={form.yearsInBusiness} onChange={e => setForm(p => ({ ...p, yearsInBusiness: e.target.value }))} placeholder="5" /></div>
-      <div className="space-y-1"><Label className="text-xs">Employee Count</Label><Input value={form.employeeCount} onChange={e => setForm(p => ({ ...p, employeeCount: e.target.value }))} placeholder="10-50" /></div>
-      <div className="space-y-1">
-        <Label className="text-xs">Tier</Label>
-        <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.tier} onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}>
-          {["registered", "silver", "gold", "platinum"].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-        </select>
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Status</Label>
-        <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
-          {["pending", "approved", "rejected", "suspended"].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-        </select>
-      </div>
-    </div>
-  );
 
   if (!user || !user.isAdmin) {
     return (
@@ -296,7 +307,7 @@ export default function AdminPartners() {
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogContent className="max-w-2xl">
               <DialogHeader><DialogTitle>Create New Partner</DialogTitle></DialogHeader>
-              <PartnerForm isCreate={true} />
+              <PartnerForm isCreate={true} form={form} setForm={setForm} />
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                 <Button onClick={handleCreate} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}Create Partner</Button>
@@ -307,7 +318,7 @@ export default function AdminPartners() {
           <Dialog open={!!editPartner} onOpenChange={v => !v && setEditPartner(null)}>
             <DialogContent className="max-w-2xl">
               <DialogHeader><DialogTitle>Edit Partner — {editPartner?.companyName}</DialogTitle></DialogHeader>
-              <PartnerForm isCreate={false} />
+              <PartnerForm isCreate={false} form={form} setForm={setForm} />
               <DialogFooter>
                 <Button variant="outline" onClick={() => setEditPartner(null)}>Cancel</Button>
                 <Button onClick={handleUpdate} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Changes</Button>
