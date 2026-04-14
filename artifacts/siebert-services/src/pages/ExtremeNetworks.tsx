@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const EXTREME_PURPLE = "#6B21A8";
 const EXTREME_LIGHT = "#F5F3FF";
@@ -85,6 +86,12 @@ const verticals = [
 ];
 
 export default function ExtremeNetworks() {
+  const content = usePageContent("extreme-networks", {
+    heroSubtitle: "Extreme Partner First™ Member",
+    heroTitle: "AI-Powered Networking",
+    heroAccent: "Built for the Future",
+    heroDescription: "Siebert Services delivers, deploys, and manages the full Extreme Networks portfolio — giving your business enterprise-grade connectivity without enterprise-grade complexity.",
+  });
   return (
     <div className="min-h-screen bg-background">
 
@@ -99,14 +106,14 @@ export default function ExtremeNetworks() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold mb-8">
               <Zap className="w-4 h-4 text-violet-300" />
-              Extreme Partner First™ Member
+              {content.heroSubtitle}
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-extrabold text-white mb-6 tracking-tight leading-tight">
-              AI-Powered Networking<br />
-              <span className="text-violet-300">Built for the Future</span>
+              {content.heroTitle}<br />
+              <span className="text-violet-300">{content.heroAccent}</span>
             </h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto font-medium mb-10">
-              Siebert Services delivers, deploys, and manages the full Extreme Networks portfolio — giving your business enterprise-grade connectivity without enterprise-grade complexity.
+              {content.heroDescription}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/quote">

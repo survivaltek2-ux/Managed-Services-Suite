@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const VIVINT_BLUE = "#0176d3";
 const VIVINT_GREEN = "#2ecc71";
@@ -112,6 +113,11 @@ const faq = [
 ];
 
 export default function Vivint() {
+  const content = usePageContent("vivint", {
+    heroTitle: "Vivint Smart Home Security",
+    heroSubtitle: "Professional monitoring + complete home automation",
+    heroDescription: "Sleep better at night knowing your home is protected by 24/7 professional monitoring, AI-powered threat detection, and smart automation that gives you control from anywhere.",
+  });
   return (
     <div className="w-full bg-background">
       {/* Header */}
@@ -127,12 +133,12 @@ export default function Vivint() {
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold">Vivint Smart Home Security</h1>
-              <p className="text-blue-100 text-lg mt-1">Professional monitoring + complete home automation</p>
+              <h1 className="text-4xl font-bold">{content.heroTitle}</h1>
+              <p className="text-blue-100 text-lg mt-1">{content.heroSubtitle}</p>
             </div>
           </div>
           <p className="text-blue-100 max-w-2xl mb-8 text-lg leading-relaxed">
-            Sleep better at night knowing your home is protected by 24/7 professional monitoring, AI-powered threat detection, and smart automation that gives you control from anywhere.
+            {content.heroDescription}
           </p>
           <Link href="/vivint/inquiry">
             <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-blue-900 font-bold hover:bg-blue-50 transition-colors text-lg">

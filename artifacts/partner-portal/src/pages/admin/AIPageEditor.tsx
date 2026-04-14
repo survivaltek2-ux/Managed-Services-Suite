@@ -137,6 +137,58 @@ const PAGES_CONFIG: Record<string, { label: string; sections: Record<string, { l
       heroDescription: { label: "Hero Description", description: "Lead paragraph below the title", multiline: true },
     },
   },
+  dell: {
+    label: "Dell Technologies",
+    sections: {
+      heroSubtitle: { label: "Partner Badge", description: "Badge text above the headline (e.g. 'Dell Technologies Partner')" },
+      heroTitle: { label: "Hero Title", description: "Main headline (first line of the large h1)" },
+      heroAccent: { label: "Hero Accent", description: "Colored second line of the large h1" },
+      heroDescription: { label: "Hero Description", description: "Paragraph below the headline", multiline: true },
+    },
+  },
+  hp: {
+    label: "HP Solutions",
+    sections: {
+      heroSubtitle: { label: "Partner Badge", description: "Badge text above the headline" },
+      heroTitle: { label: "Hero Title", description: "Main headline (first line of the large h1)" },
+      heroAccent: { label: "Hero Accent", description: "Colored second line of the large h1" },
+      heroDescription: { label: "Hero Description", description: "Paragraph below the headline", multiline: true },
+    },
+  },
+  "extreme-networks": {
+    label: "Extreme Networks",
+    sections: {
+      heroSubtitle: { label: "Partner Badge", description: "Badge text above the headline" },
+      heroTitle: { label: "Hero Title", description: "Main headline (first line of the large h1)" },
+      heroAccent: { label: "Hero Accent", description: "Colored second line of the large h1" },
+      heroDescription: { label: "Hero Description", description: "Paragraph below the headline", multiline: true },
+    },
+  },
+  "juniper-networks": {
+    label: "Juniper Networks",
+    sections: {
+      heroSubtitle: { label: "Partner Badge", description: "Badge text above the headline" },
+      heroTitle: { label: "Hero Title", description: "Main headline (first line of the large h1)" },
+      heroAccent: { label: "Hero Accent", description: "Colored second line of the large h1" },
+      heroDescription: { label: "Hero Description", description: "Paragraph below the headline", multiline: true },
+    },
+  },
+  vivint: {
+    label: "Vivint Smart Home",
+    sections: {
+      heroTitle: { label: "Hero Title", description: "Page headline" },
+      heroSubtitle: { label: "Hero Subtitle", description: "Tagline displayed below the title" },
+      heroDescription: { label: "Hero Description", description: "Lead paragraph below the title", multiline: true },
+    },
+  },
+  "zoom-partner": {
+    label: "Zoom Partner",
+    sections: {
+      heroBadge: { label: "Partner Badge", description: "Badge text (e.g. 'Official Certified Partner')" },
+      heroTitle: { label: "Hero Title", description: "Main headline" },
+      heroDescription: { label: "Hero Description", description: "Paragraph below the headline", multiline: true },
+    },
+  },
 };
 
 function getAuthHeaders(): Record<string, string> {

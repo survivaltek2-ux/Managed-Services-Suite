@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const JUNIPER_GREEN = "#84BD00";
 const JUNIPER_DARK = "#2B3A1F";
@@ -86,6 +87,12 @@ const verticals = [
 ];
 
 export default function JuniperNetworks() {
+  const content = usePageContent("juniper-networks", {
+    heroSubtitle: "Juniper Partner Advantage Member",
+    heroTitle: "AI-Native Networking",
+    heroAccent: "Powered by Mist AI",
+    heroDescription: "Siebert Services designs, deploys, and manages Juniper's AI-Native Networking Platform — giving your business self-driving network operations with Mist AI at the core.",
+  });
   return (
     <div className="min-h-screen bg-background">
 
@@ -100,14 +107,14 @@ export default function JuniperNetworks() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold mb-8">
               <Zap className="w-4 h-4" style={{ color: JUNIPER_GREEN }} />
-              Juniper Partner Advantage Member
+              {content.heroSubtitle}
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-extrabold text-white mb-6 tracking-tight leading-tight">
-              AI-Native Networking<br />
-              <span style={{ color: JUNIPER_GREEN }}>Powered by Mist AI</span>
+              {content.heroTitle}<br />
+              <span style={{ color: JUNIPER_GREEN }}>{content.heroAccent}</span>
             </h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto font-medium mb-10">
-              Siebert Services designs, deploys, and manages Juniper's AI-Native Networking Platform — giving your business self-driving network operations with Mist AI at the core.
+              {content.heroDescription}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/quote">

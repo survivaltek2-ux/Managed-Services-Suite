@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const HP_BLUE = "#0096D6";
 const HP_LIGHT = "#E6F4FB";
@@ -91,6 +92,12 @@ const verticals = [
 ];
 
 export default function HP() {
+  const content = usePageContent("hp", {
+    heroSubtitle: "HP Amplify Partner",
+    heroTitle: "HP Solutions",
+    heroAccent: "Delivered End to End",
+    heroDescription: "Siebert Services procures, deploys, and manages the full HP portfolio — servers, workstations, printers, and cloud — so your team can focus on what matters.",
+  });
   return (
     <div className="min-h-screen bg-background">
 
@@ -105,14 +112,14 @@ export default function HP() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold mb-8">
               <Zap className="w-4 h-4 text-sky-300" />
-              HP Amplify Partner
+              {content.heroSubtitle}
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-extrabold text-white mb-6 tracking-tight leading-tight">
-              HP Solutions<br />
-              <span className="text-sky-300">Delivered End to End</span>
+              {content.heroTitle}<br />
+              <span className="text-sky-300">{content.heroAccent}</span>
             </h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto font-medium mb-10">
-              Siebert Services procures, deploys, and manages the full HP portfolio — servers, workstations, printers, and cloud — so your team can focus on what matters.
+              {content.heroDescription}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/quote">

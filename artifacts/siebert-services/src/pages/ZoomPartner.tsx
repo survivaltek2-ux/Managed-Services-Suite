@@ -1,9 +1,15 @@
 import { motion } from "framer-motion";
+import { usePageContent } from "@/hooks/usePageContent";
 import { Video, Phone, MonitorPlay, CalendarDays, Headset, Sparkles, TrendingUp, MessageSquare, Check } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
 
 export default function ZoomPartner() {
+  const content = usePageContent("zoom-partner", {
+    heroBadge: "Official Certified Partner",
+    heroTitle: "Powering Modern Communication",
+    heroDescription: "Siebert Services is your dedicated partner for deploying, managing, and supporting the entire Zoom ecosystem.",
+  });
   const products = [
     { icon: <Video className="w-8 h-8"/>, title: "Zoom Meetings", desc: "Enterprise-grade video conferencing with flawless quality for teams of all sizes." },
     { icon: <Phone className="w-8 h-8"/>, title: "Zoom Phone", desc: "A modern cloud-based phone system replacing outdated, expensive PBX hardware." },
@@ -28,13 +34,13 @@ export default function ZoomPartner() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-white text-[#0B5CFF] font-bold text-sm mb-8 shadow-lg">
-              <Sparkles className="w-4 h-4" /> Official Certified Partner
+              <Sparkles className="w-4 h-4" /> {content.heroBadge}
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-extrabold text-white mb-6 tracking-tight">
-              Powering Modern <br/> Communication
+              {content.heroTitle}
             </h1>
             <p className="text-xl text-white/90 max-w-2xl mx-auto font-medium">
-              Siebert Services is your dedicated partner for deploying, managing, and supporting the entire Zoom ecosystem.
+              {content.heroDescription}
             </p>
           </motion.div>
         </div>

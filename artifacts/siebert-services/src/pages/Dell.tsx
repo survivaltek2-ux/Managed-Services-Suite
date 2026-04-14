@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
+import { usePageContent } from "@/hooks/usePageContent";
 
 const DELL_BLUE = "#007DB8";
 const DELL_LIGHT = "#E6F3FA";
@@ -85,6 +86,12 @@ const verticals = [
 ];
 
 export default function Dell() {
+  const content = usePageContent("dell", {
+    heroSubtitle: "Dell Technologies Partner",
+    heroTitle: "Dell Technologies",
+    heroAccent: "Managed Your Way",
+    heroDescription: "Siebert Services sources, deploys, and manages the complete Dell Technologies portfolio — servers, storage, cloud, and endpoints — backed by partner-level expertise and pricing.",
+  });
   return (
     <div className="min-h-screen bg-background">
 
@@ -99,14 +106,14 @@ export default function Dell() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold mb-8">
               <Zap className="w-4 h-4 text-cyan-300" />
-              Dell Technologies Partner
+              {content.heroSubtitle}
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-extrabold text-white mb-6 tracking-tight leading-tight">
-              Dell Technologies<br />
-              <span className="text-cyan-300">Managed Your Way</span>
+              {content.heroTitle}<br />
+              <span className="text-cyan-300">{content.heroAccent}</span>
             </h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto font-medium mb-10">
-              Siebert Services sources, deploys, and manages the complete Dell Technologies portfolio — servers, storage, cloud, and endpoints — backed by partner-level expertise and pricing.
+              {content.heroDescription}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/quote">
