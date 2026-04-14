@@ -495,4 +495,89 @@ router.patch("/admin/orders/:id", requireAuth, async (req: AuthRequest, res) => 
   }
 });
 
+// POST /marketplace/admin/ai/product-discovery — query Perplexity for product/service suggestions
+router.post("/admin/ai/product-discovery", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    if (!(await isMainAdmin(req.userId!))) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const { query } = req.body;
+    if (!query || typeof query !== "string" || query.trim().length === 0) {
+      res.status(400).json({ error: "query is required" });
+      return;
+    }
+
+    const apiKey = process.env.PERPLEXITY_API_KEY;
+    if (!apiKey) {
+      res.status(503).json({ error: "Perplexity API key not configured. Set PERPLEXITY_API_KEY in environment secrets." });
+      return;
+    }
+
+    const systemPrompt = `You are a product research assistant for Siebert Services, an MSP/reseller that sells technology products and services to businesses. Your job is to find real products and services that match the admin's search query.
+
+Return ONLY a valid JSON array (no markdown, no extra text) of up to 8 product/service suggestions. Each object must have exactly these fields:
+- "name": product or service name (string)
+- "vendorName": the company that makes or provides it (string)
+- "category": one of: VoIP, ISP, Cybersecurity, VPN, Password Management, Backup, Home Security, Cloud Productivity, Web Hosting, Identity Protection, Consumer Antivirus, Business Connectivity (string)
+- "description": a concise 1–2 sentence description of the product suitable for a reseller catalog (string)
+
+Focus on real, well-known vendors and products. Do not fabricate companies.`;
+
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Find products/services matching this query: ${query.trim()}` },
+        ],
+        temperature: 0.2,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Perplexity API error:", response.status, errText);
+      res.status(502).json({ error: "Perplexity API request failed. Check server logs for details." });
+      return;
+    }
+
+    const data = await response.json() as {
+      choices: Array<{ message: { content: string } }>;
+    };
+
+    const content = data.choices?.[0]?.message?.content ?? "[]";
+
+    let products: Array<{ name: string; vendorName: string; category: string; description: string }>;
+    try {
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      products = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+      if (!Array.isArray(products)) throw new Error("Not an array");
+    } catch {
+      console.error("Failed to parse Perplexity response as JSON:", content);
+      res.status(502).json({ error: "Failed to parse AI response. Try again." });
+      return;
+    }
+
+    const sanitized = products.slice(0, 8).map(p => ({
+      name: String(p.name ?? ""),
+      vendorName: String(p.vendorName ?? ""),
+      category: String(p.category ?? ""),
+      description: String(p.description ?? ""),
+    }));
+
+    res.json({ products: sanitized, query: query.trim() });
+  } catch (error) {
+    console.error("Error in AI product discovery:", error);
+    res.status(500).json({ error: "AI product discovery failed" });
+  }
+});
+
 export default router;
