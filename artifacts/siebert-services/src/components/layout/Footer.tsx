@@ -72,6 +72,7 @@ export function Footer() {
                 { label: 'Internet Plans', href: '/internet-plans' },
                 { label: 'Blog', href: '/blog' },
                 { label: 'Privacy Policy', href: '/privacy' },
+                { label: 'Terms of Service', href: '/terms' },
               ].map((link) => (
                 <li key={link.label}>
                   <Link 
@@ -165,7 +166,7 @@ export function Footer() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-xs sm:text-sm text-white/50">
             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-            <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+            <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
           </div>
         </div>
       </div>

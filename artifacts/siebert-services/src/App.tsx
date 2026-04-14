@@ -17,6 +17,7 @@ import ProposalView from "./pages/ProposalView";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import AffiliateRecommendations from "./pages/AffiliateRecommendations";
 import ExtremeNetworks from "./pages/ExtremeNetworks";
 import HP from "./pages/HP";
@@ -55,6 +56,7 @@ function PublicRouter() {
         <Route path="/contact" component={Contact} />
         <Route path="/quote" component={Quote} />
         <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
 
         {/* Features & Tools */}
         <Route path="/internet-plans" component={InternetPlans} />

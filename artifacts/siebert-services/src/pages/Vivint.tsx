@@ -140,11 +140,9 @@ export default function Vivint() {
           <p className="text-blue-100 max-w-2xl mb-8 text-lg leading-relaxed">
             {content.heroDescription}
           </p>
-          <Link href="/vivint/inquiry">
-            <a className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-blue-900 font-bold hover:bg-blue-50 transition-colors text-lg">
-              <Send className="w-5 h-5" />
-              Get Your Free Quote
-            </a>
+          <Link href="/vivint/inquiry" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-blue-900 font-bold hover:bg-blue-50 transition-colors text-lg">
+            <Send className="w-5 h-5" />
+            Get Your Free Quote
           </Link>
         </div>
       </motion.div>
@@ -246,10 +244,8 @@ export default function Vivint() {
                     ))}
                   </ul>
 
-                  <Link href="/vivint/inquiry">
-                    <a className="block w-full px-4 py-3 rounded-lg font-bold text-white text-center transition-all" style={{ backgroundColor: pkg.color }}>
-                      {pkg.cta}
-                    </a>
+                  <Link href="/vivint/inquiry" className="block w-full px-4 py-3 rounded-lg font-bold text-white text-center transition-all" style={{ backgroundColor: pkg.color }}>
+                    {pkg.cta}
                   </Link>
                 </div>
               </motion.div>
@@ -405,11 +401,9 @@ export default function Vivint() {
           <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
             Join thousands of homeowners who sleep better with Vivint's 24/7 professional monitoring and smart home automation.
           </p>
-          <Link href="/vivint/inquiry">
-            <a className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-white text-blue-600 font-bold hover:bg-blue-50 transition-colors text-lg">
-              <Send className="w-5 h-5" />
-              Request Your Free Quote
-            </a>
+          <Link href="/vivint/inquiry" className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-white text-blue-600 font-bold hover:bg-blue-50 transition-colors text-lg">
+            <Send className="w-5 h-5" />
+            Request Your Free Quote
           </Link>
           <p className="text-blue-100 text-sm mt-6">No credit card required. Flexible financing available.</p>
         </motion.div>

@@ -43,3 +43,6 @@ OKTA_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/okta/callback"
 
 [nix]
 channel = "stable-25_05"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-51f9cdc2-8a83-46ad-92a9-7f7a5b82de88"
