@@ -1,5 +1,6 @@
 import app from "./app";
 import { ensureTsdConfigsExist, startTsdSyncScheduler } from "./lib/tsdSync.js";
+import { seedDatabase } from "./db-seed.js";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const port = Number(rawPort);
@@ -10,6 +11,11 @@ if (Number.isNaN(port) || port <= 0) {
 
 app.listen(port, async () => {
   console.log(`Server listening on port ${port}`);
+  try {
+    await seedDatabase();
+  } catch (err) {
+    console.error("[seed] Startup seed error:", err);
+  }
   try {
     await ensureTsdConfigsExist();
     await startTsdSyncScheduler();

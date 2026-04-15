@@ -14,9 +14,6 @@ import {
   TrendingUp,
   DollarSign,
   Loader,
-  Sparkles,
-  Search,
-  Download,
 } from "lucide-react";
 
 interface Vendor {
@@ -68,14 +65,7 @@ const CATEGORIES = [
   "Identity Protection", "Consumer Antivirus", "Business Connectivity",
 ];
 
-interface AiProduct {
-  name: string;
-  vendorName: string;
-  category: string;
-  description: string;
-}
-
-type Tab = "vendors" | "products" | "orders" | "ai-discovery";
+type Tab = "vendors" | "products" | "orders";
 
 export default function AdminMarketplace() {
   const [tab, setTab] = useState<Tab>("vendors");
@@ -104,12 +94,6 @@ export default function AdminMarketplace() {
   });
 
   const [submitting, setSubmitting] = useState(false);
-
-  // AI Discovery state
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiResults, setAiResults] = useState<AiProduct[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
 
   // TSD product import modal
   const [showTsdModal, setShowTsdModal] = useState(false);
@@ -256,62 +240,6 @@ export default function AdminMarketplace() {
     }
   }
 
-  // ── AI Discovery actions ─────────────────────────────────────────────────────
-
-  async function runAiDiscovery() {
-    if (!aiQuery.trim()) return;
-    setAiLoading(true);
-    setAiError(null);
-    setAiResults([]);
-    try {
-      const res = await api("/admin/ai/product-discovery", {
-        method: "POST",
-        body: JSON.stringify({ query: aiQuery }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setAiError(data.error || "AI discovery failed");
-        return;
-      }
-      setAiResults(data.products || []);
-      if ((data.products || []).length === 0) {
-        setAiError("No products found. Try a different search query.");
-      }
-    } catch {
-      setAiError("Network error. Please try again.");
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  function importAiProduct(p: AiProduct) {
-    setEditProduct(null);
-    const matchedVendor = vendors.find(
-      v => v.name.toLowerCase() === p.vendorName.toLowerCase()
-    );
-    setProductForm({
-      vendorId: matchedVendor ? matchedVendor.id.toString() : "",
-      title: p.name,
-      description: p.description,
-      category: CATEGORIES.includes(p.category) ? p.category : "",
-      price: "",
-      commissionRate: "15",
-      status: "draft",
-    });
-    setShowProductModal(true);
-  }
-
-  function importAiProductToTSD(p: AiProduct) {
-    setTsdForm({
-      name: p.name,
-      description: p.description,
-      category: p.category,
-      availableAt: [],
-      active: true,
-    });
-    setShowTsdModal(true);
-  }
-
   async function saveTsdProduct() {
     if (!tsdForm.name || !tsdForm.category) {
       setError("Name and category are required");
@@ -452,17 +380,6 @@ export default function AdminMarketplace() {
                 <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{count}</span>
               </button>
             ))}
-            <button
-              onClick={() => setTab("ai-discovery")}
-              className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition ${
-                tab === "ai-discovery"
-                  ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              AI Discovery
-            </button>
           </nav>
         </div>
 
@@ -681,104 +598,6 @@ export default function AdminMarketplace() {
           </div>
         )}
 
-        {/* ── AI Discovery Tab ─────────────────────────────────────────────── */}
-        {tab === "ai-discovery" && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5 text-purple-600" />
-                <h2 className="text-lg font-semibold text-purple-900">AI Product Discovery</h2>
-              </div>
-              <p className="text-sm text-purple-700 mb-4">
-                Search for real products and services using AI. Review the results and import any to the marketplace catalog.
-              </p>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={aiQuery}
-                  onChange={e => setAiQuery(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && runAiDiscovery()}
-                  placeholder='e.g. "UCaaS providers for SMB" or "SD-WAN cybersecurity services"'
-                  className="flex-1 border border-purple-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                />
-                <button
-                  onClick={runAiDiscovery}
-                  disabled={aiLoading || !aiQuery.trim()}
-                  className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition text-sm font-medium"
-                >
-                  {aiLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  {aiLoading ? "Searching…" : "Search"}
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {["UCaaS providers for SMB", "SD-WAN cybersecurity", "cloud backup solutions", "business VoIP systems", "endpoint protection"].map(q => (
-                  <button
-                    key={q}
-                    onClick={() => { setAiQuery(q); }}
-                    className="text-xs bg-white text-purple-700 border border-purple-200 rounded-full px-3 py-1 hover:bg-purple-50 transition"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {aiError && (
-              <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                <span>{aiError}</span>
-                <button onClick={() => setAiError(null)}><X className="w-4 h-4" /></button>
-              </div>
-            )}
-
-            {aiResults.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    {aiResults.length} result{aiResults.length !== 1 ? "s" : ""} found
-                  </h3>
-                  <span className="text-xs text-gray-400">Click "Import" to open the product creation form pre-filled with AI data</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {aiResults.map((p, i) => (
-                    <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-3 hover:border-purple-300 transition">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-gray-900">{p.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{p.vendorName}</p>
-                        </div>
-                        <span className="text-xs bg-purple-100 text-purple-700 font-medium px-2 py-1 rounded-full whitespace-nowrap">{p.category}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 line-clamp-3">{p.description}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => importAiProduct(p)}
-                          className="flex items-center justify-center gap-1.5 flex-1 bg-blue-600 text-white text-xs py-2 rounded-lg hover:bg-blue-700 transition"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Marketplace
-                        </button>
-                        <button
-                          onClick={() => importAiProductToTSD(p)}
-                          className="flex items-center justify-center gap-1.5 flex-1 bg-purple-600 text-white text-xs py-2 rounded-lg hover:bg-purple-700 transition"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          TSD Catalog
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!aiLoading && aiResults.length === 0 && !aiError && (
-              <div className="text-center py-16 text-gray-400">
-                <Sparkles className="w-10 h-10 mx-auto mb-3 text-purple-200" />
-                <p className="text-sm">Enter a search query above to discover products and services.</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── Vendor Modal ───────────────────────────────────────────────────── */}

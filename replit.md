@@ -41,7 +41,7 @@ The project uses a pnpm workspace monorepo with three main applications under `a
 ## Feature Specifications
 - **230+ Supplier Knowledge Base**: `artifacts/api-server/src/data/suppliers.ts` — all 232 supplier partners with name, website, industry, categories, and key products. Used both as a DB seed source and as AI discovery context.
 - **Marketplace DB**: 238 approved vendors + 245 active products seeded from the supplier catalog. Category breakdown: Connectivity (72), Security (43), Contact Center (28), Communications (20), Data Centers (17), Managed IT (10), Cloud (9), Networking (8), etc.
-- **AI Product Discovery**: Perplexity AI endpoint injects the full 232-supplier catalog into its system prompt so it prioritizes known Siebert partners when making product suggestions.
+- **Startup DB Seeding**: `artifacts/api-server/src/db-seed.ts` — runs on every startup, checks vendor count, and auto-seeds all 232 suppliers if fewer than 100 exist. Idempotent and non-fatal. Ensures the production database is populated on first deploy.
 - **AI Chat Assistant**: GPT-5.2 powered, streaming SSE, conversation history persisted.
 - **Client Portal**: Support tickets, quote viewing, billing, account management.
 - **Partner Portal**: Dashboard with KPIs, deal registration (list/kanban), lead management, commission tracking (with dispute workflow), document sharing, training, announcements, support cases. Automated partner tier promotion (Silver: $100k, Gold: $250k, Platinum: $500k YTD revenue).
