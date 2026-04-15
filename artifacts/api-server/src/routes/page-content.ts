@@ -100,7 +100,7 @@ router.put("/page-content/:slug", requireAuth, requireAdmin, async (req, res) =>
 
 router.post("/page-content/ai-suggest", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { pageSlug, pageName, currentContent, userRequest } = req.body;
+    const { pageSlug, pageName, currentContent, userRequest, allPages } = req.body;
 
     if (!userRequest) {
       res.status(400).json({ error: "userRequest is required" });
@@ -113,7 +113,61 @@ router.post("/page-content/ai-suggest", requireAuth, requireAdmin, async (req, r
 
     const openai = getOpenAI();
 
-    const systemPrompt = `You are an expert copywriter and web content editor for Siebert Services, a professional B2B Managed Service Provider (MSP) and technology reseller.
+    const isGlobal = !pageSlug && Array.isArray(allPages) && allPages.length > 0;
+
+    let systemPrompt: string;
+    let userMessage: string;
+
+    if (isGlobal) {
+      // Fetch current content for all pages from the DB
+      const allContent: Record<string, Record<string, string>> = {};
+      for (const pg of allPages as Array<{ slug: string; label: string; sections: Record<string, { label: string; description: string }> }>) {
+        const sections = await db
+          .select()
+          .from(pageSectionsTable)
+          .where(eq(pageSectionsTable.pageSlug, pg.slug));
+        allContent[pg.slug] = {};
+        for (const s of sections) {
+          allContent[pg.slug][s.sectionKey] = s.content;
+        }
+      }
+
+      const pageList = (allPages as Array<{ slug: string; label: string; sections: Record<string, { label: string }> }>)
+        .map(pg => {
+          const fields = Object.entries(pg.sections).map(([k, v]) => `  - ${k}: ${v.label}`).join("\n");
+          const current = allContent[pg.slug] ?? {};
+          const currentFields = Object.entries(current).map(([k, v]) => `  ${k}: "${v}"`).join("\n");
+          return `Page: "${pg.label}" (slug: ${pg.slug})\nEditable fields:\n${fields}\nCurrent content:\n${currentFields || "  (all defaults — nothing saved yet)"}`;
+        })
+        .join("\n\n---\n\n");
+
+      systemPrompt = `You are an expert copywriter and web content editor for Siebert Services, a professional B2B MSP and technology reseller.
+
+You help the admin update text on any of the vendor/service pages on their website. The admin will describe what they want changed in plain English — you must figure out which page they are referring to and what to change.
+
+Tone: professional, B2B-focused, benefit-driven, concise.
+
+You must respond with ONLY valid JSON — no markdown, no explanation. The JSON must include a "targetSlug" field (the slug of the page being edited) plus any content fields that should change.
+
+Example response:
+{
+  "targetSlug": "att-business",
+  "heroTitle": "Updated Title Here",
+  "heroDescription": "Updated description."
+}
+
+Only include fields that should change. If a field should stay the same, omit it. Always include targetSlug.`;
+
+      userMessage = `${pageList}
+
+---
+
+Admin request: ${userRequest}
+
+Identify the correct page from the request, then return ONLY the JSON object with "targetSlug" and any updated content fields.`;
+
+    } else {
+      systemPrompt = `You are an expert copywriter and web content editor for Siebert Services, a professional B2B Managed Service Provider (MSP) and technology reseller.
 
 You help the admin update the text content of vendor/service pages on their website. When given current page content and a request for changes, you respond ONLY with a JSON object containing the updated content fields.
 
@@ -133,7 +187,7 @@ Example response format:
 
 Only include fields that should change based on the user's request. If a field should stay the same, omit it from your response.`;
 
-    const userMessage = `Page: ${pageName} (slug: ${pageSlug})
+      userMessage = `Page: ${pageName} (slug: ${pageSlug})
 
 Current content:
 ${JSON.stringify(currentContent, null, 2)}
@@ -141,6 +195,7 @@ ${JSON.stringify(currentContent, null, 2)}
 Admin request: ${userRequest}
 
 Return ONLY the JSON object with updated content fields.`;
+    }
 
     let fullResponse = "";
 

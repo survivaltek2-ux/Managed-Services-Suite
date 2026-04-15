@@ -246,19 +246,18 @@ export default function AIPageEditor() {
     setAiRaw("");
     setAiError(null);
 
+    const allPagesPayload = Object.entries(PAGES_CONFIG).map(([slug, cfg]) => ({
+      slug,
+      label: cfg.label,
+      sections: cfg.sections,
+    }));
+
     try {
       const res = await fetch(`${BASE}api/page-content/ai-suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
-          pageSlug: selectedSlug,
-          pageName: pageConfig?.label,
-          currentContent: Object.fromEntries(
-            Object.keys(pageConfig?.sections ?? {}).map((key) => [
-              key,
-              editedContent[key] ?? `[No content set for ${key}]`,
-            ])
-          ),
+          allPages: allPagesPayload,
           userRequest: aiRequest,
         }),
       });
@@ -285,7 +284,11 @@ export default function AIPageEditor() {
             try {
               const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
               const parsed = JSON.parse(cleaned);
-              setAiSuggestions(parsed);
+              const { targetSlug, ...suggestions } = parsed as { targetSlug?: string } & Record<string, string>;
+              if (targetSlug && PAGES_CONFIG[targetSlug]) {
+                setSelectedSlug(targetSlug);
+              }
+              setAiSuggestions(suggestions);
             } catch {
               setAiError("AI returned an unexpected format. Try again.");
             }
@@ -357,25 +360,8 @@ export default function AIPageEditor() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Page selector + AI chat */}
+          {/* Left: AI chat */}
           <div className="lg:col-span-1 space-y-4">
-            {/* Page selector */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Select Page</label>
-              <div className="relative">
-                <select
-                  value={selectedSlug}
-                  onChange={(e) => setSelectedSlug(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  {Object.entries(PAGES_CONFIG).map(([slug, cfg]) => (
-                    <option key={slug} value={slug}>{cfg.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-2.5 pointer-events-none" />
-              </div>
-            </div>
-
             {/* AI Chat */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -383,14 +369,14 @@ export default function AIPageEditor() {
                 <h2 className="text-sm font-semibold text-gray-700">AI Content Assistant</h2>
               </div>
               <p className="text-xs text-gray-500 mb-3">
-                Describe what you want to change. The AI will suggest new content for the selected page.
+                Describe what you want to change — mention the page by name and the AI will find it automatically.
               </p>
               <textarea
                 ref={aiInputRef}
                 value={aiRequest}
                 onChange={(e) => setAiRequest(e.target.value)}
-                placeholder={`e.g. "Make the hero description more exciting and mention our 24/7 support" or "Rewrite the subtitle to focus on enterprise customers"`}
-                rows={5}
+                placeholder={`e.g. "Update the AT&T Business hero title to focus on fiber speed" or "Make the RingCentral description more exciting and mention 24/7 support"`}
+                rows={6}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAiSuggest();
@@ -459,7 +445,21 @@ export default function AIPageEditor() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-                <h2 className="font-semibold text-[#032d60]">{pageConfig?.label} — Content</h2>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">Viewing:</span>
+                  <div className="relative">
+                    <select
+                      value={selectedSlug}
+                      onChange={(e) => setSelectedSlug(e.target.value)}
+                      className="border border-gray-300 rounded-md pl-2 pr-7 py-1 text-sm font-semibold text-[#032d60] appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    >
+                      {Object.entries(PAGES_CONFIG).map(([slug, cfg]) => (
+                        <option key={slug} value={slug}>{cfg.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-1.5 pointer-events-none" />
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   {hasChanges && (
                     <button
@@ -549,10 +549,11 @@ export default function AIPageEditor() {
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-blue-800 mb-1">How it works</h3>
               <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                <li>Just describe what you want — mention the page name and the AI finds the right page automatically</li>
                 <li>Changes saved here override the default text on the live website immediately</li>
                 <li>Fields left blank use the page's built-in default text</li>
-                <li>Use the AI assistant to describe changes in plain English — it generates suggested content for you</li>
                 <li>Review AI suggestions and apply individual ones or all at once, then hit Save</li>
+                <li>Use the "Viewing" dropdown to manually browse or edit any page at any time</li>
               </ul>
             </div>
           </div>
