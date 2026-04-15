@@ -515,15 +515,24 @@ router.post("/admin/ai/product-discovery", requireAuth, async (req: AuthRequest,
       return;
     }
 
+    // Build supplier catalog context from known partner list
+    const { getSupplierCatalogSummary } = await import("../data/suppliers.js");
+    const catalogSummary = getSupplierCatalogSummary();
+
     const systemPrompt = `You are a product research assistant for Siebert Services, an MSP/reseller that sells technology products and services to businesses. Your job is to find real products and services that match the admin's search query.
+
+Siebert Services has an established catalog of 230+ supplier partners. Prioritize suggestions from this catalog when relevant, but you may also suggest other well-known vendors if they are a better fit.
+
+SIEBERT SERVICES KNOWN SUPPLIER CATALOG:
+${catalogSummary}
 
 Return ONLY a valid JSON array (no markdown, no extra text) of up to 8 product/service suggestions. Each object must have exactly these fields:
 - "name": product or service name (string)
 - "vendorName": the company that makes or provides it (string)
-- "category": one of: VoIP, ISP, Cybersecurity, VPN, Password Management, Backup, Home Security, Cloud Productivity, Web Hosting, Identity Protection, Consumer Antivirus, Business Connectivity (string)
+- "category": one of: Connectivity, Communications, Contact Center, Security, Data Centers, Cloud, Managed IT, IoT, Networking, Mobility, AI & Automation, Payments, Expense Management, Physical Security, Technology (string)
 - "description": a concise 1–2 sentence description of the product suitable for a reseller catalog (string)
 
-Focus on real, well-known vendors and products. Do not fabricate companies.`;
+Focus on real, well-known vendors and products. Do not fabricate companies. Prefer suppliers from the catalog above when the query matches their offerings.`;
 
     const response = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
