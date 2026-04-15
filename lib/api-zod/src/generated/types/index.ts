@@ -46,5 +46,7 @@ export * from "./ticketInputCategory";
 export * from "./ticketInputPriority";
 export * from "./ticketPriority";
 export * from "./ticketStatus";
+export * from "./uploadUrlRequest";
+export * from "./uploadUrlResponse";
 export * from "./user";
 export * from "./userRole";

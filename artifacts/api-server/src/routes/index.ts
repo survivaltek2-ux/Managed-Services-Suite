@@ -23,6 +23,7 @@ import marketplaceRouter from "./marketplace.js";
 import partnerProposalsRouter from "./partner-proposals.js";
 import vivintRouter from "./vivint.js";
 import pageContentRouter from "./page-content";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use("/marketplace", marketplaceRouter);
 router.use("/partner/proposals", partnerProposalsRouter);
 router.use("/vivint", vivintRouter);
 router.use(pageContentRouter);
+router.use(storageRouter);
 
 export default router;

@@ -70,6 +70,20 @@ The database uses PostgreSQL and Drizzle ORM. Key tables include `users`, `conta
 - **Email templates**: All user-provided data in `email.ts` HTML templates is escaped through the `esc()` helper function
 - **Legal pages**: `/privacy` and `/terms` both exist with proper routes in App.tsx
 
+## Object Storage (App Storage)
+
+Replit App Storage (GCS-backed) is provisioned and active. The following environment variables are set:
+- `DEFAULT_OBJECT_STORAGE_BUCKET_ID` — GCS bucket ID for the workspace
+- `PUBLIC_OBJECT_SEARCH_PATHS` — search paths for public assets served at `/api/storage/public-objects/*`
+- `PRIVATE_OBJECT_DIR` — directory for user-uploaded objects served at `/api/storage/objects/*`
+
+**API endpoints** (mounted in `artifacts/api-server/src/routes/storage.ts`):
+- `POST /api/storage/uploads/request-url` — request a presigned GCS URL for direct upload; returns `{ uploadURL, objectPath }` where `objectPath` (e.g. `uploads/<uuid>`) can be passed directly to the retrieval hook
+- `GET /api/storage/objects/{objectPath}` — serve a private uploaded object
+- `GET /api/storage/public-objects/{filePath}` — serve public assets (no auth)
+
+**Client library** at `lib/object-storage-web` exports `ObjectUploader` (Uppy-based modal) and `useUpload` (hook for programmatic uploads).
+
 # External Dependencies
 
 - **Database**: PostgreSQL

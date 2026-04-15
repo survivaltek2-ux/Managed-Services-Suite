@@ -24,7 +24,9 @@
       "path-to-regexp": "8.4.0",
       "picomatch@2": "2.3.2",
       "picomatch@4": "4.0.4",
-      "axios": ">=1.15.0"
+      "axios": ">=1.15.0",
+      "react": "19.1.0",
+      "react-dom": "19.1.0"
     }
   }
 }
