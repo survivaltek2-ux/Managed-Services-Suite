@@ -2,15 +2,7 @@ import { Router } from "express";
 import { db, partnersTable, partnerLeadsTable, partnerDealsTable, partnerCommissionsTable, invoicesTable, contactsTable, marketplaceVendorsTable, marketplaceOrdersTable, marketplaceProductsTable, pageSectionsTable } from "@workspace/db";
 import { eq, desc, sql, like, or, and } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, type PartnerRequest } from "../middlewares/partnerAuth.js";
-
-type OpenAIClient = typeof import("@workspace/integrations-openai-ai-server").openai;
-let _openai: OpenAIClient | null = null;
-function getOpenAI(): OpenAIClient {
-  if (!_openai) {
-    _openai = require("@workspace/integrations-openai-ai-server").openai as OpenAIClient;
-  }
-  return _openai;
-}
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router = Router();
 
@@ -413,8 +405,6 @@ router.post("/admin/ai-assistant", requirePartnerAuth, requirePartnerAdmin, asyn
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-
-    const openai = getOpenAI();
 
     const systemPrompt = `You are an AI admin assistant for Siebert Services, a B2B MSP and technology reseller. You help the admin manage all business operations.
 

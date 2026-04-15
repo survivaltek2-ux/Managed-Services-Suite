@@ -2,16 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { conversations, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
-
-type OpenAIClient = typeof import("@workspace/integrations-openai-ai-server").openai;
-let _openai: OpenAIClient | null = null;
-function getOpenAI(): OpenAIClient {
-  if (!_openai) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    _openai = require("@workspace/integrations-openai-ai-server").openai as OpenAIClient;
-  }
-  return _openai;
-}
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router = Router();
 
@@ -117,7 +108,7 @@ router.post("/openai/conversations/:id/messages", async (req, res) => {
 
   let fullResponse = "";
 
-  const stream = await getOpenAI().chat.completions.create({
+  const stream = await openai.chat.completions.create({
     model: "gpt-5.2",
     max_completion_tokens: 8192,
     messages: chatMessages,

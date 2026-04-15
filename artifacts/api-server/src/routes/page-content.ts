@@ -3,15 +3,7 @@ import { db } from "@workspace/db";
 import { pageSectionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
-
-type OpenAIClient = typeof import("@workspace/integrations-openai-ai-server").openai;
-let _openai: OpenAIClient | null = null;
-function getOpenAI(): OpenAIClient {
-  if (!_openai) {
-    _openai = require("@workspace/integrations-openai-ai-server").openai as OpenAIClient;
-  }
-  return _openai;
-}
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router = Router();
 
@@ -110,8 +102,6 @@ router.post("/page-content/ai-suggest", requireAuth, requireAdmin, async (req, r
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-
-    const openai = getOpenAI();
 
     const isGlobal = !pageSlug && Array.isArray(allPages) && allPages.length > 0;
 
