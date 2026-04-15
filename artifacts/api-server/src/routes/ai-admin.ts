@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, partnersTable, partnerLeadsTable, partnerDealsTable, partnerCommissionsTable, invoicesTable, contactsTable, marketplaceVendorsTable, marketplaceOrdersTable, marketplaceProductsTable, pageSectionsTable } from "@workspace/db";
 import { eq, desc, sql, like, or, and } from "drizzle-orm";
-import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
+import { requirePartnerAuth, requirePartnerAdmin, type PartnerRequest } from "../middlewares/partnerAuth.js";
 
 type OpenAIClient = typeof import("@workspace/integrations-openai-ai-server").openai;
 let _openai: OpenAIClient | null = null;
@@ -399,7 +399,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
   }
 }
 
-router.post("/admin/ai-assistant", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+router.post("/admin/ai-assistant", requirePartnerAuth, requirePartnerAdmin, async (req: PartnerRequest, res) => {
   try {
     const { messages } = req.body as {
       messages: Array<{ role: "user" | "assistant"; content: string }>;
@@ -482,23 +482,10 @@ Available page slugs for content editing: home, comcast-business, spectrum-busin
       }
 
       const finalText = msg.content ?? "";
-      const stream = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [...apiMessages, { role: "assistant", content: finalText }],
-        stream: true,
-        max_completion_tokens: 4096,
-      });
-
-      let streamed = "";
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content ?? "";
-        if (delta) {
-          streamed += delta;
-          send({ type: "content", text: delta });
-        }
+      if (finalText) {
+        send({ type: "content", text: finalText });
       }
-
-      send({ type: "done", fullText: streamed || finalText });
+      send({ type: "done", fullText: finalText });
       res.end();
       return;
     }

@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Wand2, Send, Loader2, User, Bot, ChevronDown, ChevronUp, RotateCcw, Zap } from "lucide-react";
-import { getAuthHeaders } from "@/hooks/use-auth";
+function getAdminAuthHeaders() {
+  const token = localStorage.getItem("token") || localStorage.getItem("partner_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -150,7 +153,7 @@ export default function AdminAIAssistant() {
     try {
       const res = await fetch(`${BASE}api/admin/ai-assistant`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        headers: { "Content-Type": "application/json", ...getAdminAuthHeaders() },
         body: JSON.stringify({ messages: history }),
       });
 
