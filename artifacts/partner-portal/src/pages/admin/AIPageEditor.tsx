@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
-import { ArrowLeft, Wand2, Save, RotateCcw, ChevronDown, CheckCircle, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, Wand2, Save, RotateCcw, ChevronDown, CheckCircle, Loader2, AlertCircle, Sparkles, MessageSquare, FileText } from "lucide-react";
+import AdminAIAssistant from "./AdminAIAssistant";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -196,8 +197,11 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+type Mode = "page-editor" | "ai-assistant";
+
 export default function AIPageEditor() {
   const { user } = useAuth();
+  const [mode, setMode] = useState<Mode>("ai-assistant");
   const [selectedSlug, setSelectedSlug] = useState<string>("home");
   const [content, setContent] = useState<Record<string, string>>({});
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
@@ -342,7 +346,7 @@ export default function AIPageEditor() {
 
   return (
     <PortalLayout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Link href="/admin/inquiries">
@@ -350,15 +354,45 @@ export default function AIPageEditor() {
               <ArrowLeft className="w-5 h-5" />
             </a>
           </Link>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-[#032d60] flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-purple-600" />
-              AI Page Editor
+              AI Admin Tools
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Use AI to update content across your vendor and service pages</p>
+            <p className="text-sm text-gray-500 mt-0.5">Manage your business and edit pages using AI</p>
+          </div>
+          {/* Mode tabs */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setMode("ai-assistant")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition ${
+                mode === "ai-assistant" ? "bg-white shadow text-purple-700" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              AI Assistant
+            </button>
+            <button
+              onClick={() => setMode("page-editor")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition ${
+                mode === "page-editor" ? "bg-white shadow text-purple-700" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Page Editor
+            </button>
           </div>
         </div>
 
+        {/* AI Assistant Mode */}
+        {mode === "ai-assistant" && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ height: "70vh" }}>
+            <AdminAIAssistant />
+          </div>
+        )}
+
+        {/* Page Editor Mode */}
+        {mode === "page-editor" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: AI chat */}
           <div className="lg:col-span-1 space-y-4">
@@ -558,6 +592,7 @@ export default function AIPageEditor() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </PortalLayout>
   );
