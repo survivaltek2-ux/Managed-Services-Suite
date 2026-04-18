@@ -1,5 +1,138 @@
-import { db, marketplaceVendorsTable, marketplaceProductsTable } from "@workspace/db";
+import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable } from "@workspace/db";
 import { count, eq } from "drizzle-orm";
+
+async function seedTrustContent(): Promise<void> {
+  try {
+    // Testimonials
+    const [{ tCount }] = await db.select({ tCount: count() }).from(testimonialsTable);
+    if (tCount === 0) {
+      await db.insert(testimonialsTable).values([
+        { name: "Maria Chen", company: "Northbridge Realty Group", role: "Director of Operations",
+          content: "Siebert took our entire IT stack off our plate. Helpdesk response is under 10 minutes, our 365 migration was painless, and we finally have one number to call when anything breaks.",
+          rating: 5, sortOrder: 0 },
+        { name: "David Okafor", company: "Halcyon Manufacturing", role: "VP of Finance",
+          content: "We were burning ~$4k/month on shadow IT and ad-hoc fixes. After 90 days with Siebert we cut that in half and finally passed our cyber-insurance security audit.",
+          rating: 5, sortOrder: 1 },
+        { name: "Priya Raman", company: "Glenwood Medical Partners", role: "Practice Administrator",
+          content: "Their HIPAA-aware approach was the deciding factor. They documented everything, hardened our endpoints, and trained our staff. Auditors were happy.",
+          rating: 5, sortOrder: 2 },
+        { name: "Tom Whitaker", company: "Fairlane Logistics", role: "President",
+          content: "We bought our firewalls, switches, and Microsoft 365 through Siebert and they manage all of it. One vendor, one invoice, and the pricing was better than going direct.",
+          rating: 5, sortOrder: 3 },
+        { name: "Aisha Bello", company: "Vesper Hospitality Group", role: "IT Manager",
+          content: "Onboarding 11 properties under one MSP was a heavy lift. Siebert built us a runbook, did the cutover after-hours, and we had zero guest-facing downtime.",
+          rating: 5, sortOrder: 4 },
+      ]);
+      console.log("[seed] Inserted 5 testimonials");
+    }
+
+    // Certifications
+    const [{ cCount }] = await db.select({ cCount: count() }).from(certificationsTable);
+    if (cCount === 0) {
+      const certs = [
+        { name: "Microsoft Solutions Partner", category: "partner" },
+        { name: "Microsoft 365 CSP", category: "partner" },
+        { name: "Cisco Select Partner", category: "partner" },
+        { name: "Fortinet Authorized Partner", category: "partner" },
+        { name: "CompTIA Security+", category: "certification" },
+        { name: "CompTIA Network+", category: "certification" },
+        { name: "AWS Select Tier Partner", category: "partner" },
+        { name: "Zoom Certified Partner", category: "partner" },
+        { name: "HP Amplify Partner", category: "partner" },
+        { name: "Dell Technologies Partner", category: "partner" },
+      ];
+      await db.insert(certificationsTable).values(certs.map((c, i) => ({ ...c, sortOrder: i })));
+      console.log(`[seed] Inserted ${certs.length} certifications`);
+    }
+
+    // Company stats
+    const [{ sCount }] = await db.select({ sCount: count() }).from(companyStatsTable);
+    if (sCount === 0) {
+      await db.insert(companyStatsTable).values([
+        { label: "Average response time", value: "< 10", suffix: "min", icon: "Clock", sortOrder: 0 },
+        { label: "Client retention rate", value: "98", suffix: "%", icon: "Heart", sortOrder: 1 },
+        { label: "Businesses served", value: "250", suffix: "+", icon: "Building2", sortOrder: 2 },
+        { label: "Endpoints managed", value: "12,000", suffix: "+", icon: "Monitor", sortOrder: 3 },
+        { label: "Years in business", value: "15", suffix: "+", icon: "Award", sortOrder: 4 },
+        { label: "Uptime SLA", value: "99.9", suffix: "%", icon: "ShieldCheck", sortOrder: 5 },
+      ]);
+      console.log("[seed] Inserted 6 company stats");
+    }
+
+    // Case studies
+    const [{ csCount }] = await db.select({ csCount: count() }).from(caseStudiesTable);
+    if (csCount === 0) {
+      await db.insert(caseStudiesTable).values([
+        {
+          slug: "northbridge-realty-365-migration",
+          title: "Cutting helpdesk costs 42% for a 60-agent real estate firm",
+          client: "Northbridge Realty Group",
+          industry: "Real Estate",
+          summary: "A multi-office real estate brokerage replaced two part-time IT contractors with Siebert's managed plan, then migrated 60 agents to Microsoft 365 with zero downtime.",
+          problem: "Northbridge had 60 agents across three offices relying on a patchwork of contractors. Tickets sat for days, email outages were common, and they had no centralized backup or MFA.",
+          solution: "We onboarded all 60 endpoints onto our RMM and EDR stack, migrated mailboxes from a legacy IMAP host to Microsoft 365 Business Standard, rolled out MFA company-wide, and put SharePoint document libraries in front of their agent files.",
+          result: "Helpdesk spend dropped 42% in the first quarter. Average ticket time fell from 38 hours to 11 minutes for tier-1 issues. Cyber-insurance premium decreased 18%.",
+          metrics: JSON.stringify([
+            { label: "Helpdesk cost", value: "-42%" },
+            { label: "Avg response", value: "11 min" },
+            { label: "Insurance premium", value: "-18%" },
+          ]),
+          services: JSON.stringify(["Managed IT", "Microsoft 365", "Cybersecurity"]),
+          quote: "Siebert took our entire IT stack off our plate. We finally have one number to call when anything breaks.",
+          quoteAuthor: "Maria Chen",
+          quoteRole: "Director of Operations, Northbridge Realty Group",
+          featured: true,
+          sortOrder: 0,
+        },
+        {
+          slug: "halcyon-manufacturing-security-audit",
+          title: "Passing a cyber-insurance audit in 90 days",
+          client: "Halcyon Manufacturing",
+          industry: "Manufacturing",
+          summary: "A 120-employee manufacturer was denied renewal on their cyber policy. Siebert built a 90-day remediation plan and got them re-insured at a lower premium.",
+          problem: "Halcyon's insurer flagged 14 control gaps: no EDR, no MFA on remote access, flat network, no documented IR plan, and an unpatched ERP server exposed to the internet.",
+          solution: "We deployed SentinelOne EDR across 140 endpoints, segmented OT and IT networks with Fortinet NGFWs, enforced MFA via Entra ID Conditional Access, patched and reverse-proxied the ERP, and authored an incident response playbook.",
+          result: "All 14 controls remediated in 78 days. Renewal approved with a $1.2M coverage increase and 22% lower premium. Zero security incidents in the 12 months following.",
+          metrics: JSON.stringify([
+            { label: "Controls remediated", value: "14/14" },
+            { label: "Premium reduction", value: "-22%" },
+            { label: "Incidents (12mo)", value: "0" },
+          ]),
+          services: JSON.stringify(["Cybersecurity", "Network Infrastructure", "Compliance"]),
+          quote: "After 90 days with Siebert we cut shadow IT in half and finally passed our cyber-insurance security audit.",
+          quoteAuthor: "David Okafor",
+          quoteRole: "VP of Finance, Halcyon Manufacturing",
+          featured: true,
+          sortOrder: 1,
+        },
+        {
+          slug: "vesper-hospitality-multi-site-rollout",
+          title: "Standardizing IT across 11 hotel properties",
+          client: "Vesper Hospitality Group",
+          industry: "Hospitality",
+          summary: "Vesper acquired 11 boutique hotels with 11 different IT vendors. Siebert consolidated everything onto a single managed stack with zero guest-facing downtime.",
+          problem: "Each property had its own ISP, firewall vendor, PMS integration, and helpdesk. Guest Wi-Fi complaints were the #1 negative review driver. Front-desk PCs ran 4 different versions of Windows.",
+          solution: "We surveyed all 11 sites, designed a standardized stack (Meraki networking, Ubiquiti guest Wi-Fi, Windows 11 imaged endpoints, Zoom Phone replacing legacy PBXs), and executed cutovers in 2-property waves over 14 weeks during overnight maintenance windows.",
+          result: "100% standardization across all 11 properties. Wi-Fi-related guest complaints dropped 91%. Single $14K/mo managed contract replaced ~$31K/mo in fragmented vendor spend.",
+          metrics: JSON.stringify([
+            { label: "Properties unified", value: "11/11" },
+            { label: "Wi-Fi complaints", value: "-91%" },
+            { label: "Vendor spend", value: "-55%" },
+          ]),
+          services: JSON.stringify(["Managed IT", "Networking", "Zoom Phone", "Procurement"]),
+          quote: "Siebert built us a runbook, did the cutover after-hours, and we had zero guest-facing downtime.",
+          quoteAuthor: "Aisha Bello",
+          quoteRole: "IT Manager, Vesper Hospitality Group",
+          featured: false,
+          sortOrder: 2,
+        },
+      ]);
+      console.log("[seed] Inserted 3 case studies");
+    }
+  } catch (err) {
+    console.error("[seed] Trust content seeding failed (non-fatal):", err);
+  }
+}
 
 function deriveEmail(website: string): string {
   try {
@@ -29,6 +162,7 @@ function mapCategory(industry: string): string {
 }
 
 export async function seedDatabase(): Promise<void> {
+  await seedTrustContent();
   try {
     const [{ vendorCount }] = await db
       .select({ vendorCount: count() })

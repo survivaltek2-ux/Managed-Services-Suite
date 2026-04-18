@@ -87,6 +87,61 @@ export const activityLogTable = pgTable("activity_log", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const caseStudiesTable = pgTable("case_studies", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  client: text("client").notNull(),
+  industry: text("industry").notNull().default("General"),
+  summary: text("summary").notNull(),
+  problem: text("problem").notNull(),
+  solution: text("solution").notNull(),
+  result: text("result").notNull(),
+  metrics: text("metrics").notNull().default("[]"),
+  services: text("services").notNull().default("[]"),
+  coverImage: text("cover_image"),
+  logoUrl: text("logo_url"),
+  quote: text("quote"),
+  quoteAuthor: text("quote_author"),
+  quoteRole: text("quote_role"),
+  featured: boolean("featured").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  publishedAt: timestamp("published_at").defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const certificationsTable = pgTable("certifications", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  category: text("category").notNull().default("partner"),
+  logoUrl: text("logo_url"),
+  url: text("url"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const companyStatsTable = pgTable("company_stats", {
+  id: serial("id").primaryKey(),
+  label: text("label").notNull(),
+  value: text("value").notNull(),
+  suffix: text("suffix"),
+  icon: text("icon").notNull().default("TrendingUp"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type CaseStudy = typeof caseStudiesTable.$inferSelect;
+export type Certification = typeof certificationsTable.$inferSelect;
+export type CompanyStat = typeof companyStatsTable.$inferSelect;
+
+export const insertCaseStudySchema = createInsertSchema(caseStudiesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCertificationSchema = createInsertSchema(certificationsTable).omit({ id: true, createdAt: true });
+export const insertCompanyStatSchema = createInsertSchema(companyStatsTable).omit({ id: true, createdAt: true });
+
 export const pageSectionsTable = pgTable("page_sections", {
   id: serial("id").primaryKey(),
   pageSlug: text("page_slug").notNull(),

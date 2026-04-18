@@ -4,8 +4,18 @@ import { Shield, Cloud, Server, Headphones, Video, ArrowRight, CheckCircle2, Wif
 import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 import { BookingButton } from "@/components/Booking";
+import { TestimonialsSection, CompanyStats, CertificationsRow, GoogleReviewsBlock, CaseStudyCard, type CaseStudy } from "@/components/trust";
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
+  useEffect(() => {
+    fetch("/api/cms/case-studies")
+      .then(r => (r.ok ? r.json() : []))
+      .then((d: CaseStudy[]) => setCaseStudies(d.slice(0, 3)))
+      .catch(() => setCaseStudies([]));
+  }, []);
+
   const features = [
     { icon: <Headphones className="w-6 h-6"/>, title: "Managed IT & Helpdesk", desc: "24/7 monitoring, proactive maintenance, and tiered support plans with guaranteed SLAs." },
     { icon: <Cloud className="w-6 h-6"/>, title: "Cloud Services", desc: "Microsoft 365, AWS, and Azure migrations and ongoing management — fully managed or co-managed." },
@@ -314,6 +324,36 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* COMPANY STATS */}
+      <CompanyStats variant="navy" />
+
+      {/* CASE STUDIES */}
+      {caseStudies.length > 0 && (
+        <section className="py-24 bg-background">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-3">Client outcomes</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl">Quantified results from businesses that trust Siebert as their hybrid MSP partner.</p>
+              </div>
+              <Link href="/case-studies"><Button variant="link" className="text-lg">View all case studies <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+              {caseStudies.map((cs, i) => <CaseStudyCard key={cs.id} caseStudy={cs} index={i} />)}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TESTIMONIALS */}
+      <TestimonialsSection background="muted" limit={3} />
+
+      {/* GOOGLE REVIEWS */}
+      <GoogleReviewsBlock />
+
+      {/* CERTIFICATIONS */}
+      <CertificationsRow />
 
       {/* CTA SECTION */}
       <section className="py-24 bg-primary/5 border-t border-primary/10">

@@ -70,7 +70,7 @@ if (existsSync(partnerIndex)) {
 
 if (existsSync(marketingIndex)) {
   app.use(express.static(marketingDist, staticOptions));
-  app.get(/^\/(admin|portal|blog|services|zoom|about|contact|quote)(\/.*)?$/, (_req, res) => {
+  app.get(/^\/(admin|portal|blog|case-studies|services|zoom|about|contact|quote)(\/.*)?$/, (_req, res) => {
     res.sendFile(marketingIndex);
   });
   app.get(/^\/proposal\/.*$/, (_req, res) => {

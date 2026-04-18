@@ -5,7 +5,7 @@ import {
   Inbox, FileText, Ticket as TicketIcon, LogOut, Loader2, Plus, Edit2,
   Trash2, Save, Search, Download, Activity, PenTool, Eye, Send, Check,
   X, ChevronDown, BarChart3, BarChart2, Clock, DollarSign, AlertCircle, Mail, KeyRound,
-  RefreshCw, CreditCard, TrendingUp, Package
+  RefreshCw, CreditCard, TrendingUp, Package, Award
 } from "lucide-react";
 import {
   Button, Input, Textarea, Label, Card, CardHeader, CardTitle, CardContent, Badge,
@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "caseStudies" | "certifications" | "companyStats";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -27,6 +27,9 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "calendar", label: "Editorial Calendar", icon: <Clock size={18} /> },
   { id: "services", label: "Services", icon: <Briefcase size={18} /> },
   { id: "testimonials", label: "Testimonials", icon: <MessageSquare size={18} /> },
+  { id: "caseStudies", label: "Case Studies", icon: <FileText size={18} /> },
+  { id: "certifications", label: "Certifications", icon: <Award size={18} /> },
+  { id: "companyStats", label: "Company Stats", icon: <TrendingUp size={18} /> },
   { id: "team", label: "Team Members", icon: <Users size={18} /> },
   { id: "faq", label: "FAQ", icon: <HelpCircle size={18} /> },
   { id: "settings", label: "Site Settings", icon: <Settings size={18} /> },
@@ -81,6 +84,9 @@ export default function Admin() {
         reporting: "/api/admin/reports",
         inquiries: "/api/admin/contacts",
         invoices: "/api/admin/invoices",
+        caseStudies: "/api/admin/cms/case-studies",
+        certifications: "/api/admin/cms/certifications",
+        companyStats: "/api/admin/cms/company-stats",
       };
       if (tab === "inquiries") {
         const [contactRes, quoteRes, ticketRes] = await Promise.all([
@@ -398,6 +404,42 @@ export default function Admin() {
               ]} columns={["question", "category", "active"]} />}
               {activeTab === "blog" && <BlogTab posts={data.blog || []} refresh={() => fetchData("blog")} headers={headers} />}
               {activeTab === "calendar" && <EditorialCalendarTab posts={data.calendar || []} refresh={() => fetchData("calendar")} headers={headers} />}
+              {activeTab === "caseStudies" && <CrudTab items={data.caseStudies || []} refresh={() => fetchData("caseStudies")} headers={headers} entity="case-studies" fields={[
+                { key: "title", label: "Title", type: "text", required: true },
+                { key: "slug", label: "Slug (auto if blank)", type: "text" },
+                { key: "client", label: "Client", type: "text" },
+                { key: "industry", label: "Industry", type: "text" },
+                { key: "summary", label: "Summary (1-2 sentences)", type: "textarea", required: true },
+                { key: "problem", label: "Problem", type: "textarea" },
+                { key: "solution", label: "Solution", type: "textarea" },
+                { key: "result", label: "Result", type: "textarea" },
+                { key: "metrics", label: 'Metrics (JSON, e.g. [{"label":"Cost","value":"-42%"}])', type: "json" },
+                { key: "services", label: "Services (one per line)", type: "features" },
+                { key: "quote", label: "Pull quote", type: "textarea" },
+                { key: "quoteAuthor", label: "Quote author", type: "text" },
+                { key: "quoteRole", label: "Quote role/company", type: "text" },
+                { key: "coverImage", label: "Cover image URL", type: "text" },
+                { key: "logoUrl", label: "Client logo URL", type: "text" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "featured", label: "Featured", type: "checkbox" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["title", "client", "industry", "active"]} />}
+              {activeTab === "certifications" && <CrudTab items={data.certifications || []} refresh={() => fetchData("certifications")} headers={headers} entity="certifications" fields={[
+                { key: "name", label: "Name", type: "text", required: true },
+                { key: "category", label: "Category (partner/certification)", type: "text" },
+                { key: "logoUrl", label: "Logo URL (optional)", type: "text" },
+                { key: "url", label: "Link URL (optional)", type: "text" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["name", "category", "active"]} />}
+              {activeTab === "companyStats" && <CrudTab items={data.companyStats || []} refresh={() => fetchData("companyStats")} headers={headers} entity="company-stats" fields={[
+                { key: "label", label: "Label (e.g. Average response time)", type: "text", required: true },
+                { key: "value", label: "Value (e.g. 98 or < 10)", type: "text", required: true },
+                { key: "suffix", label: "Suffix (e.g. % or min)", type: "text" },
+                { key: "icon", label: "Icon (lucide name, e.g. Clock, Heart, Award)", type: "text" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["label", "value", "active"]} />}
               {activeTab === "inquiries" && <InquiriesTab contacts={data.contacts || []} quotes={data.quotes || []} tickets={data.tickets || []} headers={headers} refresh={() => fetchData("inquiries")} toast={toast} />}
               {activeTab === "invoices" && <InvoicesTab invoices={data.invoices || []} headers={headers} refresh={() => fetchData("invoices")} />}
               {activeTab === "leads" && <AdminLeads partners={data.partners || []} headers={headers} refresh={() => fetchData("leads")} toast={toast} />}
@@ -685,7 +727,7 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
   );
 }
 
-interface FieldDef { key: string; label: string; type: "text" | "textarea" | "number" | "checkbox" | "features" | "select"; required?: boolean; options?: string[] }
+interface FieldDef { key: string; label: string; type: "text" | "textarea" | "number" | "checkbox" | "features" | "select" | "json"; required?: boolean; options?: string[] }
 
 function CrudTab({ items, refresh, headers, entity, fields, columns }: {
   items: any[]; refresh: () => void; headers: () => any; entity: string;
@@ -709,6 +751,7 @@ function CrudTab({ items, refresh, headers, entity, fields, columns }: {
     fields.forEach(f => {
       if (f.type === "checkbox") init[f.key] = true;
       else if (f.type === "number") init[f.key] = 0;
+      else if (f.type === "json") init[f.key] = "[]";
       else init[f.key] = "";
     });
     setForm(init);
@@ -720,6 +763,7 @@ function CrudTab({ items, refresh, headers, entity, fields, columns }: {
     const init: Record<string, any> = {};
     fields.forEach(f => {
       if (f.type === "features") init[f.key] = Array.isArray(item[f.key]) ? item[f.key].join("\n") : (item[f.key] || "");
+      else if (f.type === "json") init[f.key] = item[f.key] ? JSON.stringify(item[f.key], null, 2) : "[]";
       else init[f.key] = item[f.key] ?? "";
     });
     setForm(init);
@@ -733,6 +777,10 @@ function CrudTab({ items, refresh, headers, entity, fields, columns }: {
     fields.forEach(f => {
       if (f.type === "features") payload[f.key] = form[f.key].split("\n").map((s: string) => s.trim()).filter(Boolean);
       if (f.type === "number") payload[f.key] = Number(form[f.key]);
+      if (f.type === "json") {
+        try { payload[f.key] = form[f.key] ? JSON.parse(form[f.key]) : []; }
+        catch { toast({ title: `Invalid JSON in "${f.label}"`, variant: "destructive" }); throw new Error("invalid json"); }
+      }
     });
     try {
       const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(payload) });
@@ -799,8 +847,8 @@ function CrudTab({ items, refresh, headers, entity, fields, columns }: {
                 ) : (
                   <>
                     <Label className="text-xs">{f.label}</Label>
-                    {f.type === "textarea" || f.type === "features"
-                      ? <Textarea value={form[f.key] || ""} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} className="min-h-[80px]" />
+                    {f.type === "textarea" || f.type === "features" || f.type === "json"
+                      ? <Textarea value={form[f.key] || ""} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} className={f.type === "json" ? "min-h-[100px] font-mono text-xs" : "min-h-[80px]"} />
                       : <Input type={f.type === "number" ? "number" : "text"} value={form[f.key] ?? ""} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} />}
                   </>
                 )}

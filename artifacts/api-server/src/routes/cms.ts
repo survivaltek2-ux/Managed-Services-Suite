@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Response, Request, NextFunction } from "express";
-import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable } from "@workspace/db";
+import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable, caseStudiesTable, certificationsTable, companyStatsTable } from "@workspace/db";
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
@@ -575,6 +575,309 @@ router.delete("/admin/cms/blog/:id", requireAuth, requireAdmin, async (req: Auth
     res.status(500).json({ error: "server_error", message: "Failed to delete blog post" });
   }
 });
+
+// ─── Case Studies ────────────────────────────────────────────────────────────
+
+router.get("/cms/case-studies", async (_req, res) => {
+  try {
+    const items = await db.select().from(caseStudiesTable)
+      .where(eq(caseStudiesTable.active, true))
+      .orderBy(desc(caseStudiesTable.featured), caseStudiesTable.sortOrder);
+    res.json(items.map(c => ({
+      ...c,
+      metrics: safeParse(c.metrics, []),
+      services: safeParse(c.services, []),
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load case studies" });
+  }
+});
+
+router.get("/cms/case-studies/:slug", async (req, res) => {
+  try {
+    const [item] = await db.select().from(caseStudiesTable)
+      .where(eq(caseStudiesTable.slug, req.params.slug as string)).limit(1);
+    if (!item || !item.active) {
+      res.status(404).json({ error: "not_found", message: "Case study not found" });
+      return;
+    }
+    res.json({ ...item, metrics: safeParse(item.metrics, []), services: safeParse(item.services, []) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load case study" });
+  }
+});
+
+router.get("/admin/cms/case-studies", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(caseStudiesTable).orderBy(desc(caseStudiesTable.createdAt));
+    res.json(items.map(c => ({ ...c, metrics: safeParse(c.metrics, []), services: safeParse(c.services, []) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load case studies" });
+  }
+});
+
+router.post("/admin/cms/case-studies", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const b = req.body;
+    if (!b.title || !b.summary) {
+      res.status(400).json({ error: "validation_error", message: "title and summary are required" });
+      return;
+    }
+    const slug = (b.slug || b.title).toString().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const [item] = await db.insert(caseStudiesTable).values({
+      slug, title: b.title, client: b.client || "Confidential",
+      industry: b.industry || "General",
+      summary: b.summary, problem: b.problem || "", solution: b.solution || "", result: b.result || "",
+      metrics: JSON.stringify(b.metrics || []),
+      services: JSON.stringify(b.services || []),
+      coverImage: b.coverImage || null, logoUrl: b.logoUrl || null,
+      quote: b.quote || null, quoteAuthor: b.quoteAuthor || null, quoteRole: b.quoteRole || null,
+      featured: !!b.featured, active: b.active !== false, sortOrder: b.sortOrder || 0,
+    }).returning();
+    await logActivity(req.userId, "create", "case_study", item.id, `Created case study: ${b.title}`);
+    res.status(201).json({ ...item, metrics: safeParse(item.metrics, []), services: safeParse(item.services, []) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create case study" });
+  }
+});
+
+router.put("/admin/cms/case-studies/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const b = req.body;
+    const [item] = await db.update(caseStudiesTable).set({
+      slug: b.slug, title: b.title, client: b.client || "Confidential",
+      industry: b.industry || "General",
+      summary: b.summary, problem: b.problem || "", solution: b.solution || "", result: b.result || "",
+      metrics: JSON.stringify(b.metrics || []),
+      services: JSON.stringify(b.services || []),
+      coverImage: b.coverImage || null, logoUrl: b.logoUrl || null,
+      quote: b.quote || null, quoteAuthor: b.quoteAuthor || null, quoteRole: b.quoteRole || null,
+      featured: !!b.featured, active: b.active !== false, sortOrder: b.sortOrder ?? 0,
+      updatedAt: new Date(),
+    }).where(eq(caseStudiesTable.id, id)).returning();
+    if (!item) { res.status(404).json({ error: "not_found", message: "Case study not found" }); return; }
+    await logActivity(req.userId, "update", "case_study", id);
+    res.json({ ...item, metrics: safeParse(item.metrics, []), services: safeParse(item.services, []) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update case study" });
+  }
+});
+
+router.delete("/admin/cms/case-studies/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(caseStudiesTable).where(eq(caseStudiesTable.id, id));
+    await logActivity(req.userId, "delete", "case_study", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete case study" });
+  }
+});
+
+// ─── Certifications ──────────────────────────────────────────────────────────
+
+router.get("/cms/certifications", async (_req, res) => {
+  try {
+    const items = await db.select().from(certificationsTable)
+      .where(eq(certificationsTable.active, true))
+      .orderBy(certificationsTable.sortOrder);
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load certifications" });
+  }
+});
+
+router.get("/admin/cms/certifications", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(certificationsTable).orderBy(certificationsTable.sortOrder);
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load certifications" });
+  }
+});
+
+router.post("/admin/cms/certifications", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, category, logoUrl, url, sortOrder, active } = req.body;
+    const [item] = await db.insert(certificationsTable).values({
+      name, category: category || "partner", logoUrl: logoUrl || null, url: url || null,
+      sortOrder: sortOrder || 0, active: active !== false,
+    }).returning();
+    await logActivity(req.userId, "create", "certification", item.id, `Added certification: ${name}`);
+    res.status(201).json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create certification" });
+  }
+});
+
+router.put("/admin/cms/certifications/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { name, category, logoUrl, url, sortOrder, active } = req.body;
+    const [item] = await db.update(certificationsTable).set({
+      name, category: category || "partner", logoUrl: logoUrl || null, url: url || null,
+      sortOrder: sortOrder ?? 0, active: active !== false,
+    }).where(eq(certificationsTable.id, id)).returning();
+    if (!item) { res.status(404).json({ error: "not_found", message: "Certification not found" }); return; }
+    await logActivity(req.userId, "update", "certification", id);
+    res.json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update certification" });
+  }
+});
+
+router.delete("/admin/cms/certifications/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(certificationsTable).where(eq(certificationsTable.id, id));
+    await logActivity(req.userId, "delete", "certification", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete certification" });
+  }
+});
+
+// ─── Company Stats ───────────────────────────────────────────────────────────
+
+router.get("/cms/company-stats", async (_req, res) => {
+  try {
+    const items = await db.select().from(companyStatsTable)
+      .where(eq(companyStatsTable.active, true))
+      .orderBy(companyStatsTable.sortOrder);
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load stats" });
+  }
+});
+
+router.get("/admin/cms/company-stats", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(companyStatsTable).orderBy(companyStatsTable.sortOrder);
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load stats" });
+  }
+});
+
+router.post("/admin/cms/company-stats", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { label, value, suffix, icon, sortOrder, active } = req.body;
+    const [item] = await db.insert(companyStatsTable).values({
+      label, value: String(value), suffix: suffix || null, icon: icon || "TrendingUp",
+      sortOrder: sortOrder || 0, active: active !== false,
+    }).returning();
+    await logActivity(req.userId, "create", "company_stat", item.id, `Added stat: ${label}`);
+    res.status(201).json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create stat" });
+  }
+});
+
+router.put("/admin/cms/company-stats/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { label, value, suffix, icon, sortOrder, active } = req.body;
+    const [item] = await db.update(companyStatsTable).set({
+      label, value: String(value), suffix: suffix || null, icon: icon || "TrendingUp",
+      sortOrder: sortOrder ?? 0, active: active !== false,
+    }).where(eq(companyStatsTable.id, id)).returning();
+    if (!item) { res.status(404).json({ error: "not_found", message: "Stat not found" }); return; }
+    await logActivity(req.userId, "update", "company_stat", id);
+    res.json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update stat" });
+  }
+});
+
+router.delete("/admin/cms/company-stats/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(companyStatsTable).where(eq(companyStatsTable.id, id));
+    await logActivity(req.userId, "delete", "company_stat", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete stat" });
+  }
+});
+
+// ─── Google Reviews (cached) ────────────────────────────────────────────────
+
+const REVIEWS_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+let reviewsCache: { fetchedAt: number; payload: any } | null = null;
+
+router.get("/cms/google-reviews", async (_req, res) => {
+  try {
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    const placeIdSetting = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, "google_place_id")).limit(1);
+    const placeId = placeIdSetting[0]?.value || process.env.GOOGLE_PLACE_ID || "";
+
+    if (!apiKey || !placeId) {
+      res.json({ configured: false, reviews: [], rating: null, total: 0 });
+      return;
+    }
+
+    if (reviewsCache && Date.now() - reviewsCache.fetchedAt < REVIEWS_TTL_MS) {
+      res.json(reviewsCache.payload);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      place_id: placeId,
+      key: apiKey,
+      fields: "name,rating,user_ratings_total,reviews,url",
+    });
+    const r = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`);
+    const data: any = await r.json();
+    if (data.status !== "OK") {
+      res.json({ configured: true, error: data.status, reviews: [], rating: null, total: 0 });
+      return;
+    }
+    const result = data.result || {};
+    const payload = {
+      configured: true,
+      name: result.name,
+      rating: result.rating ?? null,
+      total: result.user_ratings_total ?? 0,
+      url: result.url || null,
+      reviews: (result.reviews || []).map((rv: any) => ({
+        author: rv.author_name,
+        avatar: rv.profile_photo_url,
+        rating: rv.rating,
+        text: rv.text,
+        relativeTime: rv.relative_time_description,
+        time: rv.time,
+      })),
+    };
+    reviewsCache = { fetchedAt: Date.now(), payload };
+    res.json(payload);
+  } catch (err) {
+    console.error("[google-reviews] Error:", err);
+    res.json({ configured: false, reviews: [], rating: null, total: 0 });
+  }
+});
+
+// helper used above
+function safeParse<T>(s: string | null | undefined, fallback: T): T {
+  if (!s) return fallback;
+  try { return JSON.parse(s) as T; } catch { return fallback; }
+}
 
 // ─── User Management ────────────────────────────────────────────────────────
 

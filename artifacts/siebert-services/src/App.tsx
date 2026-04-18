@@ -16,6 +16,8 @@ import Admin from "./pages/Admin";
 import ProposalView from "./pages/ProposalView";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import CaseStudies from "./pages/CaseStudies";
+import CaseStudyDetail from "./pages/CaseStudyDetail";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import AffiliateRecommendations from "./pages/AffiliateRecommendations";
@@ -93,6 +95,10 @@ function PublicRouter() {
         {/* Blog */}
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
+
+        {/* Case Studies */}
+        <Route path="/case-studies" component={CaseStudies} />
+        <Route path="/case-studies/:slug" component={CaseStudyDetail} />
 
         {/* Proposals */}
         <Route path="/proposal/:number" component={ProposalView} />
