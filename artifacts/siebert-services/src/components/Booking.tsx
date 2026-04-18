@@ -30,7 +30,7 @@ async function loadBookingUrl(): Promise<string> {
 export function useBookingUrl() {
   const [url, setUrl] = useState<string>(cachedUrl ?? DEFAULT_BOOKING_URL);
   useEffect(() => {
-    if (!cachedUrl) loadBookingUrl().then(setUrl);
+    loadBookingUrl().then(setUrl);
   }, []);
   return url;
 }
@@ -86,8 +86,18 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
         >
           <X className="w-5 h-5" />
         </button>
+        <div className="absolute top-3 left-3 z-10">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-navy shadow hover:bg-white"
+          >
+            Open in Zoom
+          </a>
+        </div>
         <iframe
-          src={url}
+          src={`${url}${url.includes("?") ? "&" : "?"}embed=true`}
           title="Schedule a call"
           className="w-full h-full border-0"
           loading="lazy"
@@ -102,7 +112,7 @@ export function BookingInline({ height = 700 }: { height?: number }) {
   return (
     <div className="rounded-2xl overflow-hidden border border-border shadow-lg bg-white">
       <iframe
-        src={url}
+        src={`${url}${url.includes("?") ? "&" : "?"}embed=true`}
         title="Schedule a call"
         className="w-full border-0 block"
         style={{ height }}
