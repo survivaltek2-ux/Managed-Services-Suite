@@ -34,6 +34,21 @@ export const leadMagnetSequenceSendsTable = pgTable("lead_magnet_sequence_sends"
   uniqStep: uniqueIndex("lead_magnet_seq_uniq").on(t.submissionId, t.step),
 }));
 
+export const leadMagnetSequenceStepsTable = pgTable("lead_magnet_sequence_steps", {
+  id: serial("id").primaryKey(),
+  magnet: leadMagnetEnum("magnet").notNull(),
+  step: integer("step").notNull(),
+  delayDays: integer("delay_days").notNull(),
+  subject: text("subject").notNull(),
+  intro: text("intro").notNull().default(""),
+  bodyHtml: text("body_html").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => ({
+  uniqMagnetStep: uniqueIndex("lead_magnet_seq_steps_uniq").on(t.magnet, t.step),
+}));
+
+export type LeadMagnetSequenceStep = typeof leadMagnetSequenceStepsTable.$inferSelect;
+
 export const insertLeadMagnetSubmissionSchema = createInsertSchema(leadMagnetSubmissionsTable).omit({
   id: true,
   createdAt: true,

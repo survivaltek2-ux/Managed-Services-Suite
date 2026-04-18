@@ -2554,6 +2554,7 @@ function LeadMagnetsTable({ submissions, filtered, filter, setFilter, selected, 
   const [sequences, setSequences] = useState<any[]>([]);
   const [seqLoading, setSeqLoading] = useState(false);
   const [selectedSends, setSelectedSends] = useState<any[]>([]);
+  const [editingMagnet, setEditingMagnet] = useState<string | null>(null);
 
   const loadSequences = useCallback(async () => {
     setSeqLoading(true);
@@ -2631,16 +2632,24 @@ function LeadMagnetsTable({ submissions, filtered, filter, setFilter, selected, 
                       </span>
                     </p>
                   </div>
-                  <button
-                    onClick={() => togglePause(seq.magnet, !seq.paused)}
-                    className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-md border ${
-                      seq.paused
-                        ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
-                        : "bg-white text-amber-700 border-amber-300 hover:bg-amber-50"
-                    }`}
-                  >
-                    {seq.paused ? "Resume" : "Pause"}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setEditingMagnet(seq.magnet)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md border bg-white text-blue-700 border-blue-300 hover:bg-blue-50"
+                    >
+                      Edit copy
+                    </button>
+                    <button
+                      onClick={() => togglePause(seq.magnet, !seq.paused)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md border ${
+                        seq.paused
+                          ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
+                          : "bg-white text-amber-700 border-amber-300 hover:bg-amber-50"
+                      }`}
+                    >
+                      {seq.paused ? "Resume" : "Pause"}
+                    </button>
+                  </div>
                 </div>
               ))}
               {sequences.length === 0 && <p className="text-xs text-muted-foreground sm:col-span-2">No sequences configured.</p>}
@@ -2709,6 +2718,16 @@ function LeadMagnetsTable({ submissions, filtered, filter, setFilter, selected, 
           {filtered.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No submissions</p>}
         </div>
 
+        {editingMagnet && (
+          <SequenceEditorDialog
+            magnet={editingMagnet}
+            label={LEAD_MAGNET_LABELS[editingMagnet] || editingMagnet}
+            headers={headers}
+            toast={toast}
+            onClose={() => { setEditingMagnet(null); loadSequences(); }}
+          />
+        )}
+
         {selected && (
           <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
             <DialogContent className="max-w-2xl">
@@ -2747,6 +2766,214 @@ function LeadMagnetsTable({ submissions, filtered, filter, setFilter, selected, 
         )}
       </CardContent>
     </Card>
+  );
+}
+
+interface SequenceStepView {
+  step: number;
+  delayDays: number;
+  subject: string;
+  intro: string;
+  bodyHtml: string;
+  defaults: { delayDays: number; subject: string; intro: string; bodyHtml: string };
+  customized: boolean;
+  updatedAt: string | null;
+}
+
+function SequenceEditorDialog({ magnet, label, headers, toast, onClose }: {
+  magnet: string;
+  label: string;
+  headers: () => any;
+  toast: (opts: { title: string; description?: string; variant?: "default" | "destructive" }) => void;
+  onClose: () => void;
+}) {
+  const [steps, setSteps] = useState<SequenceStepView[] | null>(null);
+  const [activeStep, setActiveStep] = useState<number>(1);
+  const [draft, setDraft] = useState<{ subject: string; intro: string; bodyHtml: string; delayDays: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewSubject, setPreviewSubject] = useState<string>("");
+
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/admin/lead-magnets/sequences/${magnet}/steps`, { headers: headers() });
+    if (!r.ok) { toast({ title: "Failed to load steps", variant: "destructive" }); return; }
+    const data = await r.json();
+    const list: SequenceStepView[] = data.steps || [];
+    setSteps(list);
+    const current = list.find(s => s.step === activeStep) || list[0];
+    if (current) {
+      setActiveStep(current.step);
+      setDraft({ subject: current.subject, intro: current.intro, bodyHtml: current.bodyHtml, delayDays: current.delayDays });
+    }
+  }, [magnet, headers, toast, activeStep]);
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [magnet]);
+
+  function selectStep(stepNum: number) {
+    if (!steps) return;
+    const s = steps.find(x => x.step === stepNum);
+    if (!s) return;
+    setActiveStep(stepNum);
+    setDraft({ subject: s.subject, intro: s.intro, bodyHtml: s.bodyHtml, delayDays: s.delayDays });
+    setPreviewHtml(null);
+  }
+
+  async function save() {
+    if (!draft) return;
+    if (!draft.subject.trim()) { toast({ title: "Subject is required", variant: "destructive" }); return; }
+    if (!draft.bodyHtml.trim()) { toast({ title: "Body is required", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/admin/lead-magnets/sequences/${magnet}/steps/${activeStep}`, {
+        method: "PUT",
+        headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      if (!r.ok) { toast({ title: "Save failed", variant: "destructive" }); return; }
+      toast({ title: "Step saved" });
+      await load();
+    } finally { setSaving(false); }
+  }
+
+  async function resetToDefault() {
+    if (!confirm("Reset this step to the built-in default copy?")) return;
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/admin/lead-magnets/sequences/${magnet}/steps/${activeStep}`, {
+        method: "DELETE",
+        headers: headers(),
+      });
+      if (!r.ok) { toast({ title: "Reset failed", variant: "destructive" }); return; }
+      toast({ title: "Reset to default" });
+      await load();
+    } finally { setSaving(false); }
+  }
+
+  async function preview() {
+    if (!draft) return;
+    const r = await fetch(`/api/admin/lead-magnets/sequences/${magnet}/steps/${activeStep}/preview`, {
+      method: "POST",
+      headers: { ...headers(), "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Sample Recipient", subject: draft.subject, bodyHtml: draft.bodyHtml }),
+    });
+    if (!r.ok) { toast({ title: "Preview failed", variant: "destructive" }); return; }
+    const data = await r.json();
+    setPreviewSubject(data.subject || "");
+    setPreviewHtml(data.html || "");
+  }
+
+  const activeView = steps?.find(s => s.step === activeStep) || null;
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit follow-up emails — {label}</DialogTitle>
+        </DialogHeader>
+        {!steps || !draft ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2 border-b pb-3">
+              {steps.map(s => (
+                <button
+                  key={s.step}
+                  type="button"
+                  onClick={() => selectStep(s.step)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md border ${
+                    activeStep === s.step
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white text-foreground border-border hover:bg-gray-50"
+                  }`}
+                >
+                  Step {s.step} · day {s.delayDays}
+                  {s.customized && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-500 align-middle" title="Customized" />}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs font-medium text-muted-foreground">
+                Subject line
+                <input
+                  type="text"
+                  value={draft.subject}
+                  onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                  className="mt-1 w-full text-sm border rounded px-2 py-1.5"
+                  maxLength={500}
+                />
+              </label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Send this many days after signup
+                <input
+                  type="number"
+                  min={0}
+                  max={365}
+                  value={draft.delayDays}
+                  onChange={(e) => setDraft({ ...draft, delayDays: parseInt(e.target.value, 10) || 0 })}
+                  className="mt-1 w-full text-sm border rounded px-2 py-1.5"
+                />
+              </label>
+            </div>
+
+            <label className="text-xs font-medium text-muted-foreground block">
+              Internal note / intro line (shown in admin lists, not sent)
+              <input
+                type="text"
+                value={draft.intro}
+                onChange={(e) => setDraft({ ...draft, intro: e.target.value })}
+                className="mt-1 w-full text-sm border rounded px-2 py-1.5"
+                maxLength={1000}
+              />
+            </label>
+
+            <label className="text-xs font-medium text-muted-foreground block">
+              Email body (HTML). Available placeholders: <code className="bg-gray-100 px-1 rounded">{"{{name}}"}</code>, <code className="bg-gray-100 px-1 rounded">{"{{baseUrl}}"}</code>, <code className="bg-gray-100 px-1 rounded">{"{{unsubUrl}}"}</code>
+              <textarea
+                value={draft.bodyHtml}
+                onChange={(e) => setDraft({ ...draft, bodyHtml: e.target.value })}
+                rows={14}
+                className="mt-1 w-full text-xs font-mono border rounded px-2 py-1.5"
+                maxLength={50000}
+              />
+            </label>
+
+            {activeView?.customized && activeView.updatedAt && (
+              <p className="text-xs text-amber-700">
+                Customized · last edited {new Date(activeView.updatedAt).toLocaleString()}
+              </p>
+            )}
+
+            {previewHtml !== null && (
+              <div className="border rounded">
+                <div className="bg-gray-50 border-b px-3 py-2 text-xs">
+                  <strong>Subject:</strong> {previewSubject}
+                </div>
+                <iframe
+                  title="Email preview"
+                  srcDoc={previewHtml}
+                  sandbox=""
+                  className="w-full h-80 bg-white"
+                />
+              </div>
+            )}
+
+            <DialogFooter className="flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={resetToDefault} disabled={saving || !activeView?.customized}>
+                Reset to default
+              </Button>
+              <Button type="button" variant="outline" onClick={preview} disabled={saving}>
+                Preview
+              </Button>
+              <Button type="button" onClick={save} disabled={saving}>
+                {saving ? "Saving…" : "Save step"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={onClose}>Close</Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

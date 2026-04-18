@@ -14,6 +14,10 @@ import {
   setSequencePaused,
   isSequencePaused,
   SEQUENCES,
+  loadStepViews,
+  upsertStepOverride,
+  resetStepOverride,
+  previewStep,
 } from "../lib/leadMagnetSequence.js";
 
 const router: IRouter = Router();
@@ -459,6 +463,106 @@ router.patch("/admin/lead-magnets/sequences/:magnet", requireAuth, requireAdmin,
   } catch (err) {
     console.error("Admin lead-magnets pause error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to update sequence" });
+  }
+});
+
+router.get("/admin/lead-magnets/sequences/:magnet/steps", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const magnet = req.params.magnet as LeadMagnetKey;
+    if (!ALLOWED_MAGNETS.has(magnet)) { res.status(400).json({ error: "invalid_magnet" }); return; }
+    const steps = await loadStepViews(magnet);
+    res.json({ magnet, steps });
+  } catch (err) {
+    console.error("Admin sequence steps load error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to load sequence steps" });
+  }
+});
+
+router.put("/admin/lead-magnets/sequences/:magnet/steps/:step", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const magnet = req.params.magnet as LeadMagnetKey;
+    const step = parseInt(req.params.step as string, 10);
+    if (!ALLOWED_MAGNETS.has(magnet)) { res.status(400).json({ error: "invalid_magnet" }); return; }
+    if (!Number.isFinite(step) || step <= 0) { res.status(400).json({ error: "invalid_step" }); return; }
+
+    const { delayDays, subject, intro, bodyHtml } = req.body ?? {};
+    const fields: { delayDays?: number; subject?: string; intro?: string; bodyHtml?: string } = {};
+
+    if (delayDays !== undefined) {
+      const d = Number(delayDays);
+      if (!Number.isFinite(d) || d < 0 || d > 365) { res.status(400).json({ error: "invalid_delay" }); return; }
+      fields.delayDays = Math.floor(d);
+    }
+    if (typeof subject === "string") {
+      if (!subject.trim()) { res.status(400).json({ error: "subject_required" }); return; }
+      if (subject.length > 500) { res.status(400).json({ error: "subject_too_long" }); return; }
+      fields.subject = subject;
+    }
+    if (typeof intro === "string") {
+      if (intro.length > 1000) { res.status(400).json({ error: "intro_too_long" }); return; }
+      fields.intro = intro;
+    }
+    if (typeof bodyHtml === "string") {
+      if (!bodyHtml.trim()) { res.status(400).json({ error: "body_required" }); return; }
+      if (bodyHtml.length > 50_000) { res.status(400).json({ error: "body_too_long" }); return; }
+      fields.bodyHtml = bodyHtml;
+    }
+
+    const view = await upsertStepOverride(magnet, step, fields);
+    if (!view) { res.status(404).json({ error: "not_found", message: "No such default step" }); return; }
+    res.json(view);
+  } catch (err) {
+    console.error("Admin sequence step upsert error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to save step" });
+  }
+});
+
+router.delete("/admin/lead-magnets/sequences/:magnet/steps/:step", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const magnet = req.params.magnet as LeadMagnetKey;
+    const step = parseInt(req.params.step as string, 10);
+    if (!ALLOWED_MAGNETS.has(magnet)) { res.status(400).json({ error: "invalid_magnet" }); return; }
+    if (!Number.isFinite(step) || step <= 0) { res.status(400).json({ error: "invalid_step" }); return; }
+    const view = await resetStepOverride(magnet, step);
+    if (!view) { res.status(404).json({ error: "not_found" }); return; }
+    res.json(view);
+  } catch (err) {
+    console.error("Admin sequence step reset error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to reset step" });
+  }
+});
+
+router.post("/admin/lead-magnets/sequences/:magnet/steps/:step/preview", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const magnet = req.params.magnet as LeadMagnetKey;
+    const step = parseInt(req.params.step as string, 10);
+    if (!ALLOWED_MAGNETS.has(magnet)) { res.status(400).json({ error: "invalid_magnet" }); return; }
+    if (!Number.isFinite(step) || step <= 0) { res.status(400).json({ error: "invalid_step" }); return; }
+
+    const { name, bodyHtml, subject } = req.body ?? {};
+    const baseUrl = siteBaseUrl(req);
+    const sampleName = (typeof name === "string" && name.trim()) ? name.trim().slice(0, 80) : "Sample Recipient";
+    const unsubUrl = `${baseUrl}/api/lead-magnets/unsubscribe?token=preview`;
+
+    if (typeof bodyHtml === "string") {
+      // Inline preview of unsaved edits.
+      const PLACEHOLDER_RE = /\{\{\s*(name|baseUrl|unsubUrl)\s*\}\}/g;
+      const ctx: Record<string, string> = { name: sampleName, baseUrl, unsubUrl };
+      const html = bodyHtml.replace(PLACEHOLDER_RE, (_, k: string) => ctx[k] ?? "");
+      res.json({
+        magnet, step,
+        subject: typeof subject === "string" && subject.trim() ? subject : "(unsaved subject)",
+        html,
+      });
+      return;
+    }
+
+    const rendered = await previewStep(magnet, step, { name: sampleName, baseUrl, unsubUrl });
+    if (!rendered) { res.status(404).json({ error: "not_found" }); return; }
+    res.json({ magnet, step, subject: rendered.subject, html: rendered.html });
+  } catch (err) {
+    console.error("Admin sequence step preview error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to render preview" });
   }
 });
 

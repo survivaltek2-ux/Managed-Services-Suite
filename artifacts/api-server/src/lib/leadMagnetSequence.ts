@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
-import { db, leadMagnetSubmissionsTable, leadMagnetSequenceSendsTable, siteSettingsTable } from "@workspace/db";
+import { db, leadMagnetSubmissionsTable, leadMagnetSequenceSendsTable, leadMagnetSequenceStepsTable, siteSettingsTable } from "@workspace/db";
 import { sendLeadMagnetFollowUpEmail, type LeadMagnetKey } from "./email.js";
 
 export interface SequenceStep {
@@ -9,6 +9,26 @@ export interface SequenceStep {
   subject: string;
   intro: string;
   bodyHtml: (ctx: { name: string; baseUrl: string; unsubUrl: string }) => string;
+}
+
+export interface RenderedSequenceStep {
+  step: number;
+  delayDays: number;
+  subject: string;
+  intro: string;
+  /** Rendered HTML body, with placeholders replaced. */
+  html: string;
+}
+
+export interface SequenceStepView {
+  step: number;
+  delayDays: number;
+  subject: string;
+  intro: string;
+  bodyHtml: string;
+  defaults: { delayDays: number; subject: string; intro: string; bodyHtml: string };
+  customized: boolean;
+  updatedAt: Date | null;
 }
 
 const cta = (label: string, href: string) =>
@@ -199,6 +219,151 @@ export const SEQUENCES: Record<LeadMagnetKey, SequenceStep[]> = {
   ],
 };
 
+// ─── Editor-managed step overrides ─────────────────────────────────────────
+
+const PLACEHOLDER_RE = /\{\{\s*(name|baseUrl|unsubUrl)\s*\}\}/g;
+
+function renderPlaceholders(template: string, ctx: { name: string; baseUrl: string; unsubUrl: string }): string {
+  return template.replace(PLACEHOLDER_RE, (_, key: "name" | "baseUrl" | "unsubUrl") => ctx[key]);
+}
+
+function defaultBodyHtmlString(magnet: LeadMagnetKey, step: number): string {
+  const def = SEQUENCES[magnet]?.find(s => s.step === step);
+  if (!def) return "";
+  const sample = { name: "{{name}}", baseUrl: "{{baseUrl}}", unsubUrl: "{{unsubUrl}}" };
+  return def.bodyHtml(sample).trim();
+}
+
+function defaultStepView(magnet: LeadMagnetKey, step: number): { delayDays: number; subject: string; intro: string; bodyHtml: string } | null {
+  const def = SEQUENCES[magnet]?.find(s => s.step === step);
+  if (!def) return null;
+  return {
+    delayDays: def.delayDays,
+    subject: def.subject,
+    intro: def.intro,
+    bodyHtml: defaultBodyHtmlString(magnet, step),
+  };
+}
+
+/**
+ * Returns one row per default step for the magnet, merged with any editor
+ * overrides from `lead_magnet_sequence_steps`. Used by the admin editor UI.
+ */
+export async function loadStepViews(magnet: LeadMagnetKey): Promise<SequenceStepView[]> {
+  const overrides = await db.select()
+    .from(leadMagnetSequenceStepsTable)
+    .where(eq(leadMagnetSequenceStepsTable.magnet, magnet));
+  const overrideByStep = new Map(overrides.map(o => [o.step, o] as const));
+
+  const defaults = SEQUENCES[magnet] ?? [];
+  return defaults.map(def => {
+    const defaultsView = {
+      delayDays: def.delayDays,
+      subject: def.subject,
+      intro: def.intro,
+      bodyHtml: defaultBodyHtmlString(magnet, def.step),
+    };
+    const o = overrideByStep.get(def.step);
+    if (!o) {
+      return { step: def.step, ...defaultsView, defaults: defaultsView, customized: false, updatedAt: null };
+    }
+    return {
+      step: def.step,
+      delayDays: o.delayDays,
+      subject: o.subject,
+      intro: o.intro,
+      bodyHtml: o.bodyHtml,
+      defaults: defaultsView,
+      customized: true,
+      updatedAt: o.updatedAt,
+    };
+  });
+}
+
+/** Returns the steps that should actually be sent to recipients of `magnet`. */
+async function loadEffectiveSteps(magnet: LeadMagnetKey): Promise<SequenceStep[]> {
+  const overrides = await db.select()
+    .from(leadMagnetSequenceStepsTable)
+    .where(eq(leadMagnetSequenceStepsTable.magnet, magnet));
+  const overrideByStep = new Map(overrides.map(o => [o.step, o] as const));
+
+  const defaults = SEQUENCES[magnet] ?? [];
+  return defaults.map(def => {
+    const o = overrideByStep.get(def.step);
+    if (!o) return def;
+    return {
+      step: def.step,
+      delayDays: o.delayDays,
+      subject: o.subject,
+      intro: o.intro,
+      bodyHtml: (ctx) => renderPlaceholders(o.bodyHtml, ctx),
+    };
+  });
+}
+
+export async function upsertStepOverride(
+  magnet: LeadMagnetKey,
+  step: number,
+  fields: { delayDays?: number; subject?: string; intro?: string; bodyHtml?: string },
+): Promise<SequenceStepView | null> {
+  const def = defaultStepView(magnet, step);
+  if (!def) return null;
+
+  const merged = {
+    delayDays: fields.delayDays ?? def.delayDays,
+    subject: (fields.subject ?? def.subject).trim(),
+    intro: (fields.intro ?? def.intro).trim(),
+    bodyHtml: (fields.bodyHtml ?? def.bodyHtml).trim(),
+  };
+
+  await db.insert(leadMagnetSequenceStepsTable).values({
+    magnet, step,
+    delayDays: merged.delayDays,
+    subject: merged.subject,
+    intro: merged.intro,
+    bodyHtml: merged.bodyHtml,
+  }).onConflictDoUpdate({
+    target: [leadMagnetSequenceStepsTable.magnet, leadMagnetSequenceStepsTable.step],
+    set: {
+      delayDays: merged.delayDays,
+      subject: merged.subject,
+      intro: merged.intro,
+      bodyHtml: merged.bodyHtml,
+      updatedAt: new Date(),
+    },
+  });
+
+  const views = await loadStepViews(magnet);
+  return views.find(v => v.step === step) ?? null;
+}
+
+export async function resetStepOverride(magnet: LeadMagnetKey, step: number): Promise<SequenceStepView | null> {
+  await db.delete(leadMagnetSequenceStepsTable).where(and(
+    eq(leadMagnetSequenceStepsTable.magnet, magnet),
+    eq(leadMagnetSequenceStepsTable.step, step),
+  ));
+  const views = await loadStepViews(magnet);
+  return views.find(v => v.step === step) ?? null;
+}
+
+/** Used by the admin Preview button. Renders the merged step with sample tokens. */
+export async function previewStep(
+  magnet: LeadMagnetKey,
+  step: number,
+  ctx: { name: string; baseUrl: string; unsubUrl: string },
+): Promise<RenderedSequenceStep | null> {
+  const steps = await loadEffectiveSteps(magnet);
+  const s = steps.find(x => x.step === step);
+  if (!s) return null;
+  return {
+    step: s.step,
+    delayDays: s.delayDays,
+    subject: s.subject,
+    intro: s.intro,
+    html: s.bodyHtml(ctx),
+  };
+}
+
 export const SEQUENCE_PAUSE_KEY = (magnet: LeadMagnetKey) => `lead_magnet_seq_paused_${magnet}`;
 
 export async function isSequencePaused(magnet: LeadMagnetKey): Promise<boolean> {
@@ -288,7 +453,16 @@ function defaultBaseUrl(): string {
 export async function processSequenceTick(now: Date = new Date()): Promise<{ scanned: number; sent: number; skipped: number }> {
   const baseUrl = defaultBaseUrl();
   const pauseStates = await getAllSequencePauseStates();
-  const maxDelay = Math.max(...Object.values(SEQUENCES).flat().map(s => s.delayDays));
+
+  // Pre-load effective (DB-overridden) steps for every magnet once per tick.
+  const magnetKeys = Object.keys(SEQUENCES) as LeadMagnetKey[];
+  const stepsByMagnet = new Map<LeadMagnetKey, SequenceStep[]>();
+  for (const m of magnetKeys) {
+    stepsByMagnet.set(m, await loadEffectiveSteps(m));
+  }
+
+  const allDelays = [...stepsByMagnet.values()].flat().map(s => s.delayDays);
+  const maxDelay = allDelays.length ? Math.max(...allDelays) : 0;
   const earliest = new Date(now.getTime() - (maxDelay + 1) * 24 * 60 * 60 * 1000);
 
   const candidates = await db.select()
@@ -307,7 +481,7 @@ export async function processSequenceTick(now: Date = new Date()): Promise<{ sca
     scanned++;
     const magnet = sub.magnet as LeadMagnetKey;
     if (pauseStates[magnet]) { skipped++; continue; }
-    const steps = SEQUENCES[magnet] || [];
+    const steps = stepsByMagnet.get(magnet) || [];
     if (!steps.length) { skipped++; continue; }
 
     const sentRows = await db.select().from(leadMagnetSequenceSendsTable)
