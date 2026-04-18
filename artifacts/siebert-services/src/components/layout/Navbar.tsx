@@ -220,7 +220,8 @@ export function Navbar() {
               </button>
 
               {industriesOpen && (
-                <div className="absolute top-full right-0 mt-3 w-[320px] bg-white rounded-2xl shadow-xl border border-border py-3 z-50">
+                <div className="absolute top-full right-0 w-[320px] z-50 pt-2">
+                <div className="bg-white rounded-2xl shadow-xl border border-border py-3">
                   <div className="px-2">
                     {industryLinks.map((link) => (
                       <Link
@@ -247,6 +248,7 @@ export function Navbar() {
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                   </div>
+                </div>
                 </div>
               )}
             </div>
