@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Calendar, X } from "lucide-react";
+import { Calendar, ExternalLink, X } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_BOOKING_URL = "https://siebertrservices.zoom.us/zbook/sales-lmo817/sales?embed=true";
+const DEFAULT_BOOKING_URL = "https://siebertrservices.zoom.us/zbook/sales-lmo817/sales";
 
 let cachedUrl: string | null = null;
 let pendingFetch: Promise<string> | null = null;
@@ -14,7 +14,8 @@ async function loadBookingUrl(): Promise<string> {
   pendingFetch = fetch("/api/cms/settings")
     .then((r) => (r.ok ? r.json() : {}))
     .then((s: Record<string, string>) => {
-      cachedUrl = s.booking_url || DEFAULT_BOOKING_URL;
+      const raw = s.booking_url || DEFAULT_BOOKING_URL;
+      cachedUrl = raw.replace(/[?&]embed=true/g, "");
       return cachedUrl;
     })
     .catch(() => {
@@ -35,12 +36,20 @@ export function useBookingUrl() {
   return url;
 }
 
+const IFRAME_ALLOW =
+  "payment; clipboard-write; camera; microphone; fullscreen; geolocation";
+
 interface BookingButtonProps extends Omit<ButtonProps, "onClick"> {
   label?: string;
   showIcon?: boolean;
 }
 
-export function BookingButton({ label = "Book a Call", showIcon = true, className, ...rest }: BookingButtonProps) {
+export function BookingButton({
+  label = "Book a Call",
+  showIcon = true,
+  className,
+  ...rest
+}: BookingButtonProps) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -59,7 +68,9 @@ export function BookingButton({ label = "Book a Call", showIcon = true, classNam
 }
 
 export function BookingModal({ onClose }: { onClose: () => void }) {
-  const url = useBookingUrl();
+  const base = useBookingUrl();
+  const embedUrl = `${base}?embed=true`;
+
   useEffect(() => {
     const orig = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -74,11 +85,16 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[80vh] overflow-hidden"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden"
+        style={{ height: "min(90vh, 820px)" }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close */}
         <button
           onClick={onClose}
           aria-label="Close booking"
@@ -86,37 +102,54 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
         >
           <X className="w-5 h-5" />
         </button>
-        <div className="absolute top-3 left-3 z-10">
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-navy shadow hover:bg-white"
-          >
-            Open in Zoom
-          </a>
-        </div>
+
+        {/* External fallback */}
+        <a
+          href={base}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-navy shadow hover:bg-white"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Open in new tab
+        </a>
+
         <iframe
-          src={`${url}${url.includes("?") ? "&" : "?"}embed=true`}
+          src={embedUrl}
           title="Schedule a call"
-          className="w-full h-full border-0"
-          loading="lazy"
+          className="w-full h-full border-0 block"
+          allow={IFRAME_ALLOW}
+          allowFullScreen
+          loading="eager"
         />
       </div>
     </div>
   );
 }
 
-export function BookingInline({ height = 700 }: { height?: number }) {
-  const url = useBookingUrl();
+export function BookingInline({ height = 820 }: { height?: number }) {
+  const base = useBookingUrl();
+  const embedUrl = `${base}?embed=true`;
+
   return (
-    <div className="rounded-2xl overflow-hidden border border-border shadow-lg bg-white">
+    <div className="rounded-2xl overflow-hidden border border-border shadow-lg bg-white relative">
+      <a
+        href={base}
+        target="_blank"
+        rel="noreferrer"
+        className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/80 border border-border px-3 py-1.5 text-xs font-semibold text-navy shadow hover:bg-white"
+      >
+        <ExternalLink className="w-3 h-3" />
+        Open in new tab
+      </a>
       <iframe
-        src={`${url}${url.includes("?") ? "&" : "?"}embed=true`}
+        src={embedUrl}
         title="Schedule a call"
         className="w-full border-0 block"
         style={{ height }}
-        loading="lazy"
+        allow={IFRAME_ALLOW}
+        allowFullScreen
+        loading="eager"
       />
     </div>
   );
