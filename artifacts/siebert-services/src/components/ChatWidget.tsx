@@ -206,10 +206,10 @@ export function ChatWidget() {
                 </div>
                 <div>
                   <h3 className="font-display font-bold leading-tight flex items-center gap-1.5">
-                    Siebert AI Assistant
+                    Zoom Assistant
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
                   </h3>
-                  <p className="text-xs text-primary">Powered by AI · Always available</p>
+                  <p className="text-xs text-primary">Powered by Zoom · Always available</p>
                 </div>
               </div>
               <button
