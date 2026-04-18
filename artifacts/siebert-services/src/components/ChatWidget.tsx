@@ -83,19 +83,11 @@ export function ChatWidget() {
         setMessages([
           {
             role: "assistant",
-            content: `Hi ${name}! I'm the Siebert Services AI assistant. How can I help you today? Whether you have questions about our IT services, cloud solutions, cybersecurity, or anything else — I'm here to help.`,
+            content: `Hi ${name}! I'm the Zoom assistant for Siebert Services. How can I help you today?`,
           },
         ]);
       }
-    } catch {
-      // fallback: just show the greeting
-      setMessages([
-        {
-          role: "assistant",
-          content: `Hi ${name}! I'm the Siebert Services AI assistant. How can I help you today?`,
-        },
-      ]);
-    }
+    } catch {}
 
     setIsInitialized(true);
   };
@@ -233,9 +225,7 @@ export function ChatWidget() {
               {!isInitialized ? (
                 <div className="p-6 flex-1 flex flex-col justify-center">
                   <h4 className="text-xl font-bold text-navy mb-2">Let's get started</h4>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Please introduce yourself so our AI assistant can personalize your experience.
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">Please introduce yourself to start the Zoom assistant.</p>
                   <form onSubmit={handleStartChat} className="space-y-4">
                     <Input
                       placeholder="Your Name"
