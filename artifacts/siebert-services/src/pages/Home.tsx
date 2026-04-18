@@ -1,94 +1,181 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Shield, Cloud, Server, Headphones, Video, ArrowRight, CheckCircle2, Wifi } from "lucide-react";
+import {
+  Shield,
+  Cloud,
+  Server,
+  Headphones,
+  ArrowRight,
+  CheckCircle2,
+  Building2,
+  Stethoscope,
+  Scale,
+  GraduationCap,
+} from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 import { BookingButton } from "@/components/Booking";
-import { TestimonialsSection, CompanyStats, CertificationsRow, GoogleReviewsBlock, CaseStudyCard, type CaseStudy } from "@/components/trust";
-import { useEffect, useState } from "react";
+import { MultiChannelContactBar } from "@/components/MultiChannelContactBar";
+import {
+  TestimonialsSection,
+  CompanyStats,
+  CertificationsRow,
+  GoogleReviewsBlock,
+  CaseStudyCard,
+  TrustEyebrow,
+  type CaseStudy,
+} from "@/components/trust";
 
 export default function Home() {
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   useEffect(() => {
     fetch("/api/cms/case-studies")
-      .then(r => (r.ok ? r.json() : []))
+      .then((r) => (r.ok ? r.json() : []))
       .then((d: CaseStudy[]) => setCaseStudies(d.slice(0, 3)))
       .catch(() => setCaseStudies([]));
   }, []);
 
   const features = [
-    { icon: <Headphones className="w-6 h-6"/>, title: "Managed IT & Helpdesk", desc: "24/7 monitoring, proactive maintenance, and tiered support plans with guaranteed SLAs." },
-    { icon: <Cloud className="w-6 h-6"/>, title: "Cloud Services", desc: "Microsoft 365, AWS, and Azure migrations and ongoing management — fully managed or co-managed." },
-    { icon: <Shield className="w-6 h-6"/>, title: "Cybersecurity", desc: "Enterprise-grade endpoint protection, compliance management, and threat detection." },
-    { icon: <Server className="w-6 h-6"/>, title: "Infrastructure", desc: "Networking, firewalls, and server deployments from certified vendor partners." }
+    {
+      icon: <Headphones className="w-6 h-6" />,
+      title: "Managed IT & Helpdesk",
+      desc: "24/7 monitoring, proactive maintenance, and tiered support plans with guaranteed SLAs.",
+    },
+    {
+      icon: <Cloud className="w-6 h-6" />,
+      title: "Cloud Services",
+      desc: "Microsoft 365, AWS, and Azure migrations and ongoing management — fully managed or co-managed.",
+    },
+    {
+      icon: <Shield className="w-6 h-6" />,
+      title: "Cybersecurity",
+      desc: "Enterprise-grade endpoint protection, compliance management, and threat detection.",
+    },
+    {
+      icon: <Server className="w-6 h-6" />,
+      title: "Infrastructure",
+      desc: "Networking, firewalls, and server deployments from certified vendor partners.",
+    },
+  ];
+
+  const industries = [
+    { icon: <Stethoscope className="w-5 h-5" />, label: "Healthcare & medical" },
+    { icon: <Scale className="w-5 h-5" />, label: "Legal & professional services" },
+    { icon: <Building2 className="w-5 h-5" />, label: "Manufacturing & distribution" },
+    { icon: <GraduationCap className="w-5 h-5" />, label: "Education & nonprofit" },
   ];
 
   return (
     <div className="flex flex-col min-h-screen">
       <SchemaTag id="schema-localbusiness" type="LocalBusiness" />
-      <SchemaTag id="schema-webpage-home" type="WebPage" name="Siebert Services — Hudson Valley Managed IT & Technology Reseller" description="Managed IT services, cybersecurity, cloud, and authorized vendor reselling for Hudson Valley businesses. 24/7 support and rapid response." />
-      {/* HERO SECTION */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-navy">
+      <SchemaTag
+        id="schema-webpage-home"
+        type="WebPage"
+        name="Siebert Services — Hudson Valley Managed IT, Internet & Security"
+        description="Managed IT, internet, and cybersecurity for Hudson Valley businesses. 24/7 helpdesk, < 15 minute response, and one partner for procurement, deployment, and support."
+      />
+
+      {/* HERO — first 5 seconds: who, what, why, what to do next */}
+      <section className="relative pt-24 pb-12 lg:pt-32 lg:pb-16 overflow-hidden bg-navy">
         <div className="absolute inset-0 z-0">
-          <img 
-            src={`${import.meta.env.BASE_URL}images/hero-bg.png`} 
-            alt="Hero abstract technology background" 
+          <img
+            src={`${import.meta.env.BASE_URL}images/hero-bg.png`}
+            alt=""
             className="w-full h-full object-cover opacity-30 mix-blend-overlay"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/85 to-navy/40" />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-3xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
+              className="lg:col-span-7"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold text-sm mb-6">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                Hybrid MSP & Technology Reseller
-              </div>
-              <h1 className="text-5xl lg:text-7xl font-display font-extrabold text-white leading-[1.1] mb-6 tracking-tight">
-                Technology Solutions. <br/>
-                <span className="text-gradient">Delivered Simply.</span>
+              <TrustEyebrow className="mb-6" />
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-display font-extrabold text-white leading-[1.05] mb-5 tracking-tight">
+                Managed IT, Internet & Security for{" "}
+                <span className="text-gradient">Hudson Valley businesses.</span>
               </h1>
-              <p className="text-xl text-white/80 leading-relaxed mb-10 max-w-2xl">
-                Siebert Services is a hybrid MSP — combining our own managed IT services with authorized reselling of enterprise products from our authorized vendor partners. One partner for procurement, deployment, management, and support.
+              <p className="text-lg text-white/80 leading-relaxed mb-7 max-w-2xl">
+                One local partner for your helpdesk, cloud, cybersecurity, phones, and
+                connectivity — with a 15-minute response SLA and engineers based right here
+                in Orange County.
               </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                 <Link href="/quote">
-                  <Button size="lg" className="w-full sm:w-auto gap-2">
-                    Get a Custom Quote <ArrowRight className="w-5 h-5" />
+                  <Button size="lg" className="w-full sm:w-auto gap-2 h-14 px-7 text-base">
+                    Get a Free IT Assessment <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
-                <BookingButton size="lg" variant="outline" className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white hover:text-white" label="Book a Call" />
-                <Link href="/services">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white hover:text-white">
-                    Explore Services
+                <Link href="/pricing">
+                  <Button
+                    variant="link"
+                    className="text-white hover:text-primary text-base font-semibold"
+                  >
+                    See Pricing →
                   </Button>
                 </Link>
+              </div>
+
+              <p className="text-white/50 text-sm mt-4">
+                No-obligation 30-minute call. We'll review your stack and send a written plan
+                the same day.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="lg:col-span-5 hidden lg:block"
+            >
+              <div className="relative">
+                <div className="absolute -inset-6 bg-primary/20 rounded-3xl blur-3xl" />
+                <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-navy-light/50">
+                  <img
+                    src={`${import.meta.env.BASE_URL}images/about-team.png`}
+                    alt="Siebert Services engineers supporting a Hudson Valley client"
+                    className="w-full h-[380px] object-cover"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-navy via-navy/80 to-transparent p-6">
+                    <p className="text-white font-bold text-lg">
+                      Local engineers. Real response times.
+                    </p>
+                    <p className="text-white/70 text-sm">
+                      Headquartered in Washingtonville, NY
+                    </p>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* CORE SERVICES GRID */}
+      {/* COMPANY STATS — visible directly below hero */}
+      <CompanyStats variant="navy" />
+
+      {/* SERVICES SNAPSHOT */}
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">Hybrid MSP Services</h2>
-            <p className="text-lg text-muted-foreground">We pair our own managed IT services with the best products from our vendor partners — so you get a complete technology solution without the complexity. Every service backed by SLAs and 24/7 support.</p>
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">
+              Everything your business technology needs — under one roof.
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              We pair our own managed services with the best products from our authorized
+              vendor partners. One invoice, one support number, one accountable partner.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, idx) => (
-              <motion.div 
+              <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -110,48 +197,95 @@ export default function Home() {
 
           <div className="mt-12 text-center">
             <Link href="/services">
-              <Button variant="link" className="text-lg">View all services <ArrowRight className="w-4 h-4 ml-2" /></Button>
+              <Button variant="link" className="text-lg">
+                View all services <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* INTERNET PLANS FINDER */}
-      <section className="py-24 bg-gradient-to-r from-[#032d60] to-[#0176d3] text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="flex justify-center mb-6">
-              <Wifi className="w-16 h-16 text-white/80" />
+      {/* TESTIMONIALS */}
+      <TestimonialsSection background="muted" limit={3} />
+
+      {/* CASE STUDY HIGHLIGHT */}
+      {caseStudies.length > 0 && (
+        <section className="py-24 bg-background">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-3">
+                  Client outcomes
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl">
+                  Quantified results from Hudson Valley businesses that trust Siebert as
+                  their hybrid MSP partner.
+                </p>
+              </div>
+              <Link href="/case-studies">
+                <Button variant="link" className="text-lg">
+                  View all case studies <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
             </div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">Find Internet Providers in Your Area</h2>
-            <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-              Search available ISPs and plans at your address. Compare speeds, technologies, and pricing from multiple providers.
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+              {caseStudies.map((cs, i) => (
+                <CaseStudyCard key={cs.id} caseStudy={cs} index={i} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* INDUSTRIES SNAPSHOT */}
+      <section className="py-24 bg-white border-y border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">
+              Specialized support for the industries we know best.
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Compliance, uptime, and tooling vary by vertical. We tailor our managed stack
+              to the businesses that drive the Hudson Valley economy.
             </p>
-            <Link href="/internet-plans">
-              <Button 
-                size="lg" 
-                className="bg-white text-[#0176d3] hover:bg-white/90 h-14 px-10 text-lg font-semibold"
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {industries.map((ind, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="rounded-2xl bg-background border border-border p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
               >
-                Search Internet Plans <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-            <p className="text-sm text-white/70 mt-4">💡 Tip: Use our referral link to get a $50 bill credit on Optimum residential internet service</p>
-          </motion.div>
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                  {ind.icon}
+                </div>
+                <p className="font-semibold text-navy">{ind.label}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
+
+      {/* GOOGLE REVIEWS */}
+      <GoogleReviewsBlock />
+
+      {/* CERTIFICATIONS */}
+      <CertificationsRow />
 
       {/* VENDOR PARTNERS */}
       <section className="py-20 bg-primary/5 border-y border-primary/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">Our Vendor Partners</h2>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">
+              Our Vendor Partners
+            </h2>
             <p className="text-lg text-muted-foreground">
-              As a hybrid MSP, we pair our managed services with products from our authorized vendor partners. Partner-level pricing, priority support, and expert deployment — all included.
+              As a hybrid MSP, we pair our managed services with products from our authorized
+              vendor partners. Partner-level pricing, priority support, and expert deployment
+              — all included.
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -183,11 +317,11 @@ export default function Home() {
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
+                transition={{ delay: Math.min(i, 10) * 0.04 }}
               >
                 <Link href={vendor.href}>
-                  <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer">
-                    <h3 className="font-bold text-navy text-lg mb-1">{vendor.name}</h3>
+                  <div className="bg-white rounded-2xl p-5 text-center shadow-sm border border-border hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full">
+                    <h3 className="font-bold text-navy text-base mb-1">{vendor.name}</h3>
                     <p className="text-xs text-primary font-semibold">{vendor.desc}</p>
                   </div>
                 </Link>
@@ -197,84 +331,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ZOOM PARTNER HIGHLIGHT */}
-      <section className="py-24 bg-navy relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={`${import.meta.env.BASE_URL}images/zoom-bg.png`} 
-            alt="Zoom abstract tech" 
-            className="w-full h-full object-cover opacity-20"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/90 to-transparent" />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/20 text-blue-400 font-bold text-sm mb-6 border border-blue-500/30">
-                <Video className="w-4 h-4" /> Certified Zoom Partner
-              </div>
-              <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">
-                Elevate your team's communication.
-              </h2>
-              <p className="text-lg text-white/70 mb-8 leading-relaxed">
-                As a certified Zoom Partner, Siebert Services sells, deploys, and supports the complete Zoom suite — bundled with our managed IT services for a seamless, fully supported communications solution.
-              </p>
-              
-              <ul className="space-y-4 mb-10">
-                {[
-                  "Zoom Meetings & Team Chat",
-                  "Zoom Phone (Cloud PBX replacement)",
-                  "Zoom Rooms Hardware Setup",
-                  "AI Companion Integration"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-white/90 font-medium">
-                    <CheckCircle2 className="w-6 h-6 text-blue-400 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-
-              <Link href="/zoom">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 gap-2">
-                  Explore Zoom Solutions <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="relative hidden lg:block"
-            >
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-blue-500/20 rounded-full blur-[100px] -z-10" />
-               <div className="relative glass-dark rounded-3xl p-8 border border-white/10 shadow-2xl">
-                 <div className="flex items-center gap-4 mb-6 border-b border-white/10 pb-6">
-                   <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center">
-                     <Video className="w-8 h-8 text-white" />
-                   </div>
-                   <div>
-                     <div className="text-2xl font-bold text-white font-display">Zoom</div>
-                     <div className="text-blue-400 font-medium">Full Suite Deployment</div>
-                   </div>
-                 </div>
-                 <div className="space-y-4">
-                   <div className="h-4 w-3/4 bg-white/10 rounded-full" />
-                   <div className="h-4 w-full bg-white/10 rounded-full" />
-                   <div className="h-4 w-5/6 bg-white/10 rounded-full" />
-                 </div>
-               </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* WHY BUY FROM A RESELLER */}
+      {/* WHY HYBRID MSP */}
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -283,14 +340,28 @@ export default function Home() {
                 Why work with a hybrid MSP?
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                With Siebert, you don't just get products — you get a complete solution. We combine vendor procurement with our own managed services, so every purchase comes with expert deployment, ongoing management, and SLA-backed support.
+                With Siebert, you don't just get products — you get a complete solution. We
+                combine vendor procurement with our own managed services, so every purchase
+                comes with expert deployment, ongoing management, and SLA-backed support.
               </p>
               <ul className="space-y-5">
                 {[
-                  { title: "Partner-Level Pricing", desc: "Our vendor partnerships give us access to pricing, promotions, and deal registration that you can't get buying direct." },
-                  { title: "Bundled Managed Services", desc: "Pair any hardware or software purchase with our managed IT plans — one invoice, one support number, one partner." },
-                  { title: "Expert Deployment & Migration", desc: "We don't just ship boxes. We design, configure, deploy, and migrate — with certified engineers on your project." },
-                  { title: "Ongoing Support & SLAs", desc: "After deployment, we manage and support your technology with guaranteed SLAs and 24/7 helpdesk access." }
+                  {
+                    title: "Partner-Level Pricing",
+                    desc: "Our vendor partnerships give us access to pricing, promotions, and deal registration that you can't get buying direct.",
+                  },
+                  {
+                    title: "Bundled Managed Services",
+                    desc: "Pair any hardware or software purchase with our managed IT plans — one invoice, one support number, one partner.",
+                  },
+                  {
+                    title: "Expert Deployment & Migration",
+                    desc: "We don't just ship boxes. We design, configure, deploy, and migrate — with certified engineers on your project.",
+                  },
+                  {
+                    title: "Ongoing Support & SLAs",
+                    desc: "After deployment, we manage and support your technology with guaranteed SLAs and 24/7 helpdesk access.",
+                  },
                 ].map((item, i) => (
                   <li key={i} className="flex gap-4">
                     <CheckCircle2 className="w-6 h-6 text-primary shrink-0 mt-0.5" />
@@ -309,7 +380,7 @@ export default function Home() {
                   { label: "Procurement", desc: "We source hardware and software at partner pricing from HP, Dell, Zoom, and more." },
                   { label: "Deployment", desc: "Certified engineers handle design, configuration, and installation." },
                   { label: "Management", desc: "Ongoing monitoring, patching, and support with tiered SLA plans." },
-                  { label: "Lifecycle", desc: "From first boot to secure decommission — we manage the full lifecycle." }
+                  { label: "Lifecycle", desc: "From first boot to secure decommission — we manage the full lifecycle." },
                 ].map((t, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
                     <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -325,51 +396,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* COMPANY STATS */}
-      <CompanyStats variant="navy" />
-
-      {/* CASE STUDIES */}
-      {caseStudies.length > 0 && (
-        <section className="py-24 bg-background">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-3">Client outcomes</h2>
-                <p className="text-lg text-muted-foreground max-w-2xl">Quantified results from businesses that trust Siebert as their hybrid MSP partner.</p>
-              </div>
-              <Link href="/case-studies"><Button variant="link" className="text-lg">View all case studies <ArrowRight className="w-4 h-4 ml-2" /></Button></Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
-              {caseStudies.map((cs, i) => <CaseStudyCard key={cs.id} caseStudy={cs} index={i} />)}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* TESTIMONIALS */}
-      <TestimonialsSection background="muted" limit={3} />
-
-      {/* GOOGLE REVIEWS */}
-      <GoogleReviewsBlock />
-
-      {/* CERTIFICATIONS */}
-      <CertificationsRow />
-
-      {/* CTA SECTION */}
+      {/* FINAL CTA + multi-channel contact bar */}
       <section className="py-24 bg-primary/5 border-t border-primary/10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-display font-bold text-navy mb-6">Ready to upgrade your IT?</h2>
+          <h2 className="text-4xl font-display font-bold text-navy mb-6">
+            Ready for an IT partner that picks up the phone?
+          </h2>
           <p className="text-xl text-muted-foreground mb-10">
-            Let's discuss how Siebert Services can source, deploy, and manage the right technology for your business — at partner pricing with expert support.
+            Pick whichever way to reach us is easiest — call, chat, or book a 15-minute
+            discovery call. We'll respond the same business day.
           </p>
+          <div className="max-w-3xl mx-auto mb-8">
+            <MultiChannelContactBar variant="inline" />
+          </div>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/quote">
-              <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-lg">Request a Quote</Button>
+              <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-lg">
+                Get a Free IT Assessment
+              </Button>
             </Link>
-            <BookingButton size="lg" className="w-full sm:w-auto h-14 px-8 text-lg" label="Book a Call" />
-            <Link href="/contact">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 text-lg">Contact Us</Button>
-            </Link>
+            <BookingButton
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto h-14 px-8 text-lg"
+              label="Book a 15-Min Call"
+            />
           </div>
         </div>
       </section>
