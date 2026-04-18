@@ -421,6 +421,11 @@ export function ServicePageTemplate({ content, caseStudies = [] }: Props) {
               </Button>
             </Link>
           </div>
+          <div className="mt-5">
+            <Link href="/pricing" className="text-sm text-white/70 hover:text-primary font-semibold underline-offset-4 hover:underline transition-colors">
+              See pricing →
+            </Link>
+          </div>
           <p className="text-sm text-white/50 mt-6">
             Hudson Valley · NYC Metro · Remote nationwide · 24/7 support available
           </p>

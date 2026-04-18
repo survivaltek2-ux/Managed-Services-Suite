@@ -1,4 +1,4 @@
-import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable } from "@workspace/db";
+import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable } from "@workspace/db";
 import { count, eq } from "drizzle-orm";
 
 async function seedTrustContent(): Promise<void> {
@@ -108,6 +108,76 @@ async function seedTrustContent(): Promise<void> {
         },
       ]);
       console.log("[seed] Inserted 3 case studies");
+    }
+
+    // Pricing tiers
+    const [{ pCount }] = await db.select({ pCount: count() }).from(pricingTiersTable);
+    if (pCount === 0) {
+      await db.insert(pricingTiersTable).values([
+        {
+          slug: "essentials", name: "Essentials",
+          tagline: "Core managed IT for small teams that need reliable coverage.",
+          startingPrice: "89", priceUnit: "per user / month", pricePrefix: "Starting at",
+          mostPopular: false, sortOrder: 0,
+          ctaLabel: "Get Started", ctaLink: "/quote",
+          features: JSON.stringify([
+            "Business-hours help desk (M–F 8–5)",
+            "Remote monitoring & patching",
+            "Endpoint antivirus",
+            "Microsoft 365 administration",
+            "Quarterly health check",
+            "Email & phone support",
+          ]),
+          excludedFeatures: JSON.stringify([
+            "24/7 after-hours support",
+            "Endpoint Detection & Response (EDR)",
+            "vCIO strategic planning",
+            "On-site dispatch included",
+          ]),
+        },
+        {
+          slug: "business", name: "Business",
+          tagline: "Full-stack IT, security, and cloud for growing businesses.",
+          startingPrice: "149", priceUnit: "per user / month", pricePrefix: "Starting at",
+          mostPopular: true, sortOrder: 1,
+          ctaLabel: "Get Started", ctaLink: "/quote",
+          features: JSON.stringify([
+            "Extended-hours help desk (7am–8pm)",
+            "Remote monitoring & patching",
+            "Endpoint Detection & Response (EDR)",
+            "Microsoft 365 + security hardening",
+            "Multi-factor authentication rollout",
+            "Backup & disaster-recovery monitoring",
+            "Quarterly business reviews (vCIO)",
+            "On-site dispatch (4 hrs / month)",
+          ]),
+          excludedFeatures: JSON.stringify([
+            "24/7 after-hours support",
+            "Dedicated SOC analyst",
+            "Compliance program management",
+          ]),
+        },
+        {
+          slug: "enterprise", name: "Enterprise",
+          tagline: "24/7 coverage, compliance, and a named team for complex orgs.",
+          startingPrice: "229", priceUnit: "per user / month", pricePrefix: "Starting at",
+          mostPopular: false, sortOrder: 2,
+          ctaLabel: "Talk to Sales", ctaLink: "/quote",
+          features: JSON.stringify([
+            "24/7/365 help desk + emergency line",
+            "Full EDR + Managed SOC monitoring",
+            "Microsoft 365 E3/E5 management",
+            "MFA, conditional access, SSO design",
+            "Immutable backup + tested restores",
+            "Compliance program (HIPAA, SOC 2, CMMC)",
+            "Named vCIO + monthly strategy meetings",
+            "Unlimited on-site dispatch",
+            "Dedicated account team",
+          ]),
+          excludedFeatures: JSON.stringify([]),
+        },
+      ]);
+      console.log("[seed] Inserted 3 pricing tiers");
     }
   } catch (err) {
     console.error("[seed] Trust content seeding failed (non-fatal):", err);

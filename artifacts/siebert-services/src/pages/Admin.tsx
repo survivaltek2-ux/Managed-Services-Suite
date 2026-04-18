@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats" | "pricingTiers";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -31,6 +31,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "caseStudies", label: "Case Studies", icon: <FileText size={18} /> },
   { id: "certifications", label: "Certifications", icon: <Award size={18} /> },
   { id: "companyStats", label: "Company Stats", icon: <TrendingUp size={18} /> },
+  { id: "pricingTiers", label: "Pricing Tiers", icon: <DollarSign size={18} /> },
   { id: "team", label: "Team Members", icon: <Users size={18} /> },
   { id: "faq", label: "FAQ", icon: <HelpCircle size={18} /> },
   { id: "settings", label: "Site Settings", icon: <Settings size={18} /> },
@@ -88,6 +89,7 @@ export default function Admin() {
         caseStudies: "/api/admin/cms/case-studies",
         certifications: "/api/admin/cms/certifications",
         companyStats: "/api/admin/cms/company-stats",
+        pricingTiers: "/api/admin/cms/pricing-tiers",
       };
       if (tab === "inquiries") {
         const [contactRes, quoteRes, ticketRes] = await Promise.all([
@@ -440,6 +442,21 @@ export default function Admin() {
                 { key: "sortOrder", label: "Sort Order", type: "number" },
                 { key: "active", label: "Active", type: "checkbox" },
               ]} columns={["name", "category", "active"]} />}
+              {activeTab === "pricingTiers" && <CrudTab items={data.pricingTiers || []} refresh={() => fetchData("pricingTiers")} headers={headers} entity="pricing-tiers" fields={[
+                { key: "name", label: "Name (e.g. Essentials, Business, Enterprise)", type: "text", required: true },
+                { key: "slug", label: "Slug (auto if blank)", type: "text" },
+                { key: "tagline", label: "Tagline (1 line)", type: "text" },
+                { key: "pricePrefix", label: "Price prefix (e.g. Starting at)", type: "text" },
+                { key: "startingPrice", label: "Starting price (number, no $)", type: "text", required: true },
+                { key: "priceUnit", label: "Price unit (e.g. per user / month)", type: "text" },
+                { key: "features", label: "Included features (one per line)", type: "features" },
+                { key: "excludedFeatures", label: "Excluded features (one per line)", type: "features" },
+                { key: "ctaLabel", label: "CTA button label", type: "text" },
+                { key: "ctaLink", label: "CTA link (e.g. /quote)", type: "text" },
+                { key: "mostPopular", label: "Mark as Most Popular", type: "checkbox" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["name", "startingPrice", "mostPopular", "active"]} />}
               {activeTab === "companyStats" && <CrudTab items={data.companyStats || []} refresh={() => fetchData("companyStats")} headers={headers} entity="company-stats" fields={[
                 { key: "label", label: "Label (e.g. Average response time)", type: "text", required: true },
                 { key: "value", label: "Value (e.g. 98 or < 10)", type: "text", required: true },

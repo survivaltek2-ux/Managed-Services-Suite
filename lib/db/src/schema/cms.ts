@@ -134,9 +134,30 @@ export const companyStatsTable = pgTable("company_stats", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const pricingTiersTable = pgTable("pricing_tiers", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  tagline: text("tagline").notNull().default(""),
+  startingPrice: text("starting_price").notNull().default("0"),
+  priceUnit: text("price_unit").notNull().default("per user / month"),
+  pricePrefix: text("price_prefix").notNull().default("Starting at"),
+  mostPopular: boolean("most_popular").notNull().default(false),
+  features: text("features").notNull().default("[]"),
+  excludedFeatures: text("excluded_features").notNull().default("[]"),
+  ctaLabel: text("cta_label").notNull().default("Get Started"),
+  ctaLink: text("cta_link").notNull().default("/quote"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export type CaseStudy = typeof caseStudiesTable.$inferSelect;
 export type Certification = typeof certificationsTable.$inferSelect;
 export type CompanyStat = typeof companyStatsTable.$inferSelect;
+export type PricingTier = typeof pricingTiersTable.$inferSelect;
+export const insertPricingTierSchema = createInsertSchema(pricingTiersTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export const insertCaseStudySchema = createInsertSchema(caseStudiesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCertificationSchema = createInsertSchema(certificationsTable).omit({ id: true, createdAt: true });

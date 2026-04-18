@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Response, Request, NextFunction } from "express";
-import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable, caseStudiesTable, certificationsTable, companyStatsTable } from "@workspace/db";
+import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable } from "@workspace/db";
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
@@ -814,6 +814,106 @@ router.delete("/admin/cms/company-stats/:id", requireAuth, requireAdmin, async (
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to delete stat" });
+  }
+});
+
+// ─── Pricing Tiers ───────────────────────────────────────────────────────────
+
+function parsePricingTier(t: any) {
+  return {
+    ...t,
+    features: JSON.parse(t.features || "[]"),
+    excludedFeatures: JSON.parse(t.excludedFeatures || "[]"),
+  };
+}
+
+router.get("/cms/pricing-tiers", async (_req, res) => {
+  try {
+    const items = await db.select().from(pricingTiersTable)
+      .where(eq(pricingTiersTable.active, true))
+      .orderBy(pricingTiersTable.sortOrder);
+    res.json(items.map(parsePricingTier));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load pricing tiers" });
+  }
+});
+
+router.get("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(pricingTiersTable).orderBy(pricingTiersTable.sortOrder);
+    res.json(items.map(parsePricingTier));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load pricing tiers" });
+  }
+});
+
+router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { slug, name, tagline, startingPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
+    const autoSlug = slug || String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const [item] = await db.insert(pricingTiersTable).values({
+      slug: autoSlug,
+      name,
+      tagline: tagline || "",
+      startingPrice: String(startingPrice ?? "0"),
+      priceUnit: priceUnit || "per user / month",
+      pricePrefix: pricePrefix || "Starting at",
+      mostPopular: !!mostPopular,
+      features: JSON.stringify(features || []),
+      excludedFeatures: JSON.stringify(excludedFeatures || []),
+      ctaLabel: ctaLabel || "Get Started",
+      ctaLink: ctaLink || "/quote",
+      sortOrder: sortOrder || 0,
+      active: active !== false,
+    }).returning();
+    await logActivity(req.userId, "create", "pricing_tier", item.id, `Added pricing tier: ${name}`);
+    res.status(201).json(parsePricingTier(item));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create pricing tier" });
+  }
+});
+
+router.put("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { slug, name, tagline, startingPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
+    const [item] = await db.update(pricingTiersTable).set({
+      slug,
+      name,
+      tagline: tagline || "",
+      startingPrice: String(startingPrice ?? "0"),
+      priceUnit: priceUnit || "per user / month",
+      pricePrefix: pricePrefix || "Starting at",
+      mostPopular: !!mostPopular,
+      features: JSON.stringify(features || []),
+      excludedFeatures: JSON.stringify(excludedFeatures || []),
+      ctaLabel: ctaLabel || "Get Started",
+      ctaLink: ctaLink || "/quote",
+      sortOrder: sortOrder ?? 0,
+      active: active !== false,
+      updatedAt: new Date(),
+    }).where(eq(pricingTiersTable.id, id)).returning();
+    if (!item) { res.status(404).json({ error: "not_found", message: "Pricing tier not found" }); return; }
+    await logActivity(req.userId, "update", "pricing_tier", id);
+    res.json(parsePricingTier(item));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update pricing tier" });
+  }
+});
+
+router.delete("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(pricingTiersTable).where(eq(pricingTiersTable.id, id));
+    await logActivity(req.userId, "delete", "pricing_tier", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete pricing tier" });
   }
 });
 

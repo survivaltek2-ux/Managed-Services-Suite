@@ -55,6 +55,7 @@ const industryLinks = [
 const topNavLinks = [
   { name: "Home", href: "/" },
   { name: "Industries", href: "/industries" },
+  { name: "Pricing", href: "/pricing" },
   { name: "Recommended Products", href: "/recommended" },
   { name: "Resources", href: "/resources" },
   { name: "About", href: "/about" },

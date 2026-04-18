@@ -17,6 +17,7 @@ import ZoomPartner from "./pages/ZoomPartner";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Quote from "./pages/Quote";
+import Pricing from "./pages/Pricing";
 import Portal from "./pages/Portal";
 import Admin from "./pages/Admin";
 import ProposalView from "./pages/ProposalView";
@@ -79,6 +80,7 @@ function PublicRouter() {
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/quote" component={Quote} />
+        <Route path="/pricing" component={Pricing} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
 
