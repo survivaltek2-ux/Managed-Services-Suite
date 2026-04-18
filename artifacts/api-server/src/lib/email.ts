@@ -1179,7 +1179,27 @@ function renderAssessmentReport(payload: LeadMagnetPayload): { score: number; ba
   return { score: pct, band, bandColor, recs };
 }
 
+export async function sendLeadMagnetFollowUpEmail(to: string, subject: string, bodyHtml: string, unsubUrl: string): Promise<boolean> {
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 18px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 16px;">Siebert Services</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        ${bodyHtml}
+        <p style="font-size:12px;color:#999;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px;">— Siebert Services · 866-484-9180 · sales@siebertrservices.com</p>
+        <p style="font-size:11px;color:#9ca3af;margin:10px 0 0;line-height:1.5;">
+          You're receiving this because you downloaded a Siebert Services resource. Don't want follow-ups?
+          <a href="${esc(unsubUrl)}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>.
+        </p>
+      </div>
+    </div>
+  `;
+  return sendEmail(to, subject, html);
+}
+
 export async function sendLeadMagnetSubmission(submission: {
+  id?: number;
   magnet: LeadMagnetKey;
   name: string;
   email: string;
@@ -1187,6 +1207,7 @@ export async function sendLeadMagnetSubmission(submission: {
   phone?: string | null;
   payload: LeadMagnetPayload;
   pdfAttachment?: EmailAttachment;
+  unsubscribeUrl?: string;
 }, baseUrl: string) {
   const cfg = await loadEmailConfig();
   const label = getLeadMagnetLabel(submission.magnet);
@@ -1258,6 +1279,7 @@ export async function sendLeadMagnetSubmission(submission: {
       <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
         ${bodyHtml}
         <p style="font-size:12px;color:#999;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px;">— Siebert Services · 866-484-9180 · sales@siebertrservices.com</p>
+        ${submission.unsubscribeUrl ? `<p style="font-size:11px;color:#9ca3af;margin:10px 0 0;line-height:1.5;">You'll get a few short follow-up tips on this topic over the next 10 days. Not interested? <a href="${esc(submission.unsubscribeUrl)}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>.</p>` : ""}
       </div>
     </div>
   `;

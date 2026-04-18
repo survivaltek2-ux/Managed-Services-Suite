@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   LayoutDashboard, Settings, Briefcase, MessageSquare, Users, HelpCircle,
@@ -2521,7 +2521,44 @@ const LEAD_MAGNET_LABELS: Record<string, string> = {
 function LeadMagnetsTab({ submissions, headers, refresh, toast }: { submissions: any[]; headers: () => any; refresh: () => void; toast: any }) {
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<any | null>(null);
+  const [sequences, setSequences] = useState<any[]>([]);
+  const [seqLoading, setSeqLoading] = useState(false);
+  const [selectedSends, setSelectedSends] = useState<any[]>([]);
   const filtered = filter === "all" ? submissions : submissions.filter(s => s.magnet === filter);
+
+  const loadSequences = useCallback(async () => {
+    setSeqLoading(true);
+    try {
+      const r = await fetch("/api/admin/lead-magnets/sequences", { headers: headers() });
+      if (r.ok) setSequences(await r.json());
+    } finally { setSeqLoading(false); }
+  }, [headers]);
+
+  useEffect(() => { loadSequences(); }, [loadSequences]);
+
+  useEffect(() => {
+    if (!selected?.id) { setSelectedSends([]); return; }
+    (async () => {
+      try {
+        const r = await fetch(`/api/admin/lead-magnets/${selected.id}/sequence`, { headers: headers() });
+        if (r.ok) setSelectedSends(await r.json());
+      } catch { setSelectedSends([]); }
+    })();
+  }, [selected, headers]);
+
+  async function togglePause(magnet: string, paused: boolean) {
+    try {
+      const r = await fetch(`/api/admin/lead-magnets/sequences/${magnet}`, {
+        method: "PATCH",
+        headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ paused }),
+      });
+      if (r.ok) {
+        toast({ title: paused ? "Sequence paused" : "Sequence resumed" });
+        loadSequences();
+      } else toast({ title: "Update failed", variant: "destructive" });
+    } catch { toast({ title: "Update failed", variant: "destructive" }); }
+  }
 
   async function handleDelete(id: number) {
     if (!confirm("Delete this submission?")) return;
@@ -2545,6 +2582,43 @@ function LeadMagnetsTab({ submissions, headers, refresh, toast }: { submissions:
         <CardDescription>People who downloaded a free resource. {submissions.length} total.</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-5 rounded-md border bg-blue-50/40 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-blue-900">Follow-up email sequences</h4>
+            <span className="text-xs text-blue-800/70">3-step nurture (day 2 / 5 / 10) per magnet, with unsubscribe</span>
+          </div>
+          {seqLoading ? (
+            <p className="text-xs text-muted-foreground">Loading sequences…</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-2">
+              {sequences.map((seq: any) => (
+                <div key={seq.magnet} className="flex items-center justify-between gap-3 bg-white border rounded px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{LEAD_MAGNET_LABELS[seq.magnet] || seq.magnet}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {seq.steps?.length || 0} emails ·
+                      <span className={seq.paused ? "text-amber-700 font-semibold ml-1" : "text-green-700 font-semibold ml-1"}>
+                        {seq.paused ? "Paused" : "Active"}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => togglePause(seq.magnet, !seq.paused)}
+                    className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-md border ${
+                      seq.paused
+                        ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
+                        : "bg-white text-amber-700 border-amber-300 hover:bg-amber-50"
+                    }`}
+                  >
+                    {seq.paused ? "Resume" : "Pause"}
+                  </button>
+                </div>
+              ))}
+              {sequences.length === 0 && <p className="text-xs text-muted-foreground sm:col-span-2">No sequences configured.</p>}
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-2 mb-4 border-b pb-3">
           {[
             { id: "all", label: "All" },
@@ -2618,6 +2692,22 @@ function LeadMagnetsTab({ submissions, headers, refresh, toast }: { submissions:
                 {selected.phone && <p><strong>Phone:</strong> {selected.phone}</p>}
                 {selected.source && <p><strong>Source:</strong> {selected.source}</p>}
                 <p><strong>Submitted:</strong> {new Date(selected.createdAt).toLocaleString()}</p>
+                {selected.unsubscribedAt && <p className="text-amber-700"><strong>Unsubscribed:</strong> {new Date(selected.unsubscribedAt).toLocaleString()}</p>}
+                <div>
+                  <p className="font-semibold mb-1">Follow-up sequence:</p>
+                  {selectedSends.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No follow-ups sent yet.</p>
+                  ) : (
+                    <ul className="text-xs space-y-1">
+                      {selectedSends.sort((a: any, b: any) => a.step - b.step).map((s: any) => (
+                        <li key={s.id} className="flex items-center justify-between border rounded px-2 py-1 bg-gray-50">
+                          <span>Step {s.step} · <span className={s.status === "sent" ? "text-green-700" : s.status === "failed" ? "text-red-700" : "text-amber-700"}>{s.status}</span></span>
+                          <span className="text-muted-foreground">{new Date(s.sentAt).toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 <div>
                   <p className="font-semibold mb-1">Submission payload:</p>
                   <pre className="bg-gray-50 border p-3 rounded text-xs overflow-auto">{JSON.stringify(selected.payload || {}, null, 2)}</pre>
