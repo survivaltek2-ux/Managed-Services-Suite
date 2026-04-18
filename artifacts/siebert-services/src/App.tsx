@@ -7,6 +7,12 @@ import { Layout } from "@/components/layout/Layout";
 // Pages
 import Home from "./pages/Home";
 import Services from "./pages/Services";
+import ManagedIT from "./pages/services/ManagedIT";
+import Cybersecurity from "./pages/services/Cybersecurity";
+import CloudServices from "./pages/services/Cloud";
+import BackupDR from "./pages/services/BackupDR";
+import Compliance from "./pages/services/Compliance";
+import NetworkInfrastructure from "./pages/services/Network";
 import ZoomPartner from "./pages/ZoomPartner";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -54,6 +60,12 @@ function PublicRouter() {
         {/* Core pages */}
         <Route path="/" component={Home} />
         <Route path="/services" component={Services} />
+        <Route path="/services/managed-it" component={ManagedIT} />
+        <Route path="/services/cybersecurity" component={Cybersecurity} />
+        <Route path="/services/cloud" component={CloudServices} />
+        <Route path="/services/backup-disaster-recovery" component={BackupDR} />
+        <Route path="/services/compliance" component={Compliance} />
+        <Route path="/services/network" component={NetworkInfrastructure} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/quote" component={Quote} />
