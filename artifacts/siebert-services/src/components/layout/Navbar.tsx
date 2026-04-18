@@ -220,7 +220,7 @@ export function Navbar() {
               </button>
 
               {industriesOpen && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[320px] bg-white rounded-2xl shadow-xl border border-border py-3 z-50">
+                <div className="absolute top-full right-0 mt-3 w-[320px] bg-white rounded-2xl shadow-xl border border-border py-3 z-50">
                   <div className="px-2">
                     {industryLinks.map((link) => (
                       <Link
@@ -269,7 +269,7 @@ export function Navbar() {
               </button>
 
               {partnersOpen && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[540px] bg-white rounded-2xl shadow-xl border border-border py-4 z-50">
+                <div className="absolute top-full right-0 mt-3 w-[540px] bg-white rounded-2xl shadow-xl border border-border py-4 z-50">
                   <div className="grid grid-cols-2 gap-0 divide-x divide-border">
                     <div className="px-4">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Connectivity & ISP</p>
