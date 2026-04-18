@@ -311,22 +311,6 @@ export function Navbar() {
             </div>
           </nav>
 
-          {/* Desktop CTA */}
-          <div className="hidden lg:flex items-center gap-4">
-            <div className={cn("flex items-center gap-2 text-sm font-semibold mr-2", isScrolled ? "text-navy" : "text-white")}>
-              <PhoneCall className="w-4 h-4 text-primary" />
-              <span>866-484-9180</span>
-            </div>
-            <Link href="/portal">
-              <Button variant={isScrolled ? "outline" : "ghost"} className={cn(!isScrolled && "text-white hover:bg-white/10")}>
-                {isAuthenticated ? "Dashboard" : "Client Portal"}
-              </Button>
-            </Link>
-            <Link href="/quote">
-              <Button className="shadow-primary/30">Get a Quote</Button>
-            </Link>
-          </div>
-
           {/* Mobile Menu Toggle */}
           <button
             className="lg:hidden p-1.5 text-primary hover:bg-white/10 rounded-lg transition-colors"
