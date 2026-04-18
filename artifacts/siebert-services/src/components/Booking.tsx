@@ -15,7 +15,8 @@ async function loadBookingUrl(): Promise<string> {
     .then((r) => (r.ok ? r.json() : {}))
     .then((s: Record<string, string>) => {
       const raw = s.booking_url || DEFAULT_BOOKING_URL;
-      cachedUrl = raw.replace(/[?&]embed=true/g, "");
+      // Strip any embed flag — we drive the full page to avoid token errors
+      cachedUrl = raw.replace(/[?&]embed=true/g, "").replace(/\?$/, "");
       return cachedUrl;
     })
     .catch(() => {
@@ -68,8 +69,7 @@ export function BookingButton({
 }
 
 export function BookingModal({ onClose }: { onClose: () => void }) {
-  const base = useBookingUrl();
-  const embedUrl = `${base}?embed=true`;
+  const url = useBookingUrl();
 
   useEffect(() => {
     const orig = document.body.style.overflow;
@@ -86,12 +86,12 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden"
-        style={{ height: "min(90vh, 820px)" }}
+        className="relative bg-white rounded-2xl shadow-2xl flex flex-col"
+        style={{ width: "min(96vw, 1000px)", height: "min(96vh, 900px)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
@@ -103,9 +103,9 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
           <X className="w-5 h-5" />
         </button>
 
-        {/* External fallback */}
+        {/* External link */}
         <a
-          href={base}
+          href={url}
           target="_blank"
           rel="noreferrer"
           className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-navy shadow hover:bg-white"
@@ -115,9 +115,9 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
         </a>
 
         <iframe
-          src={embedUrl}
+          src={url}
           title="Schedule a call"
-          className="w-full h-full border-0 block"
+          className="w-full flex-1 border-0 block rounded-2xl"
           allow={IFRAME_ALLOW}
           allowFullScreen
           loading="eager"
@@ -127,14 +127,13 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function BookingInline({ height = 1100 }: { height?: number }) {
-  const base = useBookingUrl();
-  const embedUrl = `${base}?embed=true`;
+export function BookingInline({ height = 1200 }: { height?: number }) {
+  const url = useBookingUrl();
 
   return (
     <div className="rounded-2xl border border-border shadow-lg bg-white relative">
       <a
-        href={base}
+        href={url}
         target="_blank"
         rel="noreferrer"
         className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/80 border border-border px-3 py-1.5 text-xs font-semibold text-navy shadow hover:bg-white"
@@ -143,7 +142,7 @@ export function BookingInline({ height = 1100 }: { height?: number }) {
         Open in new tab
       </a>
       <iframe
-        src={embedUrl}
+        src={url}
         title="Schedule a call"
         className="w-full border-0 block rounded-2xl"
         style={{ height }}
