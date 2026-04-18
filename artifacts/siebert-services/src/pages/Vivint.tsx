@@ -6,6 +6,8 @@ import {
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
 import { usePageContent } from "@/hooks/usePageContent";
+import { SchemaTag } from "@/components/SchemaTag";
+import { BookingButton } from "@/components/Booking";
 
 const VIVINT_BLUE = "#0176d3";
 const VIVINT_GREEN = "#2ecc71";
@@ -120,6 +122,18 @@ export default function Vivint() {
   });
   return (
     <div className="w-full bg-background">
+      <SchemaTag
+        id="schema-faq-vivint"
+        type="FAQPage"
+        faqs={faq.map((f) => ({ question: f.q, answer: f.a }))}
+      />
+      <SchemaTag
+        id="schema-service-vivint"
+        type="Service"
+        name="Vivint Smart Home Security"
+        description="Authorized Vivint reseller — professional installation, 24/7 monitoring, smart home automation, and managed support."
+        serviceType="Home Security"
+      />
       {/* Header */}
       <motion.div
         className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16 px-4 sm:px-6 lg:px-8"

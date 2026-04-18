@@ -4,6 +4,13 @@ import {
   MapPin, Search, AlertCircle, CheckCircle, Loader2,
   ExternalLink, Map, Wifi, Zap, Radio, Satellite, Globe, ArrowDownUp, Server
 } from "lucide-react";
+import { SchemaTag } from "@/components/SchemaTag";
+
+const INTERNET_PLANS_FAQ = [
+  { question: "What speeds do I need?", answer: "For most households: 25-100 Mbps is adequate for streaming and browsing. For heavy use or multiple devices, 100+ Mbps is recommended." },
+  { question: "What's the difference between technologies?", answer: "Fiber is fastest and most reliable. Cable offers good speeds with wide availability. DSL is slower but available in many areas. Fixed Wireless is a good alternative when wired options are unavailable." },
+  { question: "Is this data accurate?", answer: "We query multiple sources to provide the most comprehensive and current provider data available. However, availability can change, so we recommend confirming with providers directly." },
+];
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -521,6 +528,7 @@ export default function InternetPlans() {
       </div>
 
       {/* FAQ Section */}
+      <SchemaTag id="schema-faq-internet-plans" type="FAQPage" faqs={INTERNET_PLANS_FAQ} />
       <div className="bg-gray-50 py-12 px-4 mt-12">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>

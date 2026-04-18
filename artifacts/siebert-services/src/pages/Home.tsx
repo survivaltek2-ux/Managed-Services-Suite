@@ -56,6 +56,7 @@ export default function Home() {
                     Get a Custom Quote <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
+                <BookingButton size="lg" variant="outline" className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white hover:text-white" label="Book a Call" />
                 <Link href="/services">
                   <Button variant="outline" size="lg" className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white hover:text-white">
                     Explore Services
@@ -325,6 +326,7 @@ export default function Home() {
             <Link href="/quote">
               <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-lg">Request a Quote</Button>
             </Link>
+            <BookingButton size="lg" className="w-full sm:w-auto h-14 px-8 text-lg" label="Book a Call" />
             <Link href="/contact">
               <Button variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 text-lg">Contact Us</Button>
             </Link>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button } from "@/components/u
 import { Link } from "wouter";
 
 import { SchemaTag } from "@/components/SchemaTag";
+import { BookingButton } from "@/components/Booking";
 
 export default function Services() {
   const allServices = [
@@ -66,7 +67,7 @@ export default function Services() {
       ]} />
       <div className="bg-navy py-20 px-4 sm:px-6 lg:px-8 text-center border-b-4 border-primary">
         <h1 className="text-4xl md:text-6xl font-display font-bold text-white mb-6">Our Services</h1>
-        <p className="text-xl text-white/80 max-w-3xl mx-auto">
+        <p className="text-xl text-white/80 max-w-3xl mx-auto mb-8">
           Hybrid MSP services — from hardware procurement and cloud migrations to cybersecurity and 24/7 support. We pair vendor products with our own managed services, all backed by SLAs and delivered by certified engineers.
         </p>
       </div>
