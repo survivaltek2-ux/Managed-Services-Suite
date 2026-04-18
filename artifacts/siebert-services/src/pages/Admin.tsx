@@ -5,8 +5,12 @@ import {
   Inbox, FileText, Ticket as TicketIcon, LogOut, Loader2, Plus, Edit2,
   Trash2, Save, Search, Download, Activity, PenTool, Eye, Send, Check,
   X, ChevronDown, BarChart3, BarChart2, Clock, DollarSign, AlertCircle, Mail, KeyRound,
-  RefreshCw, CreditCard, TrendingUp, Package, Award
+  RefreshCw, CreditCard, TrendingUp, Package, Award, Filter, Calendar
 } from "lucide-react";
+import {
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar,
+} from "recharts";
 import {
   Button, Input, Textarea, Label, Card, CardHeader, CardTitle, CardContent, Badge,
 } from "@/components/ui";
@@ -2526,10 +2530,30 @@ const LEAD_MAGNET_LABELS: Record<string, string> = {
 function LeadMagnetsTab({ submissions, headers, refresh, toast }: { submissions: any[]; headers: () => any; refresh: () => void; toast: any }) {
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<any | null>(null);
+  const filtered = filter === "all" ? submissions : submissions.filter(s => s.magnet === filter);
+
+  return (
+    <div className="space-y-6">
+      <LeadMagnetAnalytics headers={headers} />
+      <LeadMagnetsTable
+        submissions={submissions}
+        filtered={filtered}
+        filter={filter}
+        setFilter={setFilter}
+        selected={selected}
+        setSelected={setSelected}
+        headers={headers}
+        refresh={refresh}
+        toast={toast}
+      />
+    </div>
+  );
+}
+
+function LeadMagnetsTable({ submissions, filtered, filter, setFilter, selected, setSelected, headers, refresh, toast }: any) {
   const [sequences, setSequences] = useState<any[]>([]);
   const [seqLoading, setSeqLoading] = useState(false);
   const [selectedSends, setSelectedSends] = useState<any[]>([]);
-  const filtered = filter === "all" ? submissions : submissions.filter(s => s.magnet === filter);
 
   const loadSequences = useCallback(async () => {
     setSeqLoading(true);
@@ -2723,5 +2747,234 @@ function LeadMagnetsTab({ submissions, headers, refresh, toast }: { submissions:
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ─── LeadMagnetAnalytics ─────────────────────────────────────────────────────
+const MAGNET_BAR_COLOR = "#2563eb";
+const TIME_AREA_COLOR = "#1d4ed8";
+
+function defaultDateRange(): { from: string; to: string } {
+  const now = new Date();
+  const to = now.toISOString().slice(0, 10);
+  const from = new Date(now.getTime() - 29 * 86400000).toISOString().slice(0, 10);
+  return { from, to };
+}
+
+function LeadMagnetAnalytics({ headers }: { headers: () => any }) {
+  const init = defaultDateRange();
+  const [magnet, setMagnet] = useState<string>("");
+  const [source, setSource] = useState<string>("");
+  const [from, setFrom] = useState<string>(init.from);
+  const [to, setTo] = useState<string>(init.to);
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        if (magnet) params.set("magnet", magnet);
+        if (source) params.set("source", source);
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        const res = await fetch(`/api/admin/lead-magnets/analytics?${params}`, { headers: headers() });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) setData(json);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || "Failed to load analytics");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [magnet, source, from, to]);
+
+  const totals = data?.totals ?? { submissions: 0, converted: 0, conversionRate: 0 };
+  const byMagnet = (data?.byMagnet ?? []).map((m: any) => ({ ...m, label: LEAD_MAGNET_LABELS[m.magnet] || m.magnet }));
+  const topSources = data?.topSources ?? [];
+  const timeSeries = data?.timeSeries ?? [];
+  const sourceOptions: string[] = data?.sourceOptions ?? [];
+  const granularity: string = data?.granularity ?? "day";
+
+  function resetFilters() {
+    const d = defaultDateRange();
+    setMagnet(""); setSource(""); setFrom(d.from); setTo(d.to);
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <BarChart3 className="w-4 h-4 text-primary" />
+          Lead Magnet Conversion Dashboard
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Filters */}
+        <div className="flex flex-wrap items-end gap-3 bg-gray-50 border rounded-md p-3">
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs flex items-center gap-1"><Filter className="w-3 h-3" /> Magnet</Label>
+            <select
+              value={magnet}
+              onChange={(e) => setMagnet(e.target.value)}
+              className="h-8 text-sm border border-input bg-white rounded-md px-2 min-w-[180px]"
+            >
+              <option value="">All magnets</option>
+              {Object.entries(LEAD_MAGNET_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs flex items-center gap-1"><Filter className="w-3 h-3" /> Source page</Label>
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className="h-8 text-sm border border-input bg-white rounded-md px-2 min-w-[200px] max-w-[280px]"
+            >
+              <option value="">All sources</option>
+              {sourceOptions.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs flex items-center gap-1"><Calendar className="w-3 h-3" /> From</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-[150px]" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs flex items-center gap-1"><Calendar className="w-3 h-3" /> To</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 w-[150px]" />
+          </div>
+          <Button variant="outline" size="sm" onClick={resetFilters} className="h-8">Reset</Button>
+        </div>
+
+        {error && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Downloads" value={totals.submissions} icon={<Download className="w-4 h-4 text-blue-500" />} sub="in selected range" />
+          <KpiCard label="Converted to lead" value={totals.converted} icon={<Check className="w-4 h-4 text-green-500" />} sub="contact or quote" />
+          <KpiCard label="Conversion rate" value={`${totals.conversionRate}%`} icon={<TrendingUp className="w-4 h-4 text-violet-500" />} sub="downloads → leads" />
+          <KpiCard label="Top source" value={topSources[0]?.source ?? "—"} icon={<BarChart2 className="w-4 h-4 text-amber-500" />} sub={topSources[0] ? `${topSources[0].count} downloads` : ""} small />
+        </div>
+
+        {/* Time series */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-navy">Downloads over time</h3>
+            <span className="text-xs text-muted-foreground capitalize">By {granularity}</span>
+          </div>
+          {loading ? (
+            <div className="h-56 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : timeSeries.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">No data in this range.</div>
+          ) : (
+            <div className="h-56 w-full">
+              <ResponsiveContainer>
+                <AreaChart data={timeSeries} margin={{ top: 5, right: 12, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="lmFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={TIME_AREA_COLOR} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={TIME_AREA_COLOR} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="count" stroke={TIME_AREA_COLOR} fill="url(#lmFill)" name="Downloads" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* By magnet + Top sources */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div>
+            <h3 className="text-sm font-semibold text-navy mb-2">Downloads by magnet</h3>
+            {byMagnet.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No data</p>
+            ) : (
+              <>
+                <div className="h-44 w-full">
+                  <ResponsiveContainer>
+                    <BarChart data={byMagnet} margin={{ top: 5, right: 12, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill={MAGNET_BAR_COLOR} radius={[4, 4, 0, 0]} name="Downloads" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 space-y-1">
+                  {byMagnet.map((m: any) => (
+                    <div key={m.magnet} className="flex items-center justify-between text-xs border-b last:border-0 py-1">
+                      <span className="font-medium text-navy">{m.label}</span>
+                      <span className="text-muted-foreground">
+                        {m.count} downloads · <span className="text-green-700 font-semibold">{m.conversionRate}%</span> converted
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-navy mb-2">Top source pages</h3>
+            {topSources.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No data</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 text-muted-foreground uppercase tracking-wide">
+                    <tr>
+                      <th className="px-2 py-1 text-left">Source</th>
+                      <th className="px-2 py-1 text-right">Downloads</th>
+                      <th className="px-2 py-1 text-right">Converted</th>
+                      <th className="px-2 py-1 text-right">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topSources.map((s: any) => (
+                      <tr key={s.source} className="border-t hover:bg-gray-50">
+                        <td className="px-2 py-1.5 font-medium text-navy max-w-[260px] truncate" title={s.source}>{s.source}</td>
+                        <td className="px-2 py-1.5 text-right">{s.count}</td>
+                        <td className="px-2 py-1.5 text-right">{s.converted}</td>
+                        <td className="px-2 py-1.5 text-right font-semibold text-green-700">{s.conversionRate}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function KpiCard({ label, value, icon, sub, small }: { label: string; value: any; icon: React.ReactNode; sub?: string; small?: boolean }) {
+  return (
+    <div className="rounded-md border bg-white p-3">
+      <div className="flex items-center gap-2 mb-1">{icon}<span className="text-xs text-muted-foreground font-medium">{label}</span></div>
+      <div className={`font-bold text-navy ${small ? "text-sm truncate" : "text-2xl"}`} title={typeof value === "string" ? value : undefined}>{value}</div>
+      {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, leadMagnetSubmissionsTable, leadMagnetSequenceSendsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { db, leadMagnetSubmissionsTable, leadMagnetSequenceSendsTable, contactsTable, quotesTable } from "@workspace/db";
+import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { sendLeadMagnetSubmission, type LeadMagnetKey, type LeadMagnetPayload } from "../lib/email.js";
 import { generateLeadMagnetPdf, type LeadMagnetPdfKey } from "../lib/pdfGenerator.js";
@@ -162,7 +162,6 @@ router.get("/lead-magnets/:magnet/pdf", async (req: Request, res: Response) => {
   }
 });
 
-
 function escHtml(s: string): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
@@ -210,6 +209,179 @@ router.post("/lead-magnets/unsubscribe", async (req, res) => {
   const result = await markUnsubscribed(id);
   if (!result.ok) { res.status(404).json({ error: "not_found" }); return; }
   res.json({ success: true });
+});
+
+router.get("/admin/lead-magnets/analytics", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { magnet, source, from, to } = req.query as Record<string, string | undefined>;
+
+    const conds = [] as any[];
+    if (magnet && ALLOWED_MAGNETS.has(magnet)) {
+      conds.push(eq(leadMagnetSubmissionsTable.magnet, magnet as LeadMagnetKey));
+    }
+    if (source) {
+      conds.push(eq(leadMagnetSubmissionsTable.source, source));
+    }
+    let fromDate: Date | null = null;
+    let toDate: Date | null = null;
+    if (from) {
+      const d = new Date(from);
+      if (!isNaN(d.getTime())) { fromDate = d; conds.push(gte(leadMagnetSubmissionsTable.createdAt, d)); }
+    }
+    if (to) {
+      const d = new Date(to);
+      if (!isNaN(d.getTime())) {
+        // Make `to` inclusive of the entire day
+        d.setHours(23, 59, 59, 999);
+        toDate = d;
+        conds.push(lte(leadMagnetSubmissionsTable.createdAt, d));
+      }
+    }
+    const whereClause = conds.length ? and(...conds) : undefined;
+
+    const submissions = await db.select({
+      id: leadMagnetSubmissionsTable.id,
+      magnet: leadMagnetSubmissionsTable.magnet,
+      email: leadMagnetSubmissionsTable.email,
+      source: leadMagnetSubmissionsTable.source,
+      createdAt: leadMagnetSubmissionsTable.createdAt,
+    }).from(leadMagnetSubmissionsTable).where(whereClause);
+
+    const total = submissions.length;
+    const emails = Array.from(new Set(submissions.map(s => s.email).filter(Boolean)));
+
+    // Pull all contact and quote rows that match any submission email so we can
+    // compute "this lead later converted" without an N+1.
+    const [contactRows, quoteRows] = emails.length === 0 ? [[], []] : await Promise.all([
+      db.select({ email: contactsTable.email, createdAt: contactsTable.createdAt })
+        .from(contactsTable)
+        .where(inArray(contactsTable.email, emails)),
+      db.select({ email: quotesTable.email, createdAt: quotesTable.createdAt })
+        .from(quotesTable)
+        .where(inArray(quotesTable.email, emails)),
+    ]);
+
+    const contactsByEmail = new Map<string, Date[]>();
+    for (const c of contactRows) {
+      const list = contactsByEmail.get(c.email) || [];
+      list.push(c.createdAt);
+      contactsByEmail.set(c.email, list);
+    }
+    const quotesByEmail = new Map<string, Date[]>();
+    for (const q of quoteRows) {
+      const list = quotesByEmail.get(q.email) || [];
+      list.push(q.createdAt);
+      quotesByEmail.set(q.email, list);
+    }
+
+    const wasConverted = (email: string, submittedAt: Date) => {
+      const t = submittedAt.getTime();
+      const cs = contactsByEmail.get(email) || [];
+      if (cs.some(d => d.getTime() >= t)) return true;
+      const qs = quotesByEmail.get(email) || [];
+      return qs.some(d => d.getTime() >= t);
+    };
+
+    // Aggregations
+    const byMagnetMap = new Map<string, { magnet: string; count: number; converted: number }>();
+    const bySourceMap = new Map<string, { source: string; count: number; converted: number }>();
+    const dayMap = new Map<string, number>();
+    let convertedTotal = 0;
+
+    for (const s of submissions) {
+      const converted = wasConverted(s.email, s.createdAt);
+      if (converted) convertedTotal++;
+
+      const m = byMagnetMap.get(s.magnet) || { magnet: s.magnet, count: 0, converted: 0 };
+      m.count++;
+      if (converted) m.converted++;
+      byMagnetMap.set(s.magnet, m);
+
+      const srcKey = s.source || "(unknown)";
+      const src = bySourceMap.get(srcKey) || { source: srcKey, count: 0, converted: 0 };
+      src.count++;
+      if (converted) src.converted++;
+      bySourceMap.set(srcKey, src);
+
+      const day = s.createdAt.toISOString().slice(0, 10);
+      dayMap.set(day, (dayMap.get(day) || 0) + 1);
+    }
+
+    // Build a continuous time series so charts don't have gaps.
+    const seriesStart = fromDate ?? (submissions.length
+      ? new Date(Math.min(...submissions.map(s => s.createdAt.getTime())))
+      : new Date());
+    const seriesEnd = toDate ?? new Date();
+    const startDay = new Date(Date.UTC(seriesStart.getUTCFullYear(), seriesStart.getUTCMonth(), seriesStart.getUTCDate()));
+    const endDay = new Date(Date.UTC(seriesEnd.getUTCFullYear(), seriesEnd.getUTCMonth(), seriesEnd.getUTCDate()));
+    const dayMs = 86400000;
+    const spanDays = Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / dayMs) + 1);
+    const useWeekly = spanDays > 60;
+
+    const timeSeries: { date: string; count: number }[] = [];
+    if (submissions.length > 0) {
+      if (useWeekly) {
+        // Bucket by ISO week (Mon-start)
+        const weekMap = new Map<string, number>();
+        for (const s of submissions) {
+          const d = new Date(s.createdAt);
+          const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+          const dayOfWeek = (utc.getUTCDay() + 6) % 7; // Mon=0
+          utc.setUTCDate(utc.getUTCDate() - dayOfWeek);
+          const key = utc.toISOString().slice(0, 10);
+          weekMap.set(key, (weekMap.get(key) || 0) + 1);
+        }
+        const firstMon = new Date(startDay);
+        const dow = (firstMon.getUTCDay() + 6) % 7;
+        firstMon.setUTCDate(firstMon.getUTCDate() - dow);
+        for (let t = firstMon.getTime(); t <= endDay.getTime(); t += dayMs * 7) {
+          const key = new Date(t).toISOString().slice(0, 10);
+          timeSeries.push({ date: key, count: weekMap.get(key) || 0 });
+        }
+      } else {
+        for (let t = startDay.getTime(); t <= endDay.getTime(); t += dayMs) {
+          const key = new Date(t).toISOString().slice(0, 10);
+          timeSeries.push({ date: key, count: dayMap.get(key) || 0 });
+        }
+      }
+    }
+
+    const byMagnet = Array.from(byMagnetMap.values())
+      .map(m => ({ ...m, conversionRate: m.count ? Math.round((m.converted / m.count) * 100) : 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    const bySource = Array.from(bySourceMap.values())
+      .map(s => ({ ...s, conversionRate: s.count ? Math.round((s.converted / s.count) * 100) : 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    // Distinct sources for the filter dropdown (unfiltered by source).
+    const sourceOptionRows = await db.selectDistinct({ source: leadMagnetSubmissionsTable.source })
+      .from(leadMagnetSubmissionsTable);
+    const sourceOptions = sourceOptionRows.map(r => r.source).filter((s): s is string => !!s).sort();
+
+    res.json({
+      filters: {
+        magnet: magnet || null,
+        source: source || null,
+        from: fromDate ? fromDate.toISOString() : null,
+        to: toDate ? toDate.toISOString() : null,
+      },
+      totals: {
+        submissions: total,
+        converted: convertedTotal,
+        conversionRate: total ? Math.round((convertedTotal / total) * 100) : 0,
+      },
+      byMagnet,
+      bySource,
+      topSources: bySource.slice(0, 10),
+      timeSeries,
+      granularity: useWeekly ? "week" : "day",
+      sourceOptions,
+    });
+  } catch (err) {
+    console.error("Lead magnet analytics error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to load lead magnet analytics" });
+  }
 });
 
 router.get("/admin/lead-magnets", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
