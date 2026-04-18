@@ -3,7 +3,7 @@ import { Calendar, X } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_BOOKING_URL = "https://zoom.us/meeting/schedule/siebertservices";
+const DEFAULT_BOOKING_URL = "https://siebertrservices.zoom.us/zbook/sales-lmo817";
 
 let cachedUrl: string | null = null;
 let pendingFetch: Promise<string> | null = null;
