@@ -1,6 +1,7 @@
 import { Link } from "wouter";
-import { Mail, MapPin, Phone, ArrowRight } from "lucide-react";
+import { Mail, MapPin, Phone, ArrowRight, Linkedin, Facebook, Twitter, Youtube, Award, ShieldCheck, Cloud, Server } from "lucide-react";
 import { Button, Input } from "@/components/ui";
+import { BookingButton } from "@/components/Booking";
 
 const connectivityPartners = [
   { label: "Comcast Business", href: "/comcast-business" },
@@ -29,6 +30,18 @@ const techPartners = [
   { label: "ADT Business", href: "/adt-business" },
 ];
 
+const certifications = [
+  { icon: <Award className="w-4 h-4" />, label: "Microsoft Partner" },
+  { icon: <ShieldCheck className="w-4 h-4" />, label: "CompTIA Member" },
+  { icon: <Server className="w-4 h-4" />, label: "Cisco Select Partner" },
+  { icon: <Cloud className="w-4 h-4" />, label: "Microsoft 365 Specialist" },
+  { icon: <ShieldCheck className="w-4 h-4" />, label: "Fortinet Authorized" },
+  { icon: <Award className="w-4 h-4" />, label: "Certified Zoom Partner" },
+];
+
+const serviceArea =
+  "Proudly serving Hudson Valley businesses — Orange, Rockland, Westchester, Putnam, Dutchess & Ulster counties — and remote support nationwide.";
+
 export function Footer() {
   return (
     <footer className="bg-navy pt-20 pb-10 border-t-4 border-primary overflow-hidden relative">
@@ -36,7 +49,7 @@ export function Footer() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 mb-12 sm:mb-16">
-          
+
           {/* Brand Col */}
           <div className="space-y-3 sm:space-y-6">
             <Link href="/" className="flex items-center justify-center sm:justify-start gap-2">
@@ -50,34 +63,31 @@ export function Footer() {
             <p className="text-white/70 leading-relaxed">
               Your hybrid MSP — combining managed IT services with authorized reselling of enterprise technology. One partner for procurement, deployment, management, and support.
             </p>
-            <div className="inline-block px-4 py-2 bg-white/5 border border-white/10 rounded-lg">
-              <span className="text-sm font-bold text-primary flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                Certified Zoom Partner
-              </span>
-            </div>
+            <p className="text-white/60 text-sm leading-relaxed">{serviceArea}</p>
+            <BookingButton className="w-full sm:w-auto" />
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Quick Links</h4>
-            <ul className="space-y-4">
+            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Explore</h4>
+            <ul className="space-y-3">
               {[
-                { label: 'Home', href: '/' },
-                { label: 'Services', href: '/services' },
-                { label: 'About Us', href: '/about' },
-                { label: 'Contact', href: '/contact' },
-                { label: 'Client Portal', href: '/portal' },
-                { label: 'Recommended Products', href: '/recommended' },
-                { label: 'Internet Plans', href: '/internet-plans' },
-                { label: 'Blog', href: '/blog' },
-                { label: 'Privacy Policy', href: '/privacy' },
-                { label: 'Terms of Service', href: '/terms' },
+                { label: "Home", href: "/" },
+                { label: "Services", href: "/services" },
+                { label: "About Us", href: "/about" },
+                { label: "Contact", href: "/contact" },
+                { label: "Get a Quote", href: "/quote" },
+                { label: "Client Portal", href: "/portal" },
+                { label: "Recommended Products", href: "/recommended" },
+                { label: "Internet Plans", href: "/internet-plans" },
+                { label: "Blog", href: "/blog" },
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "/terms" },
               ].map((link) => (
                 <li key={link.label}>
-                  <Link 
+                  <Link
                     href={link.href}
-                    className="text-white/70 hover:text-primary transition-colors flex items-center gap-2 group"
+                    className="text-white/70 hover:text-primary transition-colors flex items-center gap-2 group text-sm"
                   >
                     <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                     {link.label}
@@ -89,31 +99,55 @@ export function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Contact Us</h4>
+            <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Contact (NAP)</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3 text-white/70">
                 <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
-                <span>4 Maple Court<br/>Washingtonville, NY 10992</span>
+                <span>
+                  <strong className="block text-white">Siebert Services</strong>
+                  4 Maple Court<br />
+                  Washingtonville, NY 10992
+                </span>
               </li>
               <li className="flex items-center gap-3 text-white/70">
                 <Phone className="w-5 h-5 text-primary shrink-0" />
-                <span>866-484-9180</span>
+                <a href="tel:8664849180" className="hover:text-primary">866-484-9180</a>
               </li>
               <li className="flex items-center gap-3 text-white/70">
                 <Mail className="w-5 h-5 text-primary shrink-0" />
-                <span>support@siebertrservices.com</span>
+                <a href="mailto:support@siebertrservices.com" className="hover:text-primary">support@siebertrservices.com</a>
               </li>
             </ul>
+
+            {/* Socials */}
+            <div className="flex gap-2 mt-6">
+              <a href="https://www.linkedin.com/company/siebert-services" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"
+                className="w-9 h-9 rounded-lg bg-white/5 hover:bg-primary border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <Linkedin className="w-4 h-4" />
+              </a>
+              <a href="https://www.facebook.com/siebertservices" target="_blank" rel="noopener noreferrer" aria-label="Facebook"
+                className="w-9 h-9 rounded-lg bg-white/5 hover:bg-primary border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <Facebook className="w-4 h-4" />
+              </a>
+              <a href="https://x.com/siebertservices" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)"
+                className="w-9 h-9 rounded-lg bg-white/5 hover:bg-primary border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <Twitter className="w-4 h-4" />
+              </a>
+              <a href="https://www.youtube.com/@siebertservices" target="_blank" rel="noopener noreferrer" aria-label="YouTube"
+                className="w-9 h-9 rounded-lg bg-white/5 hover:bg-primary border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <Youtube className="w-4 h-4" />
+              </a>
+            </div>
           </div>
 
           {/* Newsletter */}
           <div>
             <h4 className="text-white font-display font-bold text-base sm:text-lg mb-4 sm:mb-6">Newsletter</h4>
-            <p className="text-white/70 mb-4">Stay updated with the latest in managed IT, cybersecurity, and vendor product news.</p>
+            <p className="text-white/70 mb-4 text-sm">Stay updated with the latest in managed IT, cybersecurity, and vendor product news.</p>
             <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
-              <Input 
-                type="email" 
-                placeholder="Enter your email" 
+              <Input
+                type="email"
+                placeholder="Enter your email"
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-primary h-12"
               />
               <Button className="w-full h-12 text-base">Subscribe</Button>
@@ -121,8 +155,21 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Partner Vendors Section */}
-        <div className="border-t border-white/10 pt-10 mb-10">
+        {/* Certifications strip */}
+        <div className="border-t border-white/10 pt-8 mb-8">
+          <p className="text-primary text-xs font-semibold uppercase tracking-widest mb-4 text-center sm:text-left">Certifications & Accreditations</p>
+          <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+            {certifications.map((c) => (
+              <div key={c.label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/80 text-xs font-semibold">
+                <span className="text-primary">{c.icon}</span>
+                {c.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Vendor Partners Section */}
+        <div className="border-t border-white/10 pt-8 mb-10">
           <h4 className="text-white font-display font-bold text-base sm:text-lg mb-6">Vendor Partners</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             <div>
@@ -167,6 +214,7 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-xs sm:text-sm text-white/50">
             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <a href="/sitemap.xml" className="hover:text-primary transition-colors">Sitemap</a>
           </div>
         </div>
       </div>

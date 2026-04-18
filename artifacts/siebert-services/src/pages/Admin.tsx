@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -24,6 +24,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "leads", label: "Partner Leads", icon: <Briefcase size={18} />, section: "Management" },
   { id: "invoices", label: "Invoices", icon: <CreditCard size={18} /> },
   { id: "blog", label: "Blog Posts", icon: <PenTool size={18} />, section: "Content" },
+  { id: "calendar", label: "Editorial Calendar", icon: <Clock size={18} /> },
   { id: "services", label: "Services", icon: <Briefcase size={18} /> },
   { id: "testimonials", label: "Testimonials", icon: <MessageSquare size={18} /> },
   { id: "team", label: "Team Members", icon: <Users size={18} /> },
@@ -73,6 +74,7 @@ export default function Admin() {
         team: "/api/admin/cms/team",
         faq: "/api/admin/cms/faq",
         blog: "/api/admin/cms/blog",
+        calendar: "/api/admin/cms/blog",
         users: "/api/admin/users",
         activity: "/api/admin/activity",
         tsdIntegrations: "/api/admin/tsd/configs",
@@ -395,6 +397,7 @@ export default function Admin() {
                 { key: "active", label: "Active", type: "checkbox" },
               ]} columns={["question", "category", "active"]} />}
               {activeTab === "blog" && <BlogTab posts={data.blog || []} refresh={() => fetchData("blog")} headers={headers} />}
+              {activeTab === "calendar" && <EditorialCalendarTab posts={data.calendar || []} refresh={() => fetchData("calendar")} headers={headers} />}
               {activeTab === "inquiries" && <InquiriesTab contacts={data.contacts || []} quotes={data.quotes || []} tickets={data.tickets || []} headers={headers} refresh={() => fetchData("inquiries")} toast={toast} />}
               {activeTab === "invoices" && <InvoicesTab invoices={data.invoices || []} headers={headers} refresh={() => fetchData("invoices")} />}
               {activeTab === "leads" && <AdminLeads partners={data.partners || []} headers={headers} refresh={() => fetchData("leads")} toast={toast} />}
@@ -819,7 +822,7 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ title: "", slug: "", excerpt: "", content: "", coverImage: "", author: "Siebert Services", category: "general", tags: "", status: "draft", featured: false });
+  const [form, setForm] = useState({ title: "", slug: "", excerpt: "", content: "", coverImage: "", author: "Siebert Services", category: "general", tags: "", status: "draft", featured: false, scheduledAt: "", contentType: "news" });
 
   const filtered = useMemo(() => {
     if (!search) return posts;
@@ -829,7 +832,7 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ title: "", slug: "", excerpt: "", content: "", coverImage: "", author: "Siebert Services", category: "general", tags: "", status: "draft", featured: false });
+    setForm({ title: "", slug: "", excerpt: "", content: "", coverImage: "", author: "Siebert Services", category: "general", tags: "", status: "draft", featured: false, scheduledAt: "", contentType: "news" });
     setOpen(true);
   };
 
@@ -838,6 +841,8 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
     setForm({
       ...post,
       tags: Array.isArray(post.tags) ? post.tags.join(", ") : "",
+      scheduledAt: post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : "",
+      contentType: post.contentType || "news",
     });
     setOpen(true);
   };
@@ -845,7 +850,11 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
   const handleSave = async () => {
     const method = editing ? "PUT" : "POST";
     const url = editing ? `/api/admin/cms/blog/${editing.id}` : "/api/admin/cms/blog";
-    const payload = { ...form, tags: form.tags.split(",").map(t => t.trim()).filter(Boolean) };
+    const payload = {
+      ...form,
+      tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
+      scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : null,
+    };
     try {
       const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(payload) });
       if (res.ok) { toast({ title: "Saved" }); setOpen(false); refresh(); }
@@ -914,16 +923,29 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
             </div>
             <div className="space-y-1"><Label className="text-xs">Excerpt</Label><Textarea value={form.excerpt} onChange={e => setForm(p => ({ ...p, excerpt: e.target.value }))} className="min-h-[60px]" /></div>
             <div className="space-y-1"><Label className="text-xs">Content (Markdown/HTML)</Label><Textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} className="min-h-[200px] font-mono text-xs" /></div>
-            <div className="flex items-center gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
               <div className="space-y-1">
                 <Label className="text-xs">Status</Label>
-                <select className="h-9 px-3 rounded-md border text-sm bg-background" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+                <select className="h-9 px-3 rounded-md border text-sm bg-background w-full" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
                   <option value="archived">Archived</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm pt-5">
+              <div className="space-y-1">
+                <Label className="text-xs">Content Type</Label>
+                <select className="h-9 px-3 rounded-md border text-sm bg-background w-full" value={form.contentType} onChange={e => setForm(p => ({ ...p, contentType: e.target.value }))}>
+                  <option value="news">News</option>
+                  <option value="industry">Industry</option>
+                  <option value="service">Service</option>
+                  <option value="how-to">How-to</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Scheduled For</Label>
+                <Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(p => ({ ...p, scheduledAt: e.target.value }))} />
+              </div>
+              <label className="flex items-center gap-2 text-sm pb-2">
                 <input type="checkbox" checked={form.featured} onChange={e => setForm(p => ({ ...p, featured: e.target.checked }))} className="w-4 h-4" />Featured
               </label>
             </div>
@@ -934,6 +956,159 @@ function BlogTab({ posts, refresh, headers }: { posts: any[]; refresh: () => voi
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function EditorialCalendarTab({ posts, refresh, headers }: { posts: any[]; refresh: () => void; headers: () => any }) {
+  const { toast } = useToast();
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const today = new Date();
+  const viewDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthName = viewDate.toLocaleString("default", { month: "long", year: "numeric" });
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const postsByDay = useMemo(() => {
+    const map: Record<number, any[]> = {};
+    posts.forEach(p => {
+      const refDate = p.scheduledAt || p.publishedAt || p.createdAt;
+      if (!refDate) return;
+      const dt = new Date(refDate);
+      if (dt.getFullYear() === year && dt.getMonth() === month) {
+        const day = dt.getDate();
+        if (!map[day]) map[day] = [];
+        map[day].push(p);
+      }
+    });
+    return map;
+  }, [posts, year, month]);
+
+  const typeColor: Record<string, string> = {
+    news: "bg-blue-100 text-blue-700 border-blue-300",
+    industry: "bg-purple-100 text-purple-700 border-purple-300",
+    service: "bg-emerald-100 text-emerald-700 border-emerald-300",
+    "how-to": "bg-amber-100 text-amber-700 border-amber-300",
+  };
+  const statusColor: Record<string, string> = {
+    draft: "bg-muted text-muted-foreground",
+    published: "bg-primary/15 text-primary",
+    archived: "bg-muted text-muted-foreground line-through",
+  };
+
+  const updateScheduled = async (id: number, dateStr: string) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+    try {
+      const res = await fetch(`/api/admin/cms/blog/${id}`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify({
+          ...post,
+          tags: Array.isArray(post.tags) ? post.tags : [],
+          scheduledAt: dateStr ? new Date(dateStr).toISOString() : null,
+        }),
+      });
+      if (res.ok) { toast({ title: "Schedule updated" }); refresh(); }
+      else toast({ title: "Failed to update", variant: "destructive" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const upcoming = posts
+    .filter(p => p.scheduledAt && new Date(p.scheduledAt) >= today)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    .slice(0, 6);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">{monthName}</h2>
+          <p className="text-sm text-muted-foreground">Drag-free editorial calendar — schedule, plan, and review your content.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setMonthOffset(o => o - 1)}>← Prev</Button>
+          <Button variant="outline" size="sm" onClick={() => setMonthOffset(0)}>Today</Button>
+          <Button variant="outline" size="sm" onClick={() => setMonthOffset(o => o + 1)}>Next →</Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        {Object.entries(typeColor).map(([t, cls]) => (
+          <span key={t} className={`px-2 py-1 rounded border font-medium capitalize ${cls}`}>{t}</span>
+        ))}
+      </div>
+
+      <Card className="overflow-hidden">
+        <div className="grid grid-cols-7 bg-muted/50 text-xs uppercase tracking-wide font-semibold text-muted-foreground">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+            <div key={d} className="px-3 py-2 text-center border-r last:border-r-0">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((day, idx) => {
+            const isToday = day && monthOffset === 0 && day === today.getDate();
+            const dayPosts = day ? postsByDay[day] || [] : [];
+            return (
+              <div
+                key={idx}
+                className={`min-h-[110px] border-r border-b last:border-r-0 p-1.5 text-xs flex flex-col gap-1 ${day ? "bg-background" : "bg-muted/20"}`}
+              >
+                {day && (
+                  <div className={`flex items-center justify-between ${isToday ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                    <span>{day}</span>
+                    {isToday && <span className="text-[10px] uppercase">Today</span>}
+                  </div>
+                )}
+                {dayPosts.map(p => (
+                  <div
+                    key={p.id}
+                    title={p.title}
+                    className={`px-1.5 py-1 rounded border text-[11px] leading-tight truncate ${typeColor[p.contentType] || typeColor.news}`}
+                  >
+                    <div className="truncate font-semibold">{p.title}</div>
+                    <div className={`text-[10px] inline-block px-1 rounded ${statusColor[p.status] || ""}`}>{p.status}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Upcoming Scheduled Posts</h3>
+        <Card>
+          <div className="divide-y">
+            {upcoming.length === 0 && (
+              <div className="p-6 text-center text-sm text-muted-foreground">No upcoming scheduled posts. Set a "Scheduled For" date when editing a blog post.</div>
+            )}
+            {upcoming.map(p => (
+              <div key={p.id} className="p-4 flex items-center gap-4 flex-wrap">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="font-medium">{p.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(p.scheduledAt).toLocaleString()} · <span className="capitalize">{p.contentType || "news"}</span> · <Badge variant="outline">{p.status}</Badge>
+                  </div>
+                </div>
+                <Input
+                  type="datetime-local"
+                  defaultValue={new Date(p.scheduledAt).toISOString().slice(0, 16)}
+                  onBlur={e => updateScheduled(p.id, e.target.value)}
+                  className="w-56 h-8 text-xs"
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

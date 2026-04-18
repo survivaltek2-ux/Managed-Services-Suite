@@ -4,6 +4,8 @@ import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
 import { Card, CardContent, Input, Textarea, Button, Label } from "@/components/ui";
 import { useSubmitContact } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { SchemaTag } from "@/components/SchemaTag";
+import { BookingInline, BookingButton } from "@/components/Booking";
 
 export default function Contact() {
   const { toast } = useToast();
@@ -26,10 +28,16 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen pt-24 pb-20 bg-gray-50">
+      <SchemaTag id="schema-localbusiness-contact" type="LocalBusiness" />
+      <SchemaTag id="schema-breadcrumb-contact" type="BreadcrumbList" crumbs={[
+        { name: "Home", url: "https://siebertservices.com/" },
+        { name: "Contact", url: "https://siebertservices.com/contact" },
+      ]} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="text-center max-w-2xl mx-auto mb-10">
           <h1 className="text-4xl md:text-5xl font-display font-bold text-navy mb-4">Contact Us</h1>
-          <p className="text-lg text-muted-foreground">Have a question or need emergency IT support? Reach out to our team today.</p>
+          <p className="text-lg text-muted-foreground mb-6">Have a question or need emergency IT support? Reach out to our team today.</p>
+          <div className="flex justify-center"><BookingButton /></div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -133,6 +141,15 @@ export default function Contact() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Inline booking option */}
+        <div className="mt-16">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-navy">Prefer to book a quick call?</h2>
+            <p className="text-muted-foreground mt-2">Pick a time that works — no forms, no waiting.</p>
+          </div>
+          <BookingInline />
         </div>
       </div>
     </div>

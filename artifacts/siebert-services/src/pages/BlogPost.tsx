@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { Loader2, Calendar, User, ArrowLeft, Tag } from "lucide-react";
 import { Badge } from "@/components/ui";
+import { SchemaTag } from "@/components/SchemaTag";
 
 export default function BlogPost() {
   const [, params] = useRoute("/blog/:slug");
@@ -38,13 +39,25 @@ export default function BlogPost() {
 
   return (
     <div className="py-20">
+      <SchemaTag id="schema-article" type="Article"
+        headline={post.title}
+        datePublished={post.publishedAt || post.createdAt}
+        author={post.author}
+        image={post.coverImage}
+        description={post.excerpt}
+      />
+      <SchemaTag id="schema-breadcrumb-blogpost" type="BreadcrumbList" crumbs={[
+        { name: "Home", url: "https://siebertservices.com/" },
+        { name: "Blog", url: "https://siebertservices.com/blog" },
+        { name: post.title, url: `https://siebertservices.com/blog/${post.slug}` },
+      ]} />
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <Link href="/blog" className="text-sm text-primary hover:underline flex items-center gap-1 mb-8">
           <ArrowLeft className="w-4 h-4" />Back to Blog
         </Link>
 
         {post.coverImage && (
-          <img src={post.coverImage} alt={post.title} className="w-full h-64 object-cover rounded-xl mb-8" />
+          <img src={post.coverImage} alt={post.title} loading="lazy" className="w-full h-64 object-cover rounded-xl mb-8" />
         )}
 
         <div className="flex items-center gap-3 mb-4">

@@ -5,6 +5,7 @@ import path from "path";
 import { existsSync } from "fs";
 import { authMiddleware } from "./middlewares/authMiddleware.js";
 import router from "./routes/index.js";
+import seoRouter from "./routes/seo.js";
 
 declare global {
   namespace Express {
@@ -56,6 +57,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(authMiddleware);
 
 app.use("/api", router);
+
+// SEO routes served at the site root (sitemap.xml, robots.txt)
+app.use(seoRouter);
 
 if (existsSync(partnerIndex)) {
   app.use("/partners", express.static(partnerDist, staticOptions));

@@ -70,6 +70,8 @@ export const blogPostsTable = pgTable("blog_posts", {
   status: blogPostStatusEnum("status").notNull().default("draft"),
   featured: boolean("featured").notNull().default(false),
   publishedAt: timestamp("published_at"),
+  scheduledAt: timestamp("scheduled_at"),
+  contentType: text("content_type").notNull().default("news"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

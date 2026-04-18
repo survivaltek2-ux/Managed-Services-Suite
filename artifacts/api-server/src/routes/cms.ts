@@ -51,7 +51,42 @@ async function logActivity(userId: number | undefined, action: string, entity: s
 
 // ─── Public CMS Reads ────────────────────────────────────────────────────────
 
+// Allowlist of settings safe to expose publicly (no secrets, no internal config).
+const PUBLIC_SETTING_KEYS = new Set<string>([
+  "booking_url",
+  "company_name",
+  "company_phone",
+  "company_email",
+  "company_address",
+  "social_linkedin",
+  "social_facebook",
+  "social_twitter",
+  "social_youtube",
+  "hero_title",
+  "hero_subtitle",
+  "support_phone",
+  "emergency_phone",
+  "office_hours",
+]);
+
+// Public endpoint: only allowlisted, non-sensitive settings.
+// IMPORTANT: never expose `smtp_*`, `mailgun_*`, API keys, or any credential here.
 router.get("/cms/settings", async (_req, res) => {
+  try {
+    const settings = await db.select().from(siteSettingsTable);
+    const map: Record<string, string> = {};
+    for (const s of settings) {
+      if (PUBLIC_SETTING_KEYS.has(s.key)) map[s.key] = s.value;
+    }
+    res.json(map);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load settings" });
+  }
+});
+
+// Authenticated admin endpoint: full settings (including sensitive keys).
+router.get("/admin/cms/settings", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
     const settings = await db.select().from(siteSettingsTable);
     const map: Record<string, string> = {};
@@ -481,7 +516,7 @@ router.get("/admin/cms/blog", requireAuth, requireAdmin, async (req: AuthRequest
 
 router.post("/admin/cms/blog", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, slug, excerpt, content, coverImage, author, category, tags, status, featured } = req.body;
+    const { title, slug, excerpt, content, coverImage, author, category, tags, status, featured, scheduledAt, contentType } = req.body;
     if (!title || !content) {
       res.status(400).json({ error: "validation_error", message: "title and content are required" });
       return;
@@ -493,6 +528,8 @@ router.post("/admin/cms/blog", requireAuth, requireAdmin, async (req: AuthReques
       category: category || "general", tags: JSON.stringify(tags || []),
       status: status || "draft", featured: featured || false,
       publishedAt: status === "published" ? new Date() : null,
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      contentType: contentType || "news",
     }).returning();
     await logActivity(req.userId, "create", "blog_post", post.id, `Created blog post: ${title}`);
     res.status(201).json({ ...post, tags: JSON.parse(post.tags) });
@@ -505,7 +542,7 @@ router.post("/admin/cms/blog", requireAuth, requireAdmin, async (req: AuthReques
 router.put("/admin/cms/blog/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const { title, slug, excerpt, content, coverImage, author, category, tags, status, featured } = req.body;
+    const { title, slug, excerpt, content, coverImage, author, category, tags, status, featured, scheduledAt, contentType } = req.body;
     const existing = await db.select().from(blogPostsTable).where(eq(blogPostsTable.id, id)).limit(1);
     const wasPublished = existing[0]?.status === "published";
     const [post] = await db.update(blogPostsTable).set({
@@ -514,6 +551,8 @@ router.put("/admin/cms/blog/:id", requireAuth, requireAdmin, async (req: AuthReq
       category: category || "general", tags: JSON.stringify(tags || []),
       status: status || "draft", featured: featured || false,
       publishedAt: status === "published" && !wasPublished ? new Date() : existing[0]?.publishedAt,
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      contentType: contentType || existing[0]?.contentType || "news",
       updatedAt: new Date(),
     }).where(eq(blogPostsTable.id, id)).returning();
     if (!post) { res.status(404).json({ error: "not_found", message: "Blog post not found" }); return; }

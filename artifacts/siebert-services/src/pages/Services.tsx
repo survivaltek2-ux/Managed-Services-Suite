@@ -3,6 +3,8 @@ import { Server, Shield, Cloud, Headphones, Video, Database, Network, Laptop, Ar
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@/components/ui";
 import { Link } from "wouter";
 
+import { SchemaTag } from "@/components/SchemaTag";
+
 export default function Services() {
   const allServices = [
     {
@@ -57,6 +59,11 @@ export default function Services() {
 
   return (
     <div className="min-h-screen pt-24 pb-20 bg-gray-50">
+      <SchemaTag id="schema-service-list" type="Service" name="Managed IT Services & Vendor Reselling" description="Comprehensive managed IT, cybersecurity, cloud, infrastructure, and authorized vendor reselling services for Hudson Valley businesses." serviceType="Managed IT Services" />
+      <SchemaTag id="schema-breadcrumb-services" type="BreadcrumbList" crumbs={[
+        { name: "Home", url: "https://siebertservices.com/" },
+        { name: "Services", url: "https://siebertservices.com/services" },
+      ]} />
       <div className="bg-navy py-20 px-4 sm:px-6 lg:px-8 text-center border-b-4 border-primary">
         <h1 className="text-4xl md:text-6xl font-display font-bold text-white mb-6">Our Services</h1>
         <p className="text-xl text-white/80 max-w-3xl mx-auto">

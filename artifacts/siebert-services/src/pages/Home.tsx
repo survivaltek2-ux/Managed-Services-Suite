@@ -2,6 +2,8 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Shield, Cloud, Server, Headphones, Video, ArrowRight, CheckCircle2, Wifi } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
+import { SchemaTag } from "@/components/SchemaTag";
+import { BookingButton } from "@/components/Booking";
 
 export default function Home() {
   const features = [
@@ -13,6 +15,8 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <SchemaTag id="schema-localbusiness" type="LocalBusiness" />
+      <SchemaTag id="schema-webpage-home" type="WebPage" name="Siebert Services — Hudson Valley Managed IT & Technology Reseller" description="Managed IT services, cybersecurity, cloud, and authorized vendor reselling for Hudson Valley businesses. 24/7 support and rapid response." />
       {/* HERO SECTION */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-navy">
         <div className="absolute inset-0 z-0">
