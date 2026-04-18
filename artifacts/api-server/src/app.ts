@@ -30,31 +30,29 @@ app.use(cookieParser());
 
 const WEBHOOK_MAX_BYTES = 1 * 1024 * 1024;
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path.startsWith("/api/webhooks/tsd/")) {
-    let totalBytes = 0;
-    let data: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => {
-      totalBytes += chunk.length;
-      if (totalBytes > WEBHOOK_MAX_BYTES) {
-        res.status(413).json({ error: "payload_too_large" });
-        req.destroy();
-        return;
-      }
-      data.push(chunk);
-    });
-    req.on("end", () => {
-      req.rawBody = Buffer.concat(data);
-      express.json()(req, res, next);
-    });
-    req.on("error", next);
-  } else {
-    next();
+function captureRawBody(req: Request, _res: Response, buf: Buffer): void {
+  if (
+    req.path.startsWith("/api/webhooks/tsd/") ||
+    req.path.startsWith("/api/webhooks/zoom/")
+  ) {
+    req.rawBody = Buffer.from(buf);
   }
-});
+}
 
-app.use(express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "15mb", verify: captureRawBody }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (
+    req.rawBody &&
+    (req.path.startsWith("/api/webhooks/tsd/") || req.path.startsWith("/api/webhooks/zoom/")) &&
+    req.rawBody.length > WEBHOOK_MAX_BYTES
+  ) {
+    res.status(413).json({ error: "payload_too_large" });
+    return;
+  }
+  next();
+});
 app.use(authMiddleware);
 
 app.use("/api", router);

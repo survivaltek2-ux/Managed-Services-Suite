@@ -27,7 +27,9 @@ router.post("/webhooks/zoom/sms", async (req: Request, res: Response) => {
       return;
     }
 
-    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    const rawBody = req.rawBody
+      ? req.rawBody.toString("utf8")
+      : (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
     if (!verifyZoomWebhookSignature(rawBody, timestamp, signature)) {
       console.warn("[Zoom Webhook] Invalid signature — rejecting request");
       res.status(401).json({ error: "Invalid webhook signature" });
