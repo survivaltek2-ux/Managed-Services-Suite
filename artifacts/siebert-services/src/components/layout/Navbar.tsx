@@ -54,7 +54,6 @@ const industryLinks = [
 
 const topNavLinks = [
   { name: "Home", href: "/" },
-  { name: "Industries", href: "/industries" },
   { name: "Pricing", href: "/pricing" },
   { name: "Recommended Products", href: "/recommended" },
   { name: "Resources", href: "/resources" },
@@ -70,9 +69,12 @@ export function Navbar() {
   const [mobilePartnersOpen, setMobilePartnersOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
+  const [industriesOpen, setIndustriesOpen] = useState(false);
+  const [mobileIndustriesOpen, setMobileIndustriesOpen] = useState(false);
   const { isAuthenticated } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const servicesRef = useRef<HTMLDivElement>(null);
+  const industriesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -88,6 +90,9 @@ export function Navbar() {
       if (servicesRef.current && !servicesRef.current.contains(e.target as Node)) {
         setServicesOpen(false);
       }
+      if (industriesRef.current && !industriesRef.current.contains(e.target as Node)) {
+        setIndustriesOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -95,6 +100,7 @@ export function Navbar() {
 
   const isPartnerActive = allPartnerLinks.some((l) => location === l.href);
   const isServicesActive = location === "/services" || serviceLinks.some((l) => location === l.href);
+  const isIndustriesActive = location === "/industries" || location.startsWith("/industries/");
 
   return (
     <header
@@ -184,6 +190,60 @@ export function Navbar() {
                       className="flex items-center justify-between text-sm font-bold text-primary hover:underline py-1"
                     >
                       View all services
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Industries Dropdown */}
+            <div
+              className="relative"
+              ref={industriesRef}
+              onMouseEnter={() => setIndustriesOpen(true)}
+              onMouseLeave={() => setIndustriesOpen(false)}
+            >
+              <button
+                onClick={() => setIndustriesOpen((o) => !o)}
+                className={cn(
+                  "flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary relative",
+                  isScrolled ? "text-navy-light" : "text-white/90",
+                  (isIndustriesActive || industriesOpen) && "text-primary"
+                )}
+              >
+                Industries
+                <ChevronDown className={cn("w-4 h-4 transition-transform", industriesOpen && "rotate-180")} />
+                {isIndustriesActive && (
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full" />
+                )}
+              </button>
+
+              {industriesOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[320px] bg-white rounded-2xl shadow-xl border border-border py-3 z-50">
+                  <div className="px-2">
+                    {industryLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setIndustriesOpen(false)}
+                        className={cn(
+                          "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors",
+                          location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+                        )}
+                      >
+                        {link.name}
+                        <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="border-t border-border/60 mt-2 pt-2 px-4">
+                    <Link
+                      href="/industries"
+                      onClick={() => setIndustriesOpen(false)}
+                      className="flex items-center justify-between text-sm font-bold text-primary hover:underline py-1"
+                    >
+                      All industries
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                   </div>
@@ -328,6 +388,43 @@ export function Navbar() {
                 className="px-4 py-2.5 rounded-xl text-sm font-bold text-primary hover:bg-primary/5"
               >
                 View all services →
+              </Link>
+            </div>
+          )}
+
+          {/* Mobile Industries accordion */}
+          <button
+            onClick={() => setMobileIndustriesOpen((o) => !o)}
+            className={cn(
+              "px-4 py-3 rounded-xl font-semibold flex items-center justify-between w-full text-left",
+              isIndustriesActive ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+            )}
+          >
+            Industries
+            <ChevronDown className={cn("w-4 h-4 opacity-50 transition-transform", mobileIndustriesOpen && "rotate-180")} />
+          </button>
+          {mobileIndustriesOpen && (
+            <div className="pl-4 flex flex-col gap-1">
+              {industryLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => { setMobileMenuOpen(false); setMobileIndustriesOpen(false); }}
+                  className={cn(
+                    "px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between",
+                    location === link.href ? "bg-primary/10 text-primary" : "text-navy-light hover:bg-gray-50"
+                  )}
+                >
+                  {link.name}
+                  <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                </Link>
+              ))}
+              <Link
+                href="/industries"
+                onClick={() => { setMobileMenuOpen(false); setMobileIndustriesOpen(false); }}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold text-primary hover:bg-primary/5"
+              >
+                All industries →
               </Link>
             </div>
           )}
