@@ -20,9 +20,6 @@ export function MultiChannelContactBar({ phone = "866-484-9180", variant = "stic
         <a href={`tel:${phone.replace(/[^\d]/g, "")}`} className="flex items-center justify-center gap-2 h-12 rounded-xl bg-navy text-white font-semibold hover:bg-navy-light transition-colors">
           <Phone className="w-4 h-4" /> Call {phone}
         </a>
-        <button onClick={openChat} className="flex items-center justify-center gap-2 h-12 rounded-xl bg-white text-navy border-2 border-navy/10 font-semibold hover:border-primary hover:text-primary transition-colors">
-          <MessageSquare className="w-4 h-4" /> Chat with Zoom
-        </button>
         <button onClick={() => setBookOpen(true)} className="flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors">
           <Calendar className="w-4 h-4" /> Book a Call
         </button>
@@ -40,10 +37,6 @@ export function MultiChannelContactBar({ phone = "866-484-9180", variant = "stic
             <Phone className="w-4 h-4" />
             <span className="text-[10px] font-bold">Call</span>
           </a>
-          <button onClick={openChat} className="flex flex-col items-center gap-0.5 py-2 text-navy hover:text-primary">
-            <MessageSquare className="w-4 h-4" />
-            <span className="text-[10px] font-bold">Chat</span>
-          </button>
           <button onClick={() => setBookOpen(true)} className="flex flex-col items-center gap-0.5 py-2 text-primary">
             <Calendar className="w-4 h-4" />
             <span className="text-[10px] font-bold">Book</span>
@@ -62,15 +55,6 @@ export function MultiChannelContactBar({ phone = "866-484-9180", variant = "stic
             <Phone className="w-4 h-4 text-primary" />
             <span>{phone}</span>
           </a>
-          <span className="w-px h-6 bg-border" aria-hidden="true" />
-          <button
-            onClick={openChat}
-            className="flex items-center gap-2 px-3 py-2 rounded-full text-navy hover:bg-navy/5 text-sm font-semibold transition-colors"
-            aria-label="Open Zoom chat"
-          >
-            <MessageSquare className="w-4 h-4 text-primary" />
-            Zoom Chat
-          </button>
           <span className="w-px h-6 bg-border" aria-hidden="true" />
           <button
             onClick={() => setBookOpen(true)}
