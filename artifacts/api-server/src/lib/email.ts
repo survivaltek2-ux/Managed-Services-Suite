@@ -1114,3 +1114,165 @@ export async function sendVivintInquiryNotification(inquiry: {
 
   await sendEmail(process.env.SALES_EMAIL || "sales@siebertrservices.com", `New Vivint Inquiry — ${inquiry.name}`, html);
 }
+
+// ─── Lead Magnets ──────────────────────────────────────────────────────────
+
+const MAGNET_LABELS: Record<string, string> = {
+  cybersecurity_assessment: "Free Cybersecurity Risk Assessment",
+  downtime_calculator: "Cost of Downtime Calculator",
+  hipaa_checklist: "HIPAA Compliance Checklist",
+  buyers_guide: "Buyer's Guide: 10 Questions Before Hiring an MSP",
+};
+
+export function getLeadMagnetLabel(magnet: string): string {
+  return MAGNET_LABELS[magnet] || magnet;
+}
+
+export type LeadMagnetKey =
+  | "cybersecurity_assessment"
+  | "downtime_calculator"
+  | "hipaa_checklist"
+  | "buyers_guide";
+
+export type LeadMagnetPayload = Record<string, unknown>;
+
+function asString(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
+}
+function asNumber(v: unknown, fallback = 0): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function renderAssessmentReport(payload: LeadMagnetPayload): { score: number; band: string; bandColor: string; recs: string[] } {
+  // payload = { backups: 'yes'|'no'|'unsure', mfa, training, edr, patching, response_plan, vendor_review }
+  const yesPoints: Record<string, number> = { yes: 2, partial: 1, no: 0, unsure: 0 };
+  const keys = ["backups", "mfa", "training", "edr", "patching", "response_plan", "vendor_review"];
+  let score = 0;
+  for (const k of keys) score += yesPoints[asString(payload[k], "no")] ?? 0;
+  const max = keys.length * 2;
+  const pct = Math.round((score / max) * 100);
+  let band = "High Risk";
+  let bandColor = "#dc2626";
+  if (pct >= 75) { band = "Strong Posture"; bandColor = "#16a34a"; }
+  else if (pct >= 50) { band = "Moderate Risk"; bandColor = "#f59e0b"; }
+  const recs: string[] = [];
+  if (asString(payload.backups) !== "yes") recs.push("Implement immutable, off-site backups with regular restore tests (3-2-1 rule).");
+  if (asString(payload.mfa) !== "yes") recs.push("Enforce MFA on email, VPN, and all admin accounts immediately — this blocks 99% of credential attacks.");
+  if (asString(payload.training) !== "yes") recs.push("Roll out quarterly phishing simulations and security-awareness training for all staff.");
+  if (asString(payload.edr) !== "yes") recs.push("Replace legacy antivirus with EDR/MDR (24/7 monitored endpoint detection).");
+  if (asString(payload.patching) !== "yes") recs.push("Move to automated patching with monthly compliance reports for OS and third-party apps.");
+  if (asString(payload.response_plan) !== "yes") recs.push("Document and tabletop-test an incident response plan, including ransomware playbook.");
+  if (asString(payload.vendor_review) !== "yes") recs.push("Run an annual vendor / SaaS security review and require SOC 2 from critical vendors.");
+  if (recs.length === 0) recs.push("Strong baseline! We recommend an annual penetration test to validate controls.");
+  return { score: pct, band, bandColor, recs };
+}
+
+export async function sendLeadMagnetSubmission(submission: {
+  magnet: LeadMagnetKey;
+  name: string;
+  email: string;
+  company?: string | null;
+  phone?: string | null;
+  payload: LeadMagnetPayload;
+}, baseUrl: string) {
+  const cfg = await loadEmailConfig();
+  const label = getLeadMagnetLabel(submission.magnet);
+
+  let bodyHtml = "";
+  let subject = `Your ${label} from Siebert Services`;
+
+  if (submission.magnet === "cybersecurity_assessment") {
+    const r = renderAssessmentReport(submission.payload);
+    bodyHtml = `
+      <p style="font-size:14px;margin:0 0 16px;">Hi ${esc(submission.name)},</p>
+      <p style="font-size:14px;margin:0 0 16px;">Thanks for completing the Siebert Services Cybersecurity Risk Assessment. Based on your answers, here's a snapshot of your current posture and the highest-impact actions to take next.</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:0 0 20px;">
+        <p style="margin:0 0 6px;font-size:12px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Your Score</p>
+        <p style="margin:0 0 4px;font-size:36px;font-weight:800;color:${r.bandColor};">${r.score}<span style="font-size:18px;color:#9ca3af;font-weight:600;">/100</span></p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:${r.bandColor};">${r.band}</p>
+      </div>
+      <p style="font-size:14px;font-weight:700;margin:0 0 8px;color:#111827;">Top recommendations</p>
+      <ol style="font-size:14px;color:#374151;margin:0 0 20px;padding-left:20px;">
+        ${r.recs.map(rec => `<li style="margin:0 0 8px;">${esc(rec)}</li>`).join("")}
+      </ol>
+      <p style="font-size:14px;margin:0 0 8px;">Want a deeper review? <a href="${esc(baseUrl)}/contact?source=cybersecurity_assessment" style="color:#0176d3;font-weight:600;">Book a free 30-minute consultation</a> with a Siebert security specialist.</p>
+    `;
+  } else if (submission.magnet === "downtime_calculator") {
+    const employees = asNumber(submission.payload.employees, 0);
+    const hourlyCost = asNumber(submission.payload.hourlyCost, 0);
+    const hours = asNumber(submission.payload.hours, 0);
+    const total = employees * hourlyCost * hours;
+    const annualLikely = total * asNumber(submission.payload.outagesPerYear, 4);
+    const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+    bodyHtml = `
+      <p style="font-size:14px;margin:0 0 16px;">Hi ${esc(submission.name)},</p>
+      <p style="font-size:14px;margin:0 0 16px;">Here's your personalized downtime cost estimate:</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:0 0 20px;">
+        <table style="width:100%;font-size:14px;border-collapse:collapse;">
+          <tr><td style="padding:6px 0;color:#6b7280;">Employees affected</td><td style="padding:6px 0;text-align:right;font-weight:600;">${employees.toLocaleString()}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">Avg fully-loaded hourly cost</td><td style="padding:6px 0;text-align:right;font-weight:600;">${fmt(hourlyCost)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">Hours of downtime</td><td style="padding:6px 0;text-align:right;font-weight:600;">${hours}</td></tr>
+          <tr style="border-top:2px solid #032d60;"><td style="padding:12px 0 0;font-weight:700;color:#111827;">Cost per outage</td><td style="padding:12px 0 0;text-align:right;font-weight:800;font-size:20px;color:#dc2626;">${fmt(total)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;font-size:12px;">Estimated annual exposure (at typical 4 outages/yr)</td><td style="padding:6px 0;text-align:right;font-weight:700;color:#dc2626;">${fmt(annualLikely)}</td></tr>
+        </table>
+      </div>
+      <p style="font-size:14px;margin:0 0 8px;">Want to slash that number? Siebert's managed IT plans include 24/7 monitoring, proactive patching, and 1-hour SLA — typically reducing unplanned downtime by 70%+.</p>
+      <p style="font-size:14px;margin:0 0 8px;"><a href="${esc(baseUrl)}/contact?source=downtime_calculator" style="color:#0176d3;font-weight:600;">Book a free downtime-reduction consultation →</a></p>
+    `;
+  } else if (submission.magnet === "hipaa_checklist") {
+    bodyHtml = `
+      <p style="font-size:14px;margin:0 0 16px;">Hi ${esc(submission.name)},</p>
+      <p style="font-size:14px;margin:0 0 16px;">Thanks for downloading the Siebert Services HIPAA Compliance Checklist. Open the printable version below — it covers all 18 administrative, physical, and technical safeguards you need to document.</p>
+      <p style="margin:0 0 20px;"><a href="${esc(baseUrl)}/resources/hipaa-checklist/download?email=${encodeURIComponent(submission.email)}" style="background:#032d60;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Open the HIPAA Checklist</a></p>
+      <p style="font-size:14px;margin:0 0 8px;">Need help closing gaps? Our compliance team builds HIPAA-ready stacks for medical and dental practices in under 30 days. <a href="${esc(baseUrl)}/contact?source=hipaa_checklist" style="color:#0176d3;font-weight:600;">Book a HIPAA gap assessment →</a></p>
+    `;
+  } else if (submission.magnet === "buyers_guide") {
+    bodyHtml = `
+      <p style="font-size:14px;margin:0 0 16px;">Hi ${esc(submission.name)},</p>
+      <p style="font-size:14px;margin:0 0 16px;">Here's your copy of <strong>10 Questions to Ask Before Hiring an MSP</strong> — the same evaluation framework our highest-performing clients used to vet Siebert Services.</p>
+      <p style="margin:0 0 20px;"><a href="${esc(baseUrl)}/resources/buyers-guide/download?email=${encodeURIComponent(submission.email)}" style="background:#032d60;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Open the Buyer's Guide</a></p>
+      <p style="font-size:14px;margin:0 0 8px;">Want us to walk through the questions live? <a href="${esc(baseUrl)}/contact?source=buyers_guide" style="color:#0176d3;font-weight:600;">Book a 30-minute consultation →</a></p>
+    `;
+  } else {
+    bodyHtml = `<p style="font-size:14px;">Hi ${esc(submission.name)}, thanks for downloading <strong>${esc(label)}</strong>.</p>`;
+  }
+
+  const userHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">${esc(label)}</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        ${bodyHtml}
+        <p style="font-size:12px;color:#999;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:12px;">— Siebert Services · 866-484-9180 · sales@siebertrservices.com</p>
+      </div>
+    </div>
+  `;
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Lead Magnet Download</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:8px 0;color:#706e6b;width:140px;">Magnet</td><td style="padding:8px 0;font-weight:600;">${esc(label)}</td></tr>
+          <tr><td style="padding:8px 0;color:#706e6b;">Name</td><td style="padding:8px 0;">${esc(submission.name)}</td></tr>
+          <tr><td style="padding:8px 0;color:#706e6b;">Email</td><td style="padding:8px 0;"><a href="mailto:${esc(submission.email)}" style="color:#0176d3;">${esc(submission.email)}</a></td></tr>
+          ${submission.company ? `<tr><td style="padding:8px 0;color:#706e6b;">Company</td><td style="padding:8px 0;">${esc(submission.company)}</td></tr>` : ""}
+          ${submission.phone ? `<tr><td style="padding:8px 0;color:#706e6b;">Phone</td><td style="padding:8px 0;"><a href="tel:${esc(submission.phone)}" style="color:#0176d3;">${esc(submission.phone)}</a></td></tr>` : ""}
+        </table>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;" />
+        <p style="font-size:12px;color:#706e6b;margin:0 0 4px;font-weight:700;">Submission payload:</p>
+        <pre style="font-size:11px;background:#f9fafb;border:1px solid #e5e7eb;padding:10px;border-radius:4px;overflow:auto;">${esc(JSON.stringify(submission.payload || {}, null, 2))}</pre>
+        <p style="font-size:12px;color:#999;margin-top:16px;">Automated notification from siebertrservices.com</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(submission.email, subject, userHtml),
+    sendEmail(cfg.notificationEmail, `New Lead Magnet: ${label} — ${esc(submission.name)}${submission.company ? ` (${esc(submission.company)})` : ""}`, adminHtml),
+  ]);
+}

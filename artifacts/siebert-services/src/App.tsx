@@ -52,6 +52,14 @@ import InternetPlans from "./pages/InternetPlans";
 import Industries from "./pages/Industries";
 import IndustryPage from "./pages/IndustryPage";
 import NotFound from "./pages/not-found";
+import ResourcesIndex from "./pages/resources/ResourcesIndex";
+import CybersecurityAssessment from "./pages/resources/CybersecurityAssessment";
+import DowntimeCalculator from "./pages/resources/DowntimeCalculator";
+import { HipaaChecklistPage, BuyersGuidePage } from "./pages/resources/GatedDownload";
+import ResourceThankYou from "./pages/resources/ThankYou";
+import PrintableHipaa from "./pages/resources/PrintableHipaa";
+import PrintableBuyersGuide from "./pages/resources/PrintableBuyersGuide";
+import { ExitIntentPopup } from "@/components/leadMagnets";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +118,16 @@ function PublicRouter() {
         <Route path="/8x8" component={EightByEight} />
         <Route path="/palo-alto-networks" component={PaloAltoNetworks} />
 
+        {/* Resources / Lead Magnets */}
+        <Route path="/resources" component={ResourcesIndex} />
+        <Route path="/resources/cybersecurity-assessment" component={CybersecurityAssessment} />
+        <Route path="/resources/downtime-calculator" component={DowntimeCalculator} />
+        <Route path="/resources/hipaa-checklist" component={HipaaChecklistPage} />
+        <Route path="/resources/buyers-guide" component={BuyersGuidePage} />
+        <Route path="/resources/hipaa-checklist/download" component={PrintableHipaa} />
+        <Route path="/resources/buyers-guide/download" component={PrintableBuyersGuide} />
+        <Route path="/resources/:slug/thanks" component={ResourceThankYou} />
+
         {/* Blog */}
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
@@ -127,6 +145,7 @@ function PublicRouter() {
         {/* 404 Fallback (must be last) */}
         <Route component={NotFound} />
       </Switch>
+      <ExitIntentPopup />
     </Layout>
   );
 }

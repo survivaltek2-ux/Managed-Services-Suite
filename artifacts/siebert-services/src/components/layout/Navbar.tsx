@@ -56,6 +56,7 @@ const topNavLinks = [
   { name: "Home", href: "/" },
   { name: "Industries", href: "/industries" },
   { name: "Recommended Products", href: "/recommended" },
+  { name: "Resources", href: "/resources" },
   { name: "About", href: "/about" },
   { name: "Contact", href: "/contact" },
 ];

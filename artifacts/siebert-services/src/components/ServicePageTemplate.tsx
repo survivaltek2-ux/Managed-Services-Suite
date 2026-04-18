@@ -19,6 +19,7 @@ import {
   CaseStudyCard,
   type CaseStudy,
 } from "@/components/trust";
+import { LeadMagnetCTA, getMagnetForService } from "@/components/leadMagnets";
 
 export interface ProcessStep {
   title: string;
@@ -366,6 +367,19 @@ export function ServicePageTemplate({ content, caseStudies = [] }: Props) {
           </div>
         </section>
       )}
+
+      {/* Lead magnet CTA */}
+      {(() => {
+        const magnet = getMagnetForService(content.slug);
+        if (!magnet) return null;
+        return (
+          <section className="py-12 bg-white">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              <LeadMagnetCTA magnet={magnet} variant="banner" source={`service_${content.slug}`} />
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Related links */}
       {content.relatedLinks && content.relatedLinks.length > 0 && (

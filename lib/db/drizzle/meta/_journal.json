@@ -22,6 +22,34 @@
       "when": 1774800000000,
       "tag": "0002_add_training_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775347440000,
+      "tag": "0003_add_marketplace",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776524820000,
+      "tag": "0004_blog_scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776524820001,
+      "tag": "0004_trust_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776525000000,
+      "tag": "0005_lead_magnets",
+      "breakpoints": true
     }
   ]
 }

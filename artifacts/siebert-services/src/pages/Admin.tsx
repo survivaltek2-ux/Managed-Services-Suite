@@ -16,12 +16,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "caseStudies" | "certifications" | "companyStats";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
   { id: "inquiries", label: "Inquiries", icon: <Inbox size={18} />, section: "Management" },
   { id: "leads", label: "Partner Leads", icon: <Briefcase size={18} />, section: "Management" },
+  { id: "leadMagnets", label: "Lead Magnets", icon: <FileText size={18} /> },
   { id: "invoices", label: "Invoices", icon: <CreditCard size={18} /> },
   { id: "blog", label: "Blog Posts", icon: <PenTool size={18} />, section: "Content" },
   { id: "calendar", label: "Editorial Calendar", icon: <Clock size={18} /> },
@@ -122,6 +123,13 @@ export default function Admin() {
         const partnersRes = await fetch("/api/admin/partners", { headers: headers() });
         const partnersData = partnersRes.ok ? await partnersRes.json() : [];
         setData(prev => ({ ...prev, partners: partnersData }));
+        setLoading(false);
+        return;
+      }
+      if (tab === "leadMagnets") {
+        const r = await fetch("/api/admin/lead-magnets", { headers: headers() });
+        const d = r.ok ? await r.json() : [];
+        setData(prev => ({ ...prev, leadMagnets: d }));
         setLoading(false);
         return;
       }
@@ -443,6 +451,7 @@ export default function Admin() {
               {activeTab === "inquiries" && <InquiriesTab contacts={data.contacts || []} quotes={data.quotes || []} tickets={data.tickets || []} headers={headers} refresh={() => fetchData("inquiries")} toast={toast} />}
               {activeTab === "invoices" && <InvoicesTab invoices={data.invoices || []} headers={headers} refresh={() => fetchData("invoices")} />}
               {activeTab === "leads" && <AdminLeads partners={data.partners || []} headers={headers} refresh={() => fetchData("leads")} toast={toast} />}
+              {activeTab === "leadMagnets" && <LeadMagnetsTab submissions={data.leadMagnets || []} headers={headers} refresh={() => fetchData("leadMagnets")} toast={toast} />}
               {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} products={data.tsdProducts || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
@@ -2459,3 +2468,123 @@ function InvoicesTab({ invoices, headers, refresh }: { invoices: any[]; headers:
   );
 }
 
+
+const LEAD_MAGNET_LABELS: Record<string, string> = {
+  cybersecurity_assessment: "Cybersecurity Assessment",
+  downtime_calculator: "Downtime Calculator",
+  hipaa_checklist: "HIPAA Checklist",
+  buyers_guide: "Buyer's Guide",
+};
+
+function LeadMagnetsTab({ submissions, headers, refresh, toast }: { submissions: any[]; headers: () => any; refresh: () => void; toast: any }) {
+  const [filter, setFilter] = useState<string>("all");
+  const [selected, setSelected] = useState<any | null>(null);
+  const filtered = filter === "all" ? submissions : submissions.filter(s => s.magnet === filter);
+
+  async function handleDelete(id: number) {
+    if (!confirm("Delete this submission?")) return;
+    try {
+      const r = await fetch(`/api/admin/lead-magnets/${id}`, { method: "DELETE", headers: headers() });
+      if (r.ok) { toast({ title: "Deleted" }); refresh(); }
+      else toast({ title: "Delete failed", variant: "destructive" });
+    } catch { toast({ title: "Delete failed", variant: "destructive" }); }
+  }
+
+  const counts: Record<string, number> = { all: submissions.length };
+  for (const s of submissions) counts[s.magnet] = (counts[s.magnet] || 0) + 1;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>Lead Magnet Submissions</span>
+          <Button size="sm" variant="outline" onClick={refresh}>Refresh</Button>
+        </CardTitle>
+        <CardDescription>People who downloaded a free resource. {submissions.length} total.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2 mb-4 border-b pb-3">
+          {[
+            { id: "all", label: "All" },
+            { id: "cybersecurity_assessment", label: "Cybersecurity" },
+            { id: "downtime_calculator", label: "Downtime" },
+            { id: "hipaa_checklist", label: "HIPAA" },
+            { id: "buyers_guide", label: "Buyer's Guide" },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setFilter(t.id)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md border ${
+                filter === t.id ? "bg-primary text-white border-primary" : "border-border bg-white text-foreground hover:bg-gray-50"
+              }`}
+            >
+              {t.label} <span className="opacity-60">({counts[t.id] || 0})</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">Date</th>
+                <th className="px-3 py-2 text-left">Magnet</th>
+                <th className="px-3 py-2 text-left">Name</th>
+                <th className="px-3 py-2 text-left">Email</th>
+                <th className="px-3 py-2 text-left">Company</th>
+                <th className="px-3 py-2 text-left">Phone</th>
+                <th className="px-3 py-2 text-left">Email status</th>
+                <th className="px-3 py-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(s => (
+                <tr key={s.id} className="border-t hover:bg-gray-50">
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(s.createdAt).toLocaleString()}</td>
+                  <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">{LEAD_MAGNET_LABELS[s.magnet] || s.magnet}</span></td>
+                  <td className="px-3 py-2 font-medium">{s.name}</td>
+                  <td className="px-3 py-2"><a href={`mailto:${s.email}`} className="text-primary hover:underline">{s.email}</a></td>
+                  <td className="px-3 py-2">{s.company || "—"}</td>
+                  <td className="px-3 py-2">{s.phone ? <a href={`tel:${s.phone}`} className="text-primary hover:underline">{s.phone}</a> : "—"}</td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      s.emailSent === "sent" ? "bg-green-50 text-green-700" :
+                      s.emailSent === "failed" ? "bg-red-50 text-red-700" :
+                      "bg-amber-50 text-amber-700"
+                    }`}>{s.emailSent}</span>
+                  </td>
+                  <td className="px-3 py-2 space-x-2 text-xs">
+                    <button onClick={() => setSelected(s)} className="text-primary hover:underline">View</button>
+                    <button onClick={() => handleDelete(s.id)} className="text-red-600 hover:underline">Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No submissions</p>}
+        </div>
+
+        {selected && (
+          <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{LEAD_MAGNET_LABELS[selected.magnet] || selected.magnet} — {selected.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <p><strong>Email:</strong> {selected.email}</p>
+                {selected.company && <p><strong>Company:</strong> {selected.company}</p>}
+                {selected.phone && <p><strong>Phone:</strong> {selected.phone}</p>}
+                {selected.source && <p><strong>Source:</strong> {selected.source}</p>}
+                <p><strong>Submitted:</strong> {new Date(selected.createdAt).toLocaleString()}</p>
+                <div>
+                  <p className="font-semibold mb-1">Submission payload:</p>
+                  <pre className="bg-gray-50 border p-3 rounded text-xs overflow-auto">{JSON.stringify(selected.payload || {}, null, 2)}</pre>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

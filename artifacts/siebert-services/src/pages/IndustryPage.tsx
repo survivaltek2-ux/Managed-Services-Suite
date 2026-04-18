@@ -13,6 +13,7 @@ import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 import { BookingButton } from "@/components/Booking";
 import { TestimonialsSection, CaseStudyCard, type CaseStudy } from "@/components/trust";
+import { LeadMagnetCTA, LEAD_MAGNETS } from "@/components/leadMagnets";
 import { getIndustry, industries } from "@/data/industries";
 import NotFound from "./not-found";
 
@@ -322,6 +323,21 @@ export default function IndustryPage() {
               </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* LEAD MAGNET */}
+      <section className="py-12 bg-white border-t">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <LeadMagnetCTA
+            magnet={
+              industry.slug === "healthcare" || industry.slug === "dental" || industry.slug === "medical"
+                ? LEAD_MAGNETS["hipaa-checklist"]
+                : LEAD_MAGNETS["buyers-guide"]
+            }
+            variant="banner"
+            source={`industry_${industry.slug}`}
+          />
         </div>
       </section>
 

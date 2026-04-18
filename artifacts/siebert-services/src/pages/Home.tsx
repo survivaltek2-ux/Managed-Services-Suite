@@ -17,6 +17,7 @@ import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 import { BookingButton } from "@/components/Booking";
 import { MultiChannelContactBar } from "@/components/MultiChannelContactBar";
+import { LeadMagnetCTA, ALL_MAGNETS } from "@/components/leadMagnets";
 import {
   TestimonialsSection,
   CompanyStats,
@@ -406,6 +407,31 @@ export default function Home() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Free resources / lead magnets */}
+      <section className="py-20 bg-white border-t border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <p className="text-xs uppercase tracking-widest text-primary font-bold mb-2">Free resources</p>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-3">
+              Tools and guides for IT decision-makers
+            </h2>
+            <p className="text-base text-muted-foreground max-w-xl mx-auto">
+              Assess your security posture, calculate downtime cost, or vet your next MSP — no sales call required.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {ALL_MAGNETS.map(m => (
+              <LeadMagnetCTA key={m.slug} magnet={m} />
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/resources" className="text-sm text-primary font-semibold hover:underline">
+              See all resources →
+            </Link>
           </div>
         </div>
       </section>

@@ -10,6 +10,7 @@ export const contactsTable = pgTable("contacts", {
   company: text("company"),
   service: text("service"),
   message: text("message").notNull(),
+  source: text("source"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

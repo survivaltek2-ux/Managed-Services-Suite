@@ -106,3 +106,23 @@ Replit App Storage (GCS-backed) is provisioned and active. The following environ
     - Zoom Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_SECRET`)
     - Zoom Phone API (for SMS webhook at `POST /api/webhooks/zoom/sms`)
 - **Monorepo Tool**: pnpm workspaces
+## Lead Magnets (Task #33)
+
+Four high-converting lead magnets live under `/resources/*` in the Siebert Services site:
+
+- `/resources/cybersecurity-assessment` — 7-question quiz; emails a tailored security score + top fixes
+- `/resources/downtime-calculator` — interactive calculator; emails PDF summary
+- `/resources/hipaa-checklist` — gated PDF (printable HTML at `/resources/hipaa-checklist/download`)
+- `/resources/buyers-guide` — gated PDF (printable HTML at `/resources/buyers-guide/download`)
+- `/resources/:slug/thanks` — generic thank-you page after submission
+- `/resources` — index page listing all magnets
+
+Implementation:
+- DB: `lead_magnet_submissions` table with `lead_magnet` enum (in `lib/db/src/schema/lead-magnets.ts`)
+- API: `POST /api/lead-magnets/submit`, admin `GET/DELETE /api/admin/lead-magnets` (in `artifacts/api-server/src/routes/lead-magnets.ts`)
+- Email: `sendLeadMagnetSubmission()` in `artifacts/api-server/src/lib/email.ts` — sends user copy with personalized content + admin notification
+- Components: `artifacts/siebert-services/src/components/leadMagnets/` — magnet config, `LeadMagnetForm`, `LeadMagnetCTA`, `ExitIntentPopup`
+- CTA placements: every service page (auto-mapped via `getMagnetForService`), homepage Resources section, blog post footer, exit-intent modal site-wide, navbar "Resources" link
+- Admin: new "Lead Magnets" tab in Admin.tsx with filtering, payload viewer, delete
+
+PDF strategy: printable HTML pages with browser save-as-PDF (no PDF lib dependency).

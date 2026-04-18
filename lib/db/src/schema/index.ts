@@ -11,3 +11,4 @@ export * from "./messages";
 export * from "./invoices";
 export * from "./affiliate";
 export * from "./marketplace";
+export * from "./lead-magnets";

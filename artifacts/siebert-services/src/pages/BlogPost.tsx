@@ -3,6 +3,7 @@ import { useRoute, Link } from "wouter";
 import { Loader2, Calendar, User, ArrowLeft, Tag } from "lucide-react";
 import { Badge } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
+import { LeadMagnetCTA, LEAD_MAGNETS } from "@/components/leadMagnets";
 
 export default function BlogPost() {
   const [, params] = useRoute("/blog/:slug");
@@ -85,6 +86,10 @@ export default function BlogPost() {
             ))}
           </div>
         )}
+
+        <div className="mt-12">
+          <LeadMagnetCTA magnet={LEAD_MAGNETS["buyers-guide"]} variant="banner" source={`blog_${post.slug || "post"}`} />
+        </div>
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ import vivintRouter from "./vivint.js";
 import pageContentRouter from "./page-content";
 import aiAdminRouter from "./ai-admin";
 import storageRouter from "./storage";
+import leadMagnetsRouter from "./lead-magnets.js";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use("/vivint", vivintRouter);
 router.use(pageContentRouter);
 router.use(aiAdminRouter);
 router.use(storageRouter);
+router.use(leadMagnetsRouter);
 
 export default router;
