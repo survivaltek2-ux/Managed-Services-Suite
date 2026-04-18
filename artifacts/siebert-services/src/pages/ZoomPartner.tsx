@@ -3,6 +3,7 @@ import { usePageContent } from "@/hooks/usePageContent";
 import { Video, Phone, MonitorPlay, CalendarDays, Headset, Sparkles, TrendingUp, MessageSquare, Check } from "lucide-react";
 import { Card, CardContent, Button } from "@/components/ui";
 import { Link } from "wouter";
+import { BookingInline } from "@/components/Booking";
 
 export default function ZoomPartner() {
   const content = usePageContent("zoom-partner", {
@@ -155,6 +156,18 @@ export default function ZoomPartner() {
               </div>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      <section className="py-20 bg-background border-t border-border">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-display font-bold text-navy mb-3">Schedule your Zoom consultation</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Choose a time below and we’ll walk you through the next steps for licensing, deployment, or migration.
+            </p>
+          </div>
+          <BookingInline height={680} />
         </div>
       </section>
     </div>
