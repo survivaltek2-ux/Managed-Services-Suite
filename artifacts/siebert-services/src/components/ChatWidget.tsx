@@ -184,7 +184,7 @@ export function ChatWidget() {
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
             className="fixed bottom-24 right-6 lg:bottom-6 lg:right-28 w-16 h-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-primary/90 transition-all z-50 ring-4 ring-primary/20"
-            aria-label="Open AI chat"
+            aria-label="Open Zoom chat"
           >
             <MessageSquare className="w-8 h-8" />
           </motion.button>
