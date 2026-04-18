@@ -49,6 +49,8 @@ import TMobileBusiness from "./pages/TMobileBusiness";
 import EightByEight from "./pages/EightByEight";
 import PaloAltoNetworks from "./pages/PaloAltoNetworks";
 import InternetPlans from "./pages/InternetPlans";
+import Industries from "./pages/Industries";
+import IndustryPage from "./pages/IndustryPage";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient();
@@ -71,6 +73,10 @@ function PublicRouter() {
         <Route path="/quote" component={Quote} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
+
+        {/* Industries */}
+        <Route path="/industries" component={Industries} />
+        <Route path="/industries/:slug" component={IndustryPage} />
 
         {/* Features & Tools */}
         <Route path="/internet-plans" component={InternetPlans} />

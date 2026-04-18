@@ -106,6 +106,15 @@ const adjacentServices: ServiceTile[] = [
   },
 ];
 
+const industryShortcuts = [
+  { slug: "healthcare", name: "Healthcare" },
+  { slug: "legal", name: "Legal" },
+  { slug: "financial-services", name: "Financial Services" },
+  { slug: "dental", name: "Dental" },
+  { slug: "government-contractors", name: "Government Contractors" },
+  { slug: "manufacturing", name: "Manufacturing" },
+];
+
 export default function Services() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -187,6 +196,44 @@ export default function Services() {
                 </Link>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* By industry — cross-link to industry pages */}
+      <section className="py-16 bg-white border-y border-border/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-gray-50 border border-border shadow-sm p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2">
+                  By industry
+                </p>
+                <h2 className="text-2xl md:text-3xl font-display font-bold text-navy">
+                  Looking for help in your industry?
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Each page covers the regulations, software, and pain points specific to that vertical.
+                </p>
+              </div>
+              <Link href="/industries">
+                <Button variant="outline" className="shrink-0">
+                  All industries <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {industryShortcuts.map((i) => (
+                <Link
+                  key={i.slug}
+                  href={`/industries/${i.slug}`}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-primary/5 border border-primary/20 text-sm font-semibold text-navy hover:bg-primary/10 hover:border-primary transition-colors"
+                >
+                  {i.name}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </section>

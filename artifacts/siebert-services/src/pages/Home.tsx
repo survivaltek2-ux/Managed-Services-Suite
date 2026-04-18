@@ -60,10 +60,10 @@ export default function Home() {
   ];
 
   const industries = [
-    { icon: <Stethoscope className="w-5 h-5" />, label: "Healthcare & medical" },
-    { icon: <Scale className="w-5 h-5" />, label: "Legal & professional services" },
-    { icon: <Building2 className="w-5 h-5" />, label: "Manufacturing & distribution" },
-    { icon: <GraduationCap className="w-5 h-5" />, label: "Education & nonprofit" },
+    { icon: <Stethoscope className="w-5 h-5" />, label: "Healthcare & medical", href: "/industries/healthcare" },
+    { icon: <Scale className="w-5 h-5" />, label: "Legal & professional services", href: "/industries/legal" },
+    { icon: <Building2 className="w-5 h-5" />, label: "Manufacturing & distribution", href: "/industries/manufacturing" },
+    { icon: <GraduationCap className="w-5 h-5" />, label: "Financial services & RIAs", href: "/industries/financial-services" },
   ];
 
   return (
@@ -257,14 +257,28 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className="rounded-2xl bg-background border border-border p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-                  {ind.icon}
-                </div>
-                <p className="font-semibold text-navy">{ind.label}</p>
+                <Link
+                  href={ind.href}
+                  className="block h-full rounded-2xl bg-background border border-border p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary transition-all"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    {ind.icon}
+                  </div>
+                  <p className="font-semibold text-navy">{ind.label}</p>
+                  <span className="inline-flex items-center gap-1 text-primary text-xs font-semibold mt-2">
+                    Explore <ArrowRight className="w-3 h-3" />
+                  </span>
+                </Link>
               </motion.div>
             ))}
+          </div>
+          <div className="text-center mt-10">
+            <Link href="/industries">
+              <Button variant="outline" size="lg">
+                See all industries we serve <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

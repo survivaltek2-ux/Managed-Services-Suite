@@ -43,8 +43,18 @@ const serviceLinks = [
   { name: "Network Infrastructure", href: "/services/network", description: "Firewalls, Wi-Fi, SD-WAN, cabling" },
 ];
 
+const industryLinks = [
+  { name: "Healthcare", href: "/industries/healthcare" },
+  { name: "Legal", href: "/industries/legal" },
+  { name: "Financial Services", href: "/industries/financial-services" },
+  { name: "Dental", href: "/industries/dental" },
+  { name: "Government Contractors", href: "/industries/government-contractors" },
+  { name: "Manufacturing", href: "/industries/manufacturing" },
+];
+
 const topNavLinks = [
   { name: "Home", href: "/" },
+  { name: "Industries", href: "/industries" },
   { name: "Recommended Products", href: "/recommended" },
   { name: "About", href: "/about" },
   { name: "Contact", href: "/contact" },
@@ -105,22 +115,27 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-8">
-            {topNavLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "text-sm font-semibold transition-colors hover:text-primary relative",
-                  isScrolled ? "text-navy-light" : "text-white/90",
-                  location === link.href && "text-primary"
-                )}
-              >
-                {link.name}
-                {location === link.href && (
-                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full" />
-                )}
-              </Link>
-            ))}
+            {topNavLinks.map((link) => {
+              const isActive =
+                location === link.href ||
+                (link.href !== "/" && location.startsWith(link.href + "/"));
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "text-sm font-semibold transition-colors hover:text-primary relative",
+                    isScrolled ? "text-navy-light" : "text-white/90",
+                    isActive && "text-primary"
+                  )}
+                >
+                  {link.name}
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full" />
+                  )}
+                </Link>
+              );
+            })}
 
             {/* Services Dropdown */}
             <div className="relative" ref={servicesRef}>
