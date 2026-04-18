@@ -3,28 +3,8 @@ import { count, eq } from "drizzle-orm";
 
 async function seedTrustContent(): Promise<void> {
   try {
-    // Testimonials
-    const [{ tCount }] = await db.select({ tCount: count() }).from(testimonialsTable);
-    if (tCount === 0) {
-      await db.insert(testimonialsTable).values([
-        { name: "Maria Chen", company: "Northbridge Realty Group", role: "Director of Operations",
-          content: "Siebert took our entire IT stack off our plate. Helpdesk response is under 10 minutes, our 365 migration was painless, and we finally have one number to call when anything breaks.",
-          rating: 5, sortOrder: 0 },
-        { name: "David Okafor", company: "Halcyon Manufacturing", role: "VP of Finance",
-          content: "We were burning ~$4k/month on shadow IT and ad-hoc fixes. After 90 days with Siebert we cut that in half and finally passed our cyber-insurance security audit.",
-          rating: 5, sortOrder: 1 },
-        { name: "Priya Raman", company: "Glenwood Medical Partners", role: "Practice Administrator",
-          content: "Their HIPAA-aware approach was the deciding factor. They documented everything, hardened our endpoints, and trained our staff. Auditors were happy.",
-          rating: 5, sortOrder: 2 },
-        { name: "Tom Whitaker", company: "Fairlane Logistics", role: "President",
-          content: "We bought our firewalls, switches, and Microsoft 365 through Siebert and they manage all of it. One vendor, one invoice, and the pricing was better than going direct.",
-          rating: 5, sortOrder: 3 },
-        { name: "Aisha Bello", company: "Vesper Hospitality Group", role: "IT Manager",
-          content: "Onboarding 11 properties under one MSP was a heavy lift. Siebert built us a runbook, did the cutover after-hours, and we had zero guest-facing downtime.",
-          rating: 5, sortOrder: 4 },
-      ]);
-      console.log("[seed] Inserted 5 testimonials");
-    }
+    // Testimonials are intentionally NOT seeded — only real, authentic
+    // client testimonials added by an admin through the CMS should appear.
 
     // Certifications
     const [{ cCount }] = await db.select({ cCount: count() }).from(certificationsTable);

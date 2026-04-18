@@ -20,13 +20,6 @@ interface Payload {
   reviews: Review[];
 }
 
-const FALLBACK_REVIEWS: Review[] = [
-  { author: "Jennifer L.", rating: 5, text: "Siebert Services is hands-down the most responsive IT partner we've ever worked with. Helpdesk picks up in minutes, not days.", relativeTime: "2 months ago" },
-  { author: "Marcus T.", rating: 5, text: "They handled our office move and 365 cutover without a single dropped meeting. Highly recommend for growing businesses.", relativeTime: "4 months ago" },
-  { author: "Rachel D.", rating: 5, text: "We use them for both managed IT and hardware procurement. Pricing beat our previous reseller and the support is dramatically better.", relativeTime: "6 months ago" },
-  { author: "Brian K.", rating: 5, text: "Smart, friendly engineers. They explain things clearly and never push services we don't need.", relativeTime: "8 months ago" },
-];
-
 interface Props {
   title?: string;
   subtitle?: string;
@@ -47,10 +40,14 @@ export function GoogleReviewsBlock({
       .catch(() => setData(null));
   }, []);
 
-  const reviews = data?.reviews?.length ? data.reviews : FALLBACK_REVIEWS;
-  const rating = data?.rating ?? 5.0;
-  const total = data?.total ?? FALLBACK_REVIEWS.length;
-  const live = !!data?.configured && (data?.reviews?.length ?? 0) > 0;
+  const reviews = data?.reviews ?? [];
+  const rating = data?.rating ?? null;
+  const total = data?.total ?? 0;
+  const live = !!data?.configured && reviews.length > 0;
+
+  // Only render when we have real, live Google reviews. We do NOT show
+  // placeholder or fabricated testimonials in this block.
+  if (!live) return null;
 
   return (
     <section className={`py-24 bg-background ${className}`}>
@@ -59,10 +56,12 @@ export function GoogleReviewsBlock({
           <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white shadow-md border border-border/50 mb-5">
             <GoogleG />
             <span className="font-bold text-navy">Google</span>
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="font-bold text-navy">{rating.toFixed(1)}</span>
-            </div>
+            {rating !== null && (
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span className="font-bold text-navy">{rating.toFixed(1)}</span>
+              </div>
+            )}
             <span className="text-xs text-muted-foreground">({total} reviews)</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-4">{title}</h2>
@@ -107,13 +106,9 @@ export function GoogleReviewsBlock({
         </div>
 
         <div className="mt-8 text-center text-xs text-muted-foreground">
-          {live ? (
-            <a href={data?.url || "#"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-navy">
-              View all reviews on Google <ExternalLink className="w-3 h-3" />
-            </a>
-          ) : (
-            <span>Showing recent client feedback. Live Google reviews appear once configured.</span>
-          )}
+          <a href={data?.url || "#"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-navy">
+            View all reviews on Google <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </div>
     </section>

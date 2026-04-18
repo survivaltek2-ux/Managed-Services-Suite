@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Layers,
   AlertTriangle,
-  Quote,
   ArrowLeft,
 } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
@@ -237,31 +236,6 @@ export default function IndustryPage() {
             Don't see your platform? We support most line-of-business software in{" "}
             {industry.name.toLowerCase()} — ask us about yours.
           </p>
-        </div>
-      </section>
-
-      {/* TESTIMONIAL (industry-specific placeholder) */}
-      <section className="py-20 bg-primary/5 border-y border-primary/10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Card className="border-none shadow-xl bg-white">
-            <CardContent className="p-10">
-              <Quote className="w-10 h-10 text-primary/30 mb-4" />
-              <p className="text-xl md:text-2xl text-navy font-display leading-snug mb-6">
-                "{industry.testimonial.quote}"
-              </p>
-              <div className="flex items-center gap-4 pt-4 border-t border-border/50">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-navy text-white flex items-center justify-center font-bold">
-                  {industry.testimonial.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </div>
-                <div>
-                  <p className="font-bold text-navy">{industry.testimonial.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {industry.testimonial.role} · {industry.testimonial.company}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
