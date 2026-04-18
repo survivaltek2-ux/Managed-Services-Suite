@@ -110,19 +110,19 @@ export function Navbar() {
       )}
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center gap-2">
+        <div className="flex items-center gap-6">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group shrink-0">
-            <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center text-white font-display font-bold text-lg sm:text-xl shadow-lg group-hover:scale-105 transition-transform">
+          <Link href="/" className="flex items-center gap-2 group shrink-0 leading-none">
+            <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-primary flex items-center justify-center text-white font-display font-bold text-lg sm:text-xl shadow-lg group-hover:scale-105 transition-transform">
               S
             </div>
-            <div className={cn("font-display font-bold text-base sm:text-xl tracking-tight transition-colors hidden sm:block", isScrolled ? "text-navy" : "text-white")}>
+            <div className={cn("font-display font-bold text-base sm:text-xl tracking-tight transition-colors hidden sm:block leading-none", isScrolled ? "text-navy" : "text-white")}>
               Siebert <span className="text-primary">Services</span>
             </div>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-7 mx-auto">
             {topNavLinks.map((link) => {
               const isActive =
                 location === link.href ||
@@ -132,14 +132,14 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "text-sm font-semibold transition-colors hover:text-primary relative",
+                    "h-6 inline-flex items-center text-sm font-semibold leading-none transition-colors hover:text-primary relative",
                     isScrolled ? "text-navy-light" : "text-white/90",
                     isActive && "text-primary"
                   )}
                 >
                   {link.name}
                   {isActive && (
-                    <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full" />
+                    <span className="absolute -bottom-2 left-0 w-full h-0.5 bg-primary rounded-full" />
                   )}
                 </Link>
               );
@@ -150,7 +150,7 @@ export function Navbar() {
               <button
                 onClick={() => setServicesOpen((o) => !o)}
                 className={cn(
-                  "flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary relative",
+                  "h-6 inline-flex items-center gap-1 text-sm font-semibold leading-none transition-colors hover:text-primary relative",
                   isScrolled ? "text-navy-light" : "text-white/90",
                   (isServicesActive || servicesOpen) && "text-primary"
                 )}
@@ -207,7 +207,7 @@ export function Navbar() {
               <button
                 onClick={() => setIndustriesOpen((o) => !o)}
                 className={cn(
-                  "flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary relative",
+                  "h-6 inline-flex items-center gap-1 text-sm font-semibold leading-none transition-colors hover:text-primary relative",
                   isScrolled ? "text-navy-light" : "text-white/90",
                   (isIndustriesActive || industriesOpen) && "text-primary"
                 )}
@@ -256,7 +256,7 @@ export function Navbar() {
               <button
                 onClick={() => setPartnersOpen((o) => !o)}
                 className={cn(
-                  "flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary relative",
+                  "h-6 inline-flex items-center gap-1 text-sm font-semibold leading-none transition-colors hover:text-primary relative",
                   isScrolled ? "text-navy-light" : "text-white/90",
                   (isPartnerActive || partnersOpen) && "text-primary"
                 )}
@@ -313,7 +313,11 @@ export function Navbar() {
 
           {/* Mobile Menu Toggle */}
           <button
-            className="lg:hidden p-1.5 text-primary hover:bg-white/10 rounded-lg transition-colors"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            className={cn(
+              "lg:hidden ml-auto inline-flex items-center justify-center w-10 h-10 rounded-lg transition-colors",
+              isScrolled ? "text-navy hover:bg-navy/5" : "text-white hover:bg-white/10"
+            )}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
