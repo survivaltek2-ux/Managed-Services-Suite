@@ -141,7 +141,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <Footer />
       {!isAppShell && <MultiChannelContactBar />}
-      {!isAppShell && <ChatWidget />}
     </div>
   );
 }
