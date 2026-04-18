@@ -11,6 +11,7 @@ interface PricingTier {
   name: string;
   tagline: string;
   startingPrice: string;
+  annualPrice?: string;
   priceUnit: string;
   pricePrefix: string;
   mostPopular: boolean;
@@ -26,7 +27,7 @@ const FALLBACK_TIERS: PricingTier[] = [
   {
     id: -1, slug: "essentials", name: "Essentials",
     tagline: "Core managed IT for small teams that need reliable coverage.",
-    startingPrice: "89", priceUnit: "per user / month", pricePrefix: "Starting at",
+    startingPrice: "89", annualPrice: "76", priceUnit: "per user / month", pricePrefix: "Starting at",
     mostPopular: false, sortOrder: 0, active: true,
     ctaLabel: "Get Started", ctaLink: "/quote",
     features: [
@@ -47,7 +48,7 @@ const FALLBACK_TIERS: PricingTier[] = [
   {
     id: -2, slug: "business", name: "Business",
     tagline: "Full-stack IT, security, and cloud for growing businesses.",
-    startingPrice: "149", priceUnit: "per user / month", pricePrefix: "Starting at",
+    startingPrice: "149", annualPrice: "127", priceUnit: "per user / month", pricePrefix: "Starting at",
     mostPopular: true, sortOrder: 1, active: true,
     ctaLabel: "Get Started", ctaLink: "/quote",
     features: [
@@ -69,7 +70,7 @@ const FALLBACK_TIERS: PricingTier[] = [
   {
     id: -3, slug: "enterprise", name: "Enterprise",
     tagline: "24/7 coverage, compliance, and a named team for complex orgs.",
-    startingPrice: "229", priceUnit: "per user / month", pricePrefix: "Starting at",
+    startingPrice: "229", annualPrice: "195", priceUnit: "per user / month", pricePrefix: "Starting at",
     mostPopular: false, sortOrder: 2, active: true,
     ctaLabel: "Talk to Sales", ctaLink: "/quote",
     features: [
@@ -108,11 +109,39 @@ const ALL_FEATURES = [
   { key: "Dedicated account team", in: ["enterprise"] },
 ];
 
+type BillingCycle = "monthly" | "annual";
+const BILLING_STORAGE_KEY = "pricing_billing_cycle";
+
 export default function Pricing() {
   const [tiers, setTiers] = useState<PricingTier[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [openMobileTier, setOpenMobileTier] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingCycle>("monthly");
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(BILLING_STORAGE_KEY);
+      if (saved === "annual" || saved === "monthly") setBilling(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem(BILLING_STORAGE_KEY, billing); } catch { /* ignore */ }
+  }, [billing]);
+
+  const priceFor = (tier: PricingTier): { price: string; hasDiscount: boolean; original: string } => {
+    const monthly = tier.startingPrice;
+    const annualRaw = (tier.annualPrice ?? "").trim();
+    const annualNum = Number(annualRaw);
+    const monthlyNum = Number(monthly);
+    const validAnnual =
+      annualRaw !== "" && Number.isFinite(annualNum) && annualNum > 0 && annualNum < monthlyNum;
+    if (billing === "annual" && validAnnual) {
+      return { price: annualRaw, hasDiscount: true, original: monthly };
+    }
+    return { price: monthly, hasDiscount: false, original: monthly };
+  };
 
   const handleTierCta = (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
@@ -186,6 +215,49 @@ export default function Pricing() {
       {/* TIER CARDS */}
       <section className="py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Billing toggle */}
+          <div className="flex justify-center mb-10">
+            <div
+              role="tablist"
+              aria-label="Billing cycle"
+              className="inline-flex items-center bg-gray-100 rounded-full p-1 border border-border/60"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={billing === "monthly"}
+                onClick={() => setBilling("monthly")}
+                data-testid="billing-toggle-monthly"
+                className={
+                  "px-5 py-2 rounded-full text-sm font-semibold transition-colors " +
+                  (billing === "monthly"
+                    ? "bg-white text-navy shadow-sm"
+                    : "text-muted-foreground hover:text-navy")
+                }
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={billing === "annual"}
+                onClick={() => setBilling("annual")}
+                data-testid="billing-toggle-annual"
+                className={
+                  "px-5 py-2 rounded-full text-sm font-semibold transition-colors inline-flex items-center gap-2 " +
+                  (billing === "annual"
+                    ? "bg-white text-navy shadow-sm"
+                    : "text-muted-foreground hover:text-navy")
+                }
+              >
+                Annual
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold uppercase tracking-wider">
+                  Save ~15%
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
             {sorted.map((tier, idx) => (
               <motion.div
@@ -220,19 +292,35 @@ export default function Pricing() {
                       </p>
                     </div>
 
-                    <div className="mb-6 pb-6 border-b border-border/50">
-                      <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-                        {tier.pricePrefix}
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-display font-extrabold text-navy">
-                          ${tier.startingPrice}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {tier.priceUnit}
-                      </div>
-                    </div>
+                    {(() => {
+                      const p = priceFor(tier);
+                      return (
+                        <div className="mb-6 pb-6 border-b border-border/50">
+                          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                            {tier.pricePrefix}
+                          </div>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span
+                              className="text-4xl font-display font-extrabold text-navy"
+                              data-testid={`price-${tier.slug}`}
+                            >
+                              ${p.price}
+                            </span>
+                            {p.hasDiscount && (
+                              <span className="text-lg text-muted-foreground line-through decoration-muted-foreground/50">
+                                ${p.original}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {tier.priceUnit}
+                            {p.hasDiscount && (
+                              <span className="ml-1 text-primary font-semibold">· billed annually</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <ul className="space-y-2.5 flex-1 mb-7">
                       {tier.features.map((f) => (

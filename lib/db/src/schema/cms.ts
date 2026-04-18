@@ -140,6 +140,7 @@ export const pricingTiersTable = pgTable("pricing_tiers", {
   name: text("name").notNull(),
   tagline: text("tagline").notNull().default(""),
   startingPrice: text("starting_price").notNull().default("0"),
+  annualPrice: text("annual_price").notNull().default("0"),
   priceUnit: text("price_unit").notNull().default("per user / month"),
   pricePrefix: text("price_prefix").notNull().default("Starting at"),
   mostPopular: boolean("most_popular").notNull().default(false),

@@ -851,13 +851,14 @@ router.get("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (_req: A
 
 router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { slug, name, tagline, startingPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
+    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
     const autoSlug = slug || String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const [item] = await db.insert(pricingTiersTable).values({
       slug: autoSlug,
       name,
       tagline: tagline || "",
       startingPrice: String(startingPrice ?? "0"),
+      annualPrice: String(annualPrice ?? "0"),
       priceUnit: priceUnit || "per user / month",
       pricePrefix: pricePrefix || "Starting at",
       mostPopular: !!mostPopular,
@@ -879,12 +880,13 @@ router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: A
 router.put("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const { slug, name, tagline, startingPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
+    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
     const [item] = await db.update(pricingTiersTable).set({
       slug,
       name,
       tagline: tagline || "",
       startingPrice: String(startingPrice ?? "0"),
+      annualPrice: String(annualPrice ?? "0"),
       priceUnit: priceUnit || "per user / month",
       pricePrefix: pricePrefix || "Starting at",
       mostPopular: !!mostPopular,
