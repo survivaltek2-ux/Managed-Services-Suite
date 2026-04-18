@@ -1,0 +1,141 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Roboto",
+      "role": "body"
+    },
+    {
+      "family": "Arial",
+      "role": "body"
+    },
+    {
+      "family": "Segoe UI",
+      "role": "body"
+    },
+    {
+      "family": "Almaden Sans",
+      "role": "body"
+    },
+    {
+      "family": "Ubuntu",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#0D6BDE",
+    "secondary": "#0C60C8",
+    "accent": "#DA1639",
+    "background": "#FFFFFF",
+    "textPrimary": "#DA1639",
+    "link": "#DA1639"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Roboto",
+      "heading": "Roboto"
+    },
+    "fontStacks": {
+      "heading": [
+        "Roboto",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "body": [
+        "Roboto",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "system-ui",
+        "Segoe UI",
+        "Apple Color Emoji",
+        "Twemoji Mozilla",
+        "Noto Color Emoji",
+        "Android Emoji",
+        "SF Pro",
+        "Almaden Sans",
+        "Roboto",
+        "Ubuntu",
+        "Helvetica",
+        "Arial",
+        "Inter",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Oxygen",
+        "Cantarell",
+        "Open Sans",
+        "Helvetica Neue",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "16px",
+      "h2": "16px",
+      "body": "14px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "8px"
+  },
+  "components": {
+    "input": {
+      "background": "#FFFFFF",
+      "textColor": "#000000",
+      "borderColor": "#767676",
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.ico",
+    "ogImage": null,
+    "logoAlt": "Zoom Scheduler Logo"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, medium-sized, and the alt text matches the brand 'Zoom Scheduler'. It is the most prominent logo available.",
+    "confidence": 0.85,
+    "source": "llm"
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "business professionals"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0.9,
+    "overall": 0.45
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, medium-sized, and the alt text matches the brand 'Zoom Scheduler'. It is the most prominent logo available.",
+        "confidence": 0.85
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": false,
+      "llmSucceeded": false
+    }
+  }
+}
