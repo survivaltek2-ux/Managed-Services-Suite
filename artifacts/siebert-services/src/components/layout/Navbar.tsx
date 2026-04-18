@@ -201,8 +201,6 @@ export function Navbar() {
             <div
               className="relative"
               ref={industriesRef}
-              onMouseEnter={() => setIndustriesOpen(true)}
-              onMouseLeave={() => setIndustriesOpen(false)}
             >
               <button
                 onClick={() => setIndustriesOpen((o) => !o)}
