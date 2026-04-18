@@ -173,13 +173,9 @@ export default function Quote() {
   const search = useSearch();
 
   const requestedTier = useMemo(() => {
-    try {
-      const params = new URLSearchParams(search);
-      const t = (params.get("tier") || "").trim().toLowerCase().slice(0, 64);
-      return t || null;
-    } catch {
-      return null;
-    }
+    const params = new URLSearchParams(search);
+    const t = (params.get("tier") || "").trim().toLowerCase().slice(0, 64);
+    return t || null;
   }, [search]);
   const requestedTierLabel = requestedTier
     ? (KNOWN_TIER_LABELS[requestedTier] ?? requestedTier.charAt(0).toUpperCase() + requestedTier.slice(1))
@@ -187,12 +183,7 @@ export default function Quote() {
 
   useEffect(() => {
     if (requestedTier) {
-      try {
-        const dl = (window as any).dataLayer;
-        if (Array.isArray(dl)) {
-          dl.push({ event: "quote_form_view", tier_slug: requestedTier });
-        }
-      } catch { /* best-effort */ }
+      window.dataLayer?.push({ event: "quote_form_view", tier_slug: requestedTier });
     }
   }, [requestedTier]);
 

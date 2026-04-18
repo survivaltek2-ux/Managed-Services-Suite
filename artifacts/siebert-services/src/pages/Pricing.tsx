@@ -116,22 +116,15 @@ export default function Pricing() {
 
   const handleTierCta = (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
-    try {
-      const dl = (window as any).dataLayer;
-      if (Array.isArray(dl)) {
-        dl.push({
-          event: "pricing_cta_click",
-          tier_slug: slug,
-          tier_name: tier.name,
-          cta_label: tier.ctaLabel || "Get Started",
-        });
-      }
-      window.dispatchEvent(new CustomEvent("pricing_cta_click", {
-        detail: { tierSlug: slug, tierName: tier.name, ctaLabel: tier.ctaLabel },
-      }));
-    } catch {
-      // analytics is best-effort; never block the CTA
-    }
+    window.dataLayer?.push({
+      event: "pricing_cta_click",
+      tier_slug: slug,
+      tier_name: tier.name,
+      cta_label: tier.ctaLabel || "Get Started",
+    });
+    window.dispatchEvent(new CustomEvent("pricing_cta_click", {
+      detail: { tierSlug: slug, tierName: tier.name, ctaLabel: tier.ctaLabel },
+    }));
     const baseLink = tier.ctaLink || "/quote";
     if (baseLink.startsWith("/quote")) {
       const sep = baseLink.includes("?") ? "&" : "?";
