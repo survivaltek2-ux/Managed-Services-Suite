@@ -54,32 +54,43 @@ export function invalidateSmtpCache() {
   _configCacheAt = 0;
 }
 
+const MS_SMTP_HOST = "smtp.office365.com";
+const MS_SMTP_PORT = 587;
+
+function buildMicrosoftTransport(user: string, pass: string) {
+  return nodemailer.createTransport({
+    host: MS_SMTP_HOST,
+    port: MS_SMTP_PORT,
+    secure: false,
+    requireTLS: true,
+    auth: { user, pass },
+    tls: { ciphers: "TLSv1.2", minVersion: "TLSv1.2" },
+  });
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
-  const apiKey = process.env.BREVO_API_KEY;
-  
+  const smtpUser = process.env.MICROSOFT_SMTP_USER;
+  const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
+
   console.log(`[Email] Starting email send to ${to}`);
-  
-  if (!apiKey) {
-    console.error(`[Email] Brevo API key not configured`);
+
+  if (!smtpUser || !smtpPass) {
+    console.error(`[Email] Microsoft 365 SMTP credentials not configured (MICROSOFT_SMTP_USER / MICROSOFT_SMTP_PASSWORD)`);
     return false;
   }
 
   try {
     console.log(`[Email] Config loaded - from: ${cfg.fromEmail}, fromName: ${cfg.fromName}`);
-    const transport = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: "a64bce001@smtp-brevo.com",
-        pass: apiKey,
-      },
-    });
+    const transport = buildMicrosoftTransport(smtpUser, smtpPass);
 
-    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${cfg.fromEmail}>` : cfg.fromEmail;
+    // Microsoft 365 requires the From address to match the authenticated mailbox
+    // (or have explicit SendAs permission). Force the envelope/from to the
+    // authenticated user, but keep the configured display name.
+    const fromAddress = smtpUser;
+    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
     console.log(`[Email] Sending from: ${fromDisplay}`);
-    
+
     await transport.sendMail({
       from: fromDisplay,
       to,
@@ -96,28 +107,19 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 }
 
 export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const apiKey = process.env.BREVO_API_KEY;
-  const cfg = await loadEmailConfig();
-  
-  if (!apiKey) {
-    return { ok: false, error: "Brevo API key not configured" };
+  const smtpUser = process.env.MICROSOFT_SMTP_USER;
+  const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
+
+  if (!smtpUser || !smtpPass) {
+    return { ok: false, provider: "microsoft365", error: "Microsoft 365 SMTP credentials not configured" };
   }
 
   try {
-    const transport = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: "a64bce001@smtp-brevo.com",
-        pass: apiKey,
-      },
-    });
-
+    const transport = buildMicrosoftTransport(smtpUser, smtpPass);
     await transport.verify();
-    return { ok: true, provider: "brevo" };
+    return { ok: true, provider: "microsoft365" };
   } catch (err: any) {
-    return { ok: false, provider: "brevo", error: err?.message || "Connection failed" };
+    return { ok: false, provider: "microsoft365", error: err?.message || "Connection failed" };
   }
 }
 
@@ -131,19 +133,20 @@ export async function getSmtpSettings(): Promise<{
   fromEmail: string;
   fromName: string;
   notificationEmail: string;
-  activeProvider: "brevo" | "none";
+  activeProvider: "microsoft365" | "none";
 }> {
   const cfg = await loadEmailConfig();
-  const apiKey = process.env.BREVO_API_KEY;
-  const activeProvider = apiKey ? "brevo" : "none";
-  
+  const smtpUser = process.env.MICROSOFT_SMTP_USER;
+  const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
+  const activeProvider = smtpUser && smtpPass ? "microsoft365" : "none";
+
   return {
     mailgunApiKeySet: false,
     mailgunDomain: "",
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    user: cfg.fromEmail,
-    passSet: !!apiKey,
+    host: MS_SMTP_HOST,
+    port: MS_SMTP_PORT,
+    user: smtpUser || cfg.fromEmail,
+    passSet: !!smtpPass,
     fromEmail: cfg.fromEmail,
     fromName: cfg.fromName,
     notificationEmail: cfg.notificationEmail,
