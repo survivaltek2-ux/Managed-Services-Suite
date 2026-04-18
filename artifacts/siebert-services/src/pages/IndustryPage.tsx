@@ -14,13 +14,34 @@ import { SchemaTag } from "@/components/SchemaTag";
 import { BookingButton } from "@/components/Booking";
 import { TestimonialsSection, CaseStudyCard, type CaseStudy } from "@/components/trust";
 import { LeadMagnetCTA, LEAD_MAGNETS } from "@/components/leadMagnets";
-import { getIndustry, industries } from "@/data/industries";
+import { getIndustry, industries as staticIndustries, type Industry } from "@/data/industries";
 import NotFound from "./not-found";
 
 export default function IndustryPage() {
   const [, params] = useRoute<{ slug: string }>("/industries/:slug");
   const slug = params?.slug ?? "";
-  const industry = getIndustry(slug);
+
+  const [allIndustries, setAllIndustries] = useState<Industry[]>(staticIndustries);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/cms/industries")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: Industry[] | null) => {
+        if (cancelled) return;
+        if (Array.isArray(d) && d.length > 0) setAllIndustries(d);
+        setLoaded(true);
+      })
+      .catch(() => !cancelled && setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const industry = loaded
+    ? allIndustries.find((i) => i.slug === slug)
+    : (allIndustries.find((i) => i.slug === slug) ?? getIndustry(slug));
 
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
   useEffect(() => {
@@ -36,10 +57,13 @@ export default function IndustryPage() {
       .catch(() => setCaseStudies([]));
   }, [industry]);
 
-  if (!industry) return <NotFound />;
+  if (!industry) {
+    if (!loaded) return null;
+    return <NotFound />;
+  }
 
   const url = `https://siebertservices.com/industries/${industry.slug}`;
-  const otherIndustries = industries.filter((i) => i.slug !== industry.slug);
+  const otherIndustries = allIndustries.filter((i) => i.slug !== industry.slug);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

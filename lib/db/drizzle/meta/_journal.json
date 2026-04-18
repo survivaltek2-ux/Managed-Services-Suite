@@ -50,6 +50,13 @@
       "when": 1776525000000,
       "tag": "0005_lead_magnets",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776525100000,
+      "tag": "0006_industries",
+      "breakpoints": true
     }
   ]
 }

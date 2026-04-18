@@ -163,6 +163,36 @@ export const insertCaseStudySchema = createInsertSchema(caseStudiesTable).omit({
 export const insertCertificationSchema = createInsertSchema(certificationsTable).omit({ id: true, createdAt: true });
 export const insertCompanyStatSchema = createInsertSchema(companyStatsTable).omit({ id: true, createdAt: true });
 
+export const industriesTable = pgTable("industries", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  shortLabel: text("short_label").notNull().default(""),
+  navTitle: text("nav_title").notNull().default(""),
+  metaDescription: text("meta_description").notNull().default(""),
+  heroEyebrow: text("hero_eyebrow").notNull().default(""),
+  heroTitle: text("hero_title").notNull().default(""),
+  heroSubtitle: text("hero_subtitle").notNull().default(""),
+  painPoints: text("pain_points").notNull().default("[]"),
+  regulations: text("regulations").notNull().default("[]"),
+  softwareStacks: text("software_stacks").notNull().default("[]"),
+  whatWeDo: text("what_we_do").notNull().default("[]"),
+  testimonialQuote: text("testimonial_quote").notNull().default(""),
+  testimonialName: text("testimonial_name").notNull().default(""),
+  testimonialRole: text("testimonial_role").notNull().default(""),
+  testimonialCompany: text("testimonial_company").notNull().default(""),
+  caseStudyHint: text("case_study_hint").notNull().default(""),
+  relatedServices: text("related_services").notNull().default("[]"),
+  ctaLabel: text("cta_label").notNull().default("Book a consultation"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type Industry = typeof industriesTable.$inferSelect;
+export const insertIndustrySchema = createInsertSchema(industriesTable).omit({ id: true, createdAt: true, updatedAt: true });
+
 export const pageSectionsTable = pgTable("page_sections", {
   id: serial("id").primaryKey(),
   pageSlug: text("page_slug").notNull(),

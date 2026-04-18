@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import {
@@ -12,7 +13,7 @@ import {
 import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 import { BookingButton } from "@/components/Booking";
-import { industries } from "@/data/industries";
+import { industries as staticIndustries, type Industry } from "@/data/industries";
 
 const ICONS: Record<string, JSX.Element> = {
   healthcare: <Stethoscope className="w-7 h-7" />,
@@ -24,6 +25,21 @@ const ICONS: Record<string, JSX.Element> = {
 };
 
 export default function Industries() {
+  const [industries, setIndustries] = useState<Industry[]>(staticIndustries);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/cms/industries")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: Industry[] | null) => {
+        if (cancelled) return;
+        if (Array.isArray(d) && d.length > 0) setIndustries(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <SchemaTag

@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats" | "pricingTiers";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats" | "pricingTiers" | "industries";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -32,6 +32,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "certifications", label: "Certifications", icon: <Award size={18} /> },
   { id: "companyStats", label: "Company Stats", icon: <TrendingUp size={18} /> },
   { id: "pricingTiers", label: "Pricing Tiers", icon: <DollarSign size={18} /> },
+  { id: "industries", label: "Industries", icon: <Package size={18} /> },
   { id: "team", label: "Team Members", icon: <Users size={18} /> },
   { id: "faq", label: "FAQ", icon: <HelpCircle size={18} /> },
   { id: "settings", label: "Site Settings", icon: <Settings size={18} /> },
@@ -90,6 +91,7 @@ export default function Admin() {
         certifications: "/api/admin/cms/certifications",
         companyStats: "/api/admin/cms/company-stats",
         pricingTiers: "/api/admin/cms/pricing-tiers",
+        industries: "/api/admin/cms/industries",
       };
       if (tab === "inquiries") {
         const [contactRes, quoteRes, ticketRes] = await Promise.all([
@@ -457,6 +459,29 @@ export default function Admin() {
                 { key: "sortOrder", label: "Sort Order", type: "number" },
                 { key: "active", label: "Active", type: "checkbox" },
               ]} columns={["name", "startingPrice", "mostPopular", "active"]} />}
+              {activeTab === "industries" && <CrudTab items={data.industries || []} refresh={() => fetchData("industries")} headers={headers} entity="industries" fields={[
+                { key: "name", label: "Name (e.g. Healthcare)", type: "text", required: true },
+                { key: "slug", label: "Slug (auto if blank, e.g. healthcare)", type: "text" },
+                { key: "shortLabel", label: "Short label (e.g. Healthcare & medical practices)", type: "text" },
+                { key: "navTitle", label: "Nav title (e.g. Healthcare IT)", type: "text" },
+                { key: "metaDescription", label: "Meta description (SEO)", type: "textarea" },
+                { key: "heroEyebrow", label: "Hero eyebrow (e.g. Industry · Healthcare)", type: "text" },
+                { key: "heroTitle", label: "Hero title", type: "textarea" },
+                { key: "heroSubtitle", label: "Hero subtitle", type: "textarea" },
+                { key: "painPoints", label: 'Pain points (JSON, e.g. [{"title":"...","description":"..."}])', type: "json" },
+                { key: "regulations", label: 'Regulations (JSON, e.g. [{"name":"...","description":"..."}])', type: "json" },
+                { key: "softwareStacks", label: 'Software stacks (JSON, e.g. [{"category":"...","items":["A","B"]}])', type: "json" },
+                { key: "whatWeDo", label: "What we do (one per line)", type: "features" },
+                { key: "testimonialQuote", label: "Testimonial quote", type: "textarea" },
+                { key: "testimonialName", label: "Testimonial name", type: "text" },
+                { key: "testimonialRole", label: "Testimonial role", type: "text" },
+                { key: "testimonialCompany", label: "Testimonial company", type: "text" },
+                { key: "caseStudyHint", label: "Case study hint (one line)", type: "text" },
+                { key: "relatedServices", label: 'Related services (JSON, e.g. [{"title":"...","href":"/services","description":"..."}])', type: "json" },
+                { key: "ctaLabel", label: "CTA button label", type: "text" },
+                { key: "sortOrder", label: "Sort Order", type: "number" },
+                { key: "active", label: "Active", type: "checkbox" },
+              ]} columns={["name", "slug", "navTitle", "active"]} />}
               {activeTab === "companyStats" && <CrudTab items={data.companyStats || []} refresh={() => fetchData("companyStats")} headers={headers} entity="company-stats" fields={[
                 { key: "label", label: "Label (e.g. Average response time)", type: "text", required: true },
                 { key: "value", label: "Value (e.g. 98 or < 10)", type: "text", required: true },

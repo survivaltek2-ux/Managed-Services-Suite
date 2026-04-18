@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { Response, Request, NextFunction } from "express";
-import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable } from "@workspace/db";
+import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable, industriesTable } from "@workspace/db";
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
@@ -1310,5 +1310,140 @@ function generateCSV(data: any[], fields: string[]): string {
   );
   return [header, ...rows].join("\n");
 }
+
+// ─── Industries ──────────────────────────────────────────────────────────────
+
+function parseIndustry(t: any) {
+  return {
+    ...t,
+    painPoints: JSON.parse(t.painPoints || "[]"),
+    regulations: JSON.parse(t.regulations || "[]"),
+    softwareStacks: JSON.parse(t.softwareStacks || "[]"),
+    whatWeDo: JSON.parse(t.whatWeDo || "[]"),
+    relatedServices: JSON.parse(t.relatedServices || "[]"),
+    hero: {
+      eyebrow: t.heroEyebrow || "",
+      title: t.heroTitle || "",
+      subtitle: t.heroSubtitle || "",
+    },
+    testimonial: {
+      quote: t.testimonialQuote || "",
+      name: t.testimonialName || "",
+      role: t.testimonialRole || "",
+      company: t.testimonialCompany || "",
+    },
+  };
+}
+
+function normalizeIndustryBody(body: any) {
+  const safe = (v: any) => (v == null ? "" : String(v));
+  const hero = body.hero || {};
+  const testimonial = body.testimonial || {};
+  return {
+    slug: safe(body.slug),
+    name: safe(body.name),
+    shortLabel: safe(body.shortLabel),
+    navTitle: safe(body.navTitle),
+    metaDescription: safe(body.metaDescription),
+    heroEyebrow: safe(body.heroEyebrow ?? hero.eyebrow),
+    heroTitle: safe(body.heroTitle ?? hero.title),
+    heroSubtitle: safe(body.heroSubtitle ?? hero.subtitle),
+    painPoints: JSON.stringify(body.painPoints || []),
+    regulations: JSON.stringify(body.regulations || []),
+    softwareStacks: JSON.stringify(body.softwareStacks || []),
+    whatWeDo: JSON.stringify(body.whatWeDo || []),
+    testimonialQuote: safe(body.testimonialQuote ?? testimonial.quote),
+    testimonialName: safe(body.testimonialName ?? testimonial.name),
+    testimonialRole: safe(body.testimonialRole ?? testimonial.role),
+    testimonialCompany: safe(body.testimonialCompany ?? testimonial.company),
+    caseStudyHint: safe(body.caseStudyHint),
+    relatedServices: JSON.stringify(body.relatedServices || []),
+    ctaLabel: safe(body.ctaLabel) || "Book a consultation",
+    sortOrder: Number(body.sortOrder) || 0,
+    active: body.active !== false,
+  };
+}
+
+router.get("/cms/industries", async (_req, res) => {
+  try {
+    const items = await db.select().from(industriesTable)
+      .where(eq(industriesTable.active, true))
+      .orderBy(industriesTable.sortOrder);
+    res.json(items.map(parseIndustry));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load industries" });
+  }
+});
+
+router.get("/cms/industries/:slug", async (req, res) => {
+  try {
+    const [item] = await db.select().from(industriesTable)
+      .where(eq(industriesTable.slug, req.params.slug as string)).limit(1);
+    if (!item) { res.status(404).json({ error: "not_found", message: "Industry not found" }); return; }
+    res.json(parseIndustry(item));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load industry" });
+  }
+});
+
+router.get("/admin/cms/industries", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const items = await db.select().from(industriesTable).orderBy(industriesTable.sortOrder);
+    res.json(items.map(parseIndustry));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to load industries" });
+  }
+});
+
+router.post("/admin/cms/industries", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const values = normalizeIndustryBody(req.body);
+    if (!values.slug) {
+      values.slug = String(values.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    }
+    if (!values.slug || !values.name) {
+      res.status(400).json({ error: "bad_request", message: "slug and name are required" });
+      return;
+    }
+    const [item] = await db.insert(industriesTable).values(values).returning();
+    await logActivity(req.userId, "create", "industry", item.id, `Added industry: ${values.name}`);
+    res.status(201).json(parseIndustry(item));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to create industry" });
+  }
+});
+
+router.put("/admin/cms/industries/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const values = normalizeIndustryBody(req.body);
+    const [item] = await db.update(industriesTable).set({
+      ...values,
+      updatedAt: new Date(),
+    }).where(eq(industriesTable.id, id)).returning();
+    if (!item) { res.status(404).json({ error: "not_found", message: "Industry not found" }); return; }
+    await logActivity(req.userId, "update", "industry", id);
+    res.json(parseIndustry(item));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to update industry" });
+  }
+});
+
+router.delete("/admin/cms/industries/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    await db.delete(industriesTable).where(eq(industriesTable.id, id));
+    await logActivity(req.userId, "delete", "industry", id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to delete industry" });
+  }
+});
 
 export default router;

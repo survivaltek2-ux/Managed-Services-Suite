@@ -1,5 +1,6 @@
-import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable } from "@workspace/db";
+import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable, industriesTable } from "@workspace/db";
 import { count, eq } from "drizzle-orm";
+import { INDUSTRIES_SEED } from "./data/industries-seed.js";
 
 async function seedTrustContent(): Promise<void> {
   try {
@@ -211,8 +212,45 @@ function mapCategory(industry: string): string {
   return "Technology";
 }
 
+async function seedIndustries(): Promise<void> {
+  try {
+    const [{ iCount }] = await db.select({ iCount: count() }).from(industriesTable);
+    if (iCount > 0) return;
+    const rows = INDUSTRIES_SEED.map((ind, i) => ({
+      slug: ind.slug,
+      name: ind.name,
+      shortLabel: ind.shortLabel || "",
+      navTitle: ind.navTitle || "",
+      metaDescription: ind.metaDescription || "",
+      heroEyebrow: ind.hero?.eyebrow || "",
+      heroTitle: ind.hero?.title || "",
+      heroSubtitle: ind.hero?.subtitle || "",
+      painPoints: JSON.stringify(ind.painPoints || []),
+      regulations: JSON.stringify(ind.regulations || []),
+      softwareStacks: JSON.stringify(ind.softwareStacks || []),
+      whatWeDo: JSON.stringify(ind.whatWeDo || []),
+      testimonialQuote: ind.testimonial?.quote || "",
+      testimonialName: ind.testimonial?.name || "",
+      testimonialRole: ind.testimonial?.role || "",
+      testimonialCompany: ind.testimonial?.company || "",
+      caseStudyHint: ind.caseStudyHint || "",
+      relatedServices: JSON.stringify(ind.relatedServices || []),
+      ctaLabel: ind.ctaLabel || "Book a consultation",
+      sortOrder: i,
+      active: true,
+    }));
+    if (rows.length > 0) {
+      await db.insert(industriesTable).values(rows).onConflictDoNothing();
+      console.log(`[seed] Inserted ${rows.length} industries`);
+    }
+  } catch (err) {
+    console.error("[seed] Industries seed failed (non-fatal):", err);
+  }
+}
+
 export async function seedDatabase(): Promise<void> {
   await seedTrustContent();
+  await seedIndustries();
   try {
     const [{ vendorCount }] = await db
       .select({ vendorCount: count() })
