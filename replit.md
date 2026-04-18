@@ -22,6 +22,10 @@ I prefer detailed explanations for complex architectural decisions.
 Do not make changes to the folder `lib/api-client-react/`.
 Do not make changes to the file `src/lib/email.ts` without prior discussion.
 
+**Brand positioning — IMPORTANT:** Siebert Services is a **hybrid MSP** (managed services provider AND reseller / agent). All copy, headlines, hero text, meta descriptions, JSON-LD service descriptions, page titles, and AI chat persona must reflect the hybrid MSP positioning — never describe the company as a pure reseller, pure MSP, or generic "IT company". When in doubt, lean on phrasing like "hybrid MSP", "managed services + procurement", or "one partner for managed IT and the hardware/SaaS to run it".
+
+**Reviews & testimonials:** Only real, authentic client reviews/testimonials are allowed on the site. Never seed, hardcode, or fall back to placeholder testimonials or fake Google reviews — sections must hide themselves until real entries exist.
+
 # System Architecture
 
 ## Monorepo Structure
