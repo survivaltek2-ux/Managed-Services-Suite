@@ -400,11 +400,15 @@ export async function sendQuoteRequestNotification(quote: {
   budget?: string | null;
   timeline?: string | null;
   details?: string | null;
+  requestedTier?: string | null;
 }) {
   const cfg = await loadEmailConfig();
   const services = (() => {
     try { return JSON.parse(quote.services).join(", "); } catch { return quote.services; }
   })();
+  const tierLabel = quote.requestedTier
+    ? quote.requestedTier.charAt(0).toUpperCase() + quote.requestedTier.slice(1)
+    : null;
 
   const adminHtml = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -418,6 +422,7 @@ export async function sendQuoteRequestNotification(quote: {
           ${quote.phone ? `<tr><td style="padding: 8px 0; color: #706e6b;">Phone</td><td style="padding: 8px 0;">${esc(quote.phone)}</td></tr>` : ""}
           <tr><td style="padding: 8px 0; color: #706e6b;">Company</td><td style="padding: 8px 0;">${esc(quote.company)}</td></tr>
           ${quote.companySize ? `<tr><td style="padding: 8px 0; color: #706e6b;">Company Size</td><td style="padding: 8px 0;">${esc(quote.companySize)}</td></tr>` : ""}
+          ${tierLabel ? `<tr><td style="padding: 8px 0; color: #706e6b;">Interested Tier</td><td style="padding: 8px 0; font-weight: 600;">${esc(tierLabel)}</td></tr>` : ""}
           <tr><td style="padding: 8px 0; color: #706e6b;">Services</td><td style="padding: 8px 0; font-weight: 600;">${esc(services)}</td></tr>
           ${quote.budget ? `<tr><td style="padding: 8px 0; color: #706e6b;">Budget</td><td style="padding: 8px 0;">${esc(quote.budget)}</td></tr>` : ""}
           ${quote.timeline ? `<tr><td style="padding: 8px 0; color: #706e6b;">Timeline</td><td style="padding: 8px 0;">${esc(quote.timeline)}</td></tr>` : ""}

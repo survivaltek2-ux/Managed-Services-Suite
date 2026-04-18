@@ -54,6 +54,8 @@ export interface QuoteRequestInput {
   budget?: string;
   timeline?: string;
   details?: string;
+  /** Slug of the pricing tier the visitor clicked Get Started on (e.g. essentials, business, enterprise). */
+  requestedTier?: string;
 }
 
 export type QuoteRequestStatus =
@@ -77,6 +79,7 @@ export interface QuoteRequest {
   budget?: string;
   timeline?: string;
   details?: string;
+  requestedTier?: string;
   status: QuoteRequestStatus;
   createdAt: string;
 }

@@ -18,6 +18,7 @@ export interface QuoteRequest {
   budget?: string;
   timeline?: string;
   details?: string;
+  requestedTier?: string;
   status: QuoteRequestStatus;
   createdAt: Date;
 }

@@ -747,6 +747,9 @@ components:
           type: string
         details:
           type: string
+        requestedTier:
+          type: string
+          description: Slug of the pricing tier the visitor clicked Get Started on (e.g. essentials, business, enterprise).
       required:
         - name
         - email
@@ -777,6 +780,8 @@ components:
         timeline:
           type: string
         details:
+          type: string
+        requestedTier:
           type: string
         status:
           type: string

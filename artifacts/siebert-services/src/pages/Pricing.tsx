@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
@@ -112,6 +112,34 @@ export default function Pricing() {
   const [tiers, setTiers] = useState<PricingTier[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [openMobileTier, setOpenMobileTier] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+
+  const handleTierCta = (tier: PricingTier) => {
+    const slug = (tier.slug || "").toLowerCase();
+    try {
+      const dl = (window as any).dataLayer;
+      if (Array.isArray(dl)) {
+        dl.push({
+          event: "pricing_cta_click",
+          tier_slug: slug,
+          tier_name: tier.name,
+          cta_label: tier.ctaLabel || "Get Started",
+        });
+      }
+      window.dispatchEvent(new CustomEvent("pricing_cta_click", {
+        detail: { tierSlug: slug, tierName: tier.name, ctaLabel: tier.ctaLabel },
+      }));
+    } catch {
+      // analytics is best-effort; never block the CTA
+    }
+    const baseLink = tier.ctaLink || "/quote";
+    if (baseLink.startsWith("/quote")) {
+      const sep = baseLink.includes("?") ? "&" : "?";
+      setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
+    } else {
+      setLocation(baseLink);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/cms/pricing-tiers")
@@ -228,15 +256,15 @@ export default function Pricing() {
                       ))}
                     </ul>
 
-                    <Link href={tier.ctaLink || "/quote"}>
-                      <Button
-                        size="lg"
-                        variant={tier.mostPopular ? "default" : "outline"}
-                        className="w-full justify-center gap-2"
-                      >
-                        {tier.ctaLabel || "Get Started"} <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
+                    <Button
+                      size="lg"
+                      variant={tier.mostPopular ? "default" : "outline"}
+                      className="w-full justify-center gap-2"
+                      onClick={() => handleTierCta(tier)}
+                      data-testid={`pricing-cta-${tier.slug}`}
+                    >
+                      {tier.ctaLabel || "Get Started"} <ArrowRight className="w-4 h-4" />
+                    </Button>
                   </CardContent>
                 </Card>
               </motion.div>

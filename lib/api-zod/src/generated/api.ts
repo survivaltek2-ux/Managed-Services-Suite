@@ -39,6 +39,12 @@ export const SubmitQuoteBody = zod.object({
   budget: zod.string().optional(),
   timeline: zod.string().optional(),
   details: zod.string().optional(),
+  requestedTier: zod
+    .string()
+    .optional()
+    .describe(
+      "Slug of the pricing tier the visitor clicked Get Started on (e.g. essentials, business, enterprise).",
+    ),
 });
 
 /**

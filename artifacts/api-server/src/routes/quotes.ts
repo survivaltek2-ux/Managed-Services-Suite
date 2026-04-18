@@ -25,11 +25,15 @@ function generateProposalNumber(): string {
 
 router.post("/quotes", async (req, res) => {
   try {
-    const { name, email, phone, company, companySize, services, budget, timeline, details } = req.body;
+    const { name, email, phone, company, companySize, services, budget, timeline, details, requestedTier } = req.body;
     if (!name || !email || !company || !services || !Array.isArray(services) || services.length === 0) {
       res.status(400).json({ error: "validation_error", message: "name, email, company, and services are required" });
       return;
     }
+
+    const tierSlug = typeof requestedTier === "string" && requestedTier.trim()
+      ? requestedTier.trim().toLowerCase().slice(0, 64)
+      : null;
 
     const [quote] = await db.insert(quotesTable).values({
       name, email,
@@ -39,11 +43,13 @@ router.post("/quotes", async (req, res) => {
       budget: budget || null,
       timeline: timeline || null,
       details: details || null,
+      requestedTier: tierSlug,
     }).returning();
 
     sendQuoteRequestNotification({
       name, email, phone, company, companySize,
       services: quote.services, budget, timeline, details,
+      requestedTier: tierSlug ?? undefined,
     }).catch(err => console.error("[Email] Quote notification error:", err));
 
     res.status(201).json({ ...quote, services: JSON.parse(quote.services) });

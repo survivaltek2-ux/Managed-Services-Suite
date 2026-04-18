@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Server, Wifi, Video, Cloud, Shield, Package,
@@ -159,10 +160,41 @@ function MultiCheck({ options, selected, onChange }: { options: string[]; select
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
+const KNOWN_TIER_LABELS: Record<string, string> = {
+  essentials: "Essentials",
+  business: "Business",
+  enterprise: "Enterprise",
+};
+
 export default function Quote() {
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuth();
   const quoteMutation = useSubmitQuote();
+  const search = useSearch();
+
+  const requestedTier = useMemo(() => {
+    try {
+      const params = new URLSearchParams(search);
+      const t = (params.get("tier") || "").trim().toLowerCase().slice(0, 64);
+      return t || null;
+    } catch {
+      return null;
+    }
+  }, [search]);
+  const requestedTierLabel = requestedTier
+    ? (KNOWN_TIER_LABELS[requestedTier] ?? requestedTier.charAt(0).toUpperCase() + requestedTier.slice(1))
+    : null;
+
+  useEffect(() => {
+    if (requestedTier) {
+      try {
+        const dl = (window as any).dataLayer;
+        if (Array.isArray(dl)) {
+          dl.push({ event: "quote_form_view", tier_slug: requestedTier });
+        }
+      } catch { /* best-effort */ }
+    }
+  }, [requestedTier]);
 
   const [step, setStep] = useState(1);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -226,6 +258,7 @@ export default function Quote() {
           timeline: contact.timeline || undefined,
           details: buildDetailsSummary() || undefined,
           services: selectedCats.map(id => CATEGORIES.find(c => c.id === id)?.title ?? id),
+          requestedTier: requestedTier ?? undefined,
         },
       });
       setIsSuccess(true);
@@ -274,6 +307,11 @@ export default function Quote() {
         <p className="text-lg text-white/80 max-w-2xl mx-auto">
           Tell us what you need in a few steps. We'll put together a tailored proposal and respond within 1 business day.
         </p>
+        {requestedTierLabel && (
+          <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary font-bold text-xs uppercase tracking-wider">
+            Interested tier: {requestedTierLabel}
+          </div>
+        )}
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-[-32px] relative z-10">

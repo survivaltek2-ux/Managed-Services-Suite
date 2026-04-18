@@ -2337,7 +2337,7 @@ function InquiriesTab({ contacts, quotes, tickets, headers, refresh, toast }: { 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b"><tr>
-                  {["Name", "Email", "Services", "Status", "Date", "Actions"].map(h => (
+                  {["Name", "Email", "Services", "Tier", "Status", "Date", "Actions"].map(h => (
                     <th key={h} className="px-3 py-2 text-left text-xs font-semibold">{h}</th>
                   ))}
                 </tr></thead>
@@ -2346,7 +2346,12 @@ function InquiriesTab({ contacts, quotes, tickets, headers, refresh, toast }: { 
                     <tr key={q.id} className="hover:bg-gray-50">
                       <td className="px-3 py-2 font-medium">{q.name}</td>
                       <td className="px-3 py-2 text-sm">{q.email}</td>
-                      <td className="px-3 py-2 text-sm text-muted-foreground">{typeof q.services === "string" ? q.services.slice(0, 30) : "—"}</td>
+                      <td className="px-3 py-2 text-sm text-muted-foreground">{typeof q.services === "string" ? q.services.slice(0, 30) : Array.isArray(q.services) ? q.services.join(", ").slice(0, 30) : "—"}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {q.requestedTier
+                          ? <Badge variant="secondary" className="capitalize">{q.requestedTier}</Badge>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
                       <td className="px-3 py-2"><Badge variant="outline">{q.status}</Badge></td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(q.createdAt).toLocaleDateString()}</td>
                       <td className="px-3 py-2"><Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => deleteItem("quotes", q.id)}><Trash2 size={16} /></Button></td>

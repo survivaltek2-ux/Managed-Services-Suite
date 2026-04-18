@@ -17,6 +17,7 @@ export const quotesTable = pgTable("quotes", {
   budget: text("budget"),
   timeline: text("timeline"),
   details: text("details"),
+  requestedTier: text("requested_tier"),
   status: quoteStatusEnum("status").notNull().default("pending"),
   assignedTo: text("assigned_to"),
   internalNotes: text("internal_notes"),
