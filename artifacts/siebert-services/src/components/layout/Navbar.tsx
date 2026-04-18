@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, PhoneCall, ChevronRight, ChevronDown } from "lucide-react";
+import { Menu, X, ChevronRight, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const connectivityPartners = [

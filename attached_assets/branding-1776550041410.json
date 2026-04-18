@@ -1,0 +1,140 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Roboto",
+      "role": "body"
+    },
+    {
+      "family": "Arial",
+      "role": "body"
+    },
+    {
+      "family": "Segoe UI",
+      "role": "body"
+    },
+    {
+      "family": "Almaden Sans",
+      "role": "heading"
+    },
+    {
+      "family": "Ubuntu",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#6E7680",
+    "secondary": "#0E72ED",
+    "accent": "#232333",
+    "background": "#FFFFFF",
+    "textPrimary": "#131619",
+    "link": "#232333"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Roboto",
+      "heading": "Almaden Sans"
+    },
+    "fontStacks": {
+      "heading": [
+        "Roboto",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "body": [
+        "Roboto",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "system-ui",
+        "Segoe UI",
+        "Apple Color Emoji",
+        "Twemoji Mozilla",
+        "Noto Color Emoji",
+        "Android Emoji",
+        "SF Pro",
+        "Almaden Sans",
+        "Roboto",
+        "Ubuntu",
+        "Helvetica",
+        "Arial",
+        "Inter",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Oxygen",
+        "Cantarell",
+        "Open Sans",
+        "Helvetica Neue",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "16px",
+      "h2": "16px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "8px"
+  },
+  "components": {},
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.ico",
+    "ogImage": null,
+    "logoAlt": "Zoom Scheduler Logo"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, has a medium size, and the alt text matches the brand 'Zoom Scheduler'.",
+    "confidence": 0.9,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "The detected button has a white background, which is not vibrant or indicative of a primary CTA. No other buttons were detected with a more suitable color."
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "There is only one button detected, and it does not qualify as a secondary button due to its lack of differentiation from a primary button."
+    },
+    "confidence": 0.7
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "business professionals"
+  },
+  "designSystem": {
+    "framework": "material",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.7,
+    "colors": 0.9,
+    "overall": 0.8
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, has a medium size, and the alt text matches the brand 'Zoom Scheduler'.",
+        "confidence": 0.9
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
