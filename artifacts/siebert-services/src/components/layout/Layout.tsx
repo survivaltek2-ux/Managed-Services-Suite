@@ -135,7 +135,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </p>
           </div>
           <div className="max-w-4xl mx-auto">
-            <BookingInline height={680} />
+            <BookingInline />
           </div>
         </section>
       )}

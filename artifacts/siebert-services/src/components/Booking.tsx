@@ -127,12 +127,12 @@ export function BookingModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function BookingInline({ height = 820 }: { height?: number }) {
+export function BookingInline({ height = 1100 }: { height?: number }) {
   const base = useBookingUrl();
   const embedUrl = `${base}?embed=true`;
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-border shadow-lg bg-white relative">
+    <div className="rounded-2xl border border-border shadow-lg bg-white relative">
       <a
         href={base}
         target="_blank"
@@ -145,7 +145,7 @@ export function BookingInline({ height = 820 }: { height?: number }) {
       <iframe
         src={embedUrl}
         title="Schedule a call"
-        className="w-full border-0 block"
+        className="w-full border-0 block rounded-2xl"
         style={{ height }}
         allow={IFRAME_ALLOW}
         allowFullScreen

@@ -167,7 +167,7 @@ export default function ZoomPartner() {
               Choose a time below and we’ll walk you through the next steps for licensing, deployment, or migration.
             </p>
           </div>
-          <BookingInline height={680} />
+          <BookingInline />
         </div>
       </section>
     </div>
