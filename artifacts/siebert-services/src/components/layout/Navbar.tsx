@@ -221,34 +221,34 @@ export function Navbar() {
 
               {industriesOpen && (
                 <div className="absolute top-full right-0 w-[320px] z-50 pt-2">
-                <div className="bg-white rounded-2xl shadow-xl border border-border py-3">
-                  <div className="px-2">
-                    {industryLinks.map((link) => (
+                  <div className="bg-white rounded-2xl shadow-xl border border-border py-3">
+                    <div className="px-2">
+                      {industryLinks.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setIndustriesOpen(false)}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors",
+                            location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
+                          )}
+                        >
+                          {link.name}
+                          <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="border-t border-border/60 mt-2 pt-2 px-4">
                       <Link
-                        key={link.href}
-                        href={link.href}
+                        href="/industries"
                         onClick={() => setIndustriesOpen(false)}
-                        className={cn(
-                          "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors",
-                          location === link.href ? "bg-primary/10 text-primary" : "text-navy hover:bg-gray-50"
-                        )}
+                        className="flex items-center justify-between text-sm font-bold text-primary hover:underline py-1"
                       >
-                        {link.name}
-                        <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                        All industries
+                        <ChevronRight className="w-4 h-4" />
                       </Link>
-                    ))}
+                    </div>
                   </div>
-                  <div className="border-t border-border/60 mt-2 pt-2 px-4">
-                    <Link
-                      href="/industries"
-                      onClick={() => setIndustriesOpen(false)}
-                      className="flex items-center justify-between text-sm font-bold text-primary hover:underline py-1"
-                    >
-                      All industries
-                      <ChevronRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                </div>
                 </div>
               )}
             </div>
