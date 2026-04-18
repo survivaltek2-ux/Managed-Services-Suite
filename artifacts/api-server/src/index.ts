@@ -1,6 +1,7 @@
 import app from "./app";
 import { ensureTsdConfigsExist, startTsdSyncScheduler } from "./lib/tsdSync.js";
 import { seedDatabase } from "./db-seed.js";
+import { startZoomWebSocketSubscription } from "./lib/zoomWebSocket.js";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const port = Number(rawPort);
@@ -21,5 +22,10 @@ app.listen(port, async () => {
     await startTsdSyncScheduler();
   } catch (err) {
     console.error("[TSD] Startup error:", err);
+  }
+  try {
+    await startZoomWebSocketSubscription();
+  } catch (err) {
+    console.error("[Zoom WS] Startup error:", err);
   }
 });
