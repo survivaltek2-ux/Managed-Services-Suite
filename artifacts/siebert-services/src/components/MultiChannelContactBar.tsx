@@ -11,13 +11,6 @@ export function MultiChannelContactBar({ phone = "866-484-9180", variant = "stic
   const [bookOpen, setBookOpen] = useState(false);
 
   const openChat = () => {
-    // Try common chat widget triggers (existing AI ChatWidget button + Zoom widget)
-    const aiBtn = document.querySelector<HTMLButtonElement>('button[aria-label="Open AI chat"]');
-    if (aiBtn) {
-      aiBtn.click();
-      return;
-    }
-    // Fallback: scroll to a chat anchor or do nothing
     window.dispatchEvent(new CustomEvent("siebert:open-chat"));
   };
 
@@ -28,7 +21,7 @@ export function MultiChannelContactBar({ phone = "866-484-9180", variant = "stic
           <Phone className="w-4 h-4" /> Call {phone}
         </a>
         <button onClick={openChat} className="flex items-center justify-center gap-2 h-12 rounded-xl bg-white text-navy border-2 border-navy/10 font-semibold hover:border-primary hover:text-primary transition-colors">
-          <MessageSquare className="w-4 h-4" /> Chat with us
+          <MessageSquare className="w-4 h-4" /> Chat with Zoom
         </button>
         <button onClick={() => setBookOpen(true)} className="flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors">
           <Calendar className="w-4 h-4" /> Book a Call
@@ -73,10 +66,10 @@ export function MultiChannelContactBar({ phone = "866-484-9180", variant = "stic
           <button
             onClick={openChat}
             className="flex items-center gap-2 px-3 py-2 rounded-full text-navy hover:bg-navy/5 text-sm font-semibold transition-colors"
-            aria-label="Open chat"
+            aria-label="Open Zoom chat"
           >
             <MessageSquare className="w-4 h-4 text-primary" />
-            Chat
+            Zoom Chat
           </button>
           <span className="w-px h-6 bg-border" aria-hidden="true" />
           <button
