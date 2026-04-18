@@ -68,7 +68,13 @@ function buildMicrosoftTransport(user: string, pass: string) {
   });
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
+async function sendEmail(to: string, subject: string, html: string, attachments?: EmailAttachment[]): Promise<boolean> {
   const cfg = await loadEmailConfig();
   const smtpUser = process.env.MICROSOFT_SMTP_USER;
   const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
@@ -96,6 +102,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       to,
       subject,
       html,
+      attachments: attachments?.map(a => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType || "application/pdf",
+      })),
     });
 
     console.log(`[Email] ✓ Sent to ${to}: "${subject}"`);
@@ -1175,6 +1186,7 @@ export async function sendLeadMagnetSubmission(submission: {
   company?: string | null;
   phone?: string | null;
   payload: LeadMagnetPayload;
+  pdfAttachment?: EmailAttachment;
 }, baseUrl: string) {
   const cfg = await loadEmailConfig();
   const label = getLeadMagnetLabel(submission.magnet);
@@ -1223,15 +1235,15 @@ export async function sendLeadMagnetSubmission(submission: {
   } else if (submission.magnet === "hipaa_checklist") {
     bodyHtml = `
       <p style="font-size:14px;margin:0 0 16px;">Hi ${esc(submission.name)},</p>
-      <p style="font-size:14px;margin:0 0 16px;">Thanks for downloading the Siebert Services HIPAA Compliance Checklist. Open the printable version below — it covers all 18 administrative, physical, and technical safeguards you need to document.</p>
-      <p style="margin:0 0 20px;"><a href="${esc(baseUrl)}/resources/hipaa-checklist/download?email=${encodeURIComponent(submission.email)}" style="background:#032d60;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Open the HIPAA Checklist</a></p>
+      <p style="font-size:14px;margin:0 0 16px;">Thanks for downloading the Siebert Services HIPAA Compliance Checklist. Your branded PDF is attached to this email — it covers all 18 administrative, physical, and technical safeguards you need to document.</p>
+      <p style="font-size:14px;margin:0 0 16px;">Prefer to view it in your browser? <a href="${esc(baseUrl)}/resources/hipaa-checklist/download?email=${encodeURIComponent(submission.email)}" style="color:#0176d3;font-weight:600;">Open the printable version online</a>.</p>
       <p style="font-size:14px;margin:0 0 8px;">Need help closing gaps? Our compliance team builds HIPAA-ready stacks for medical and dental practices in under 30 days. <a href="${esc(baseUrl)}/contact?source=hipaa_checklist" style="color:#0176d3;font-weight:600;">Book a HIPAA gap assessment →</a></p>
     `;
   } else if (submission.magnet === "buyers_guide") {
     bodyHtml = `
       <p style="font-size:14px;margin:0 0 16px;">Hi ${esc(submission.name)},</p>
-      <p style="font-size:14px;margin:0 0 16px;">Here's your copy of <strong>10 Questions to Ask Before Hiring an MSP</strong> — the same evaluation framework our highest-performing clients used to vet Siebert Services.</p>
-      <p style="margin:0 0 20px;"><a href="${esc(baseUrl)}/resources/buyers-guide/download?email=${encodeURIComponent(submission.email)}" style="background:#032d60;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Open the Buyer's Guide</a></p>
+      <p style="font-size:14px;margin:0 0 16px;">Your copy of <strong>10 Questions to Ask Before Hiring an MSP</strong> is attached as a PDF — the same evaluation framework our highest-performing clients used to vet Siebert Services.</p>
+      <p style="font-size:14px;margin:0 0 16px;">Prefer to view it in your browser? <a href="${esc(baseUrl)}/resources/buyers-guide/download?email=${encodeURIComponent(submission.email)}" style="color:#0176d3;font-weight:600;">Open the printable version online</a>.</p>
       <p style="font-size:14px;margin:0 0 8px;">Want us to walk through the questions live? <a href="${esc(baseUrl)}/contact?source=buyers_guide" style="color:#0176d3;font-weight:600;">Book a 30-minute consultation →</a></p>
     `;
   } else {
@@ -1271,8 +1283,9 @@ export async function sendLeadMagnetSubmission(submission: {
     </div>
   `;
 
+  const userAttachments = submission.pdfAttachment ? [submission.pdfAttachment] : undefined;
   await Promise.all([
-    sendEmail(submission.email, subject, userHtml),
+    sendEmail(submission.email, subject, userHtml, userAttachments),
     sendEmail(cfg.notificationEmail, `New Lead Magnet: ${label} — ${esc(submission.name)}${submission.company ? ` (${esc(submission.company)})` : ""}`, adminHtml),
   ]);
 }

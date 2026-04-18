@@ -1,6 +1,8 @@
 import { useEffect } from "react";
-import { Printer } from "lucide-react";
+import { Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui";
+
+const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 const QUESTIONS: { num: number; q: string; why: string; lookFor: string }[] = [
   {
@@ -73,11 +75,18 @@ export default function PrintableBuyersGuide() {
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">
       <div className="max-w-3xl mx-auto px-4 print:px-0">
-        <div className="flex items-center justify-between mb-6 print:hidden">
-          <h1 className="text-lg font-semibold text-navy">Print or save as PDF</h1>
-          <Button onClick={() => window.print()} className="gap-2">
-            <Printer className="w-4 h-4" /> Print / Save as PDF
-          </Button>
+        <div className="flex items-center justify-between mb-6 print:hidden gap-3 flex-wrap">
+          <h1 className="text-lg font-semibold text-navy">Download or print your guide</h1>
+          <div className="flex gap-2">
+            <Button asChild className="gap-2">
+              <a href={`${API_BASE}/api/lead-magnets/buyers-guide/pdf`} download>
+                <Download className="w-4 h-4" /> Download PDF
+              </a>
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} className="gap-2">
+              <Printer className="w-4 h-4" /> Print
+            </Button>
+          </div>
         </div>
 
         <article className="bg-white shadow-lg print:shadow-none p-10 print:p-8">

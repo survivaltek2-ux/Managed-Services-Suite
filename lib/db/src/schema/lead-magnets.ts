@@ -19,6 +19,7 @@ export const leadMagnetSubmissionsTable = pgTable("lead_magnet_submissions", {
   payload: jsonb("payload").default({}).notNull(),
   source: text("source"),
   emailSent: text("email_sent").notNull().default("pending"),
+  pdfStoragePath: text("pdf_storage_path"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
