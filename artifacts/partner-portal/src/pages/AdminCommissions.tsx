@@ -3,7 +3,7 @@ import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, Plus, Edit2, Download, Loader2, Save, Check, X, AlertTriangle, DollarSign, Send, ExternalLink
+  Search, Plus, Edit2, Download, Loader2, Save, Check, X, AlertTriangle, DollarSign, Send, ExternalLink, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -91,16 +91,20 @@ export default function AdminCommissions() {
     } catch { toast({ title: "Error creating commission", variant: "destructive" }); }
   };
 
-  const payoutCommission = async (id: number) => {
+  const payoutCommission = async (commission: any) => {
+    const id = commission.id;
     setPayingOutId(id);
     try {
+      const method = commission.stripeConnectAccountId ? "stripe" : "manual";
       const res = await fetch(`/api/admin/commissions/${id}/payout`, {
         method: "POST", headers,
-        body: JSON.stringify({ method: "manual" }),
+        body: JSON.stringify({ method }),
       });
       if (res.ok) {
         const data = await res.json();
-        const msg = data.stripeTransferId ? `Payout via Stripe (${data.stripeTransferId})` : "Manual payout recorded";
+        const msg = data.stripeTransferId
+          ? `Stripe transfer initiated (${data.stripeTransferId.slice(0, 16)}…)`
+          : "Manual payout recorded";
         toast({ title: msg });
         load();
       } else {
@@ -222,7 +226,14 @@ export default function AdminCommissions() {
                       {filtered.map((c: any) => (
                         <tr key={c.id} className={`border-b last:border-0 hover:bg-muted/50 ${c.status === "disputed" ? "bg-orange-50/50" : ""}`}>
                           <td className="px-5 py-3">
-                            <div className="font-medium">{c.partnerCompany || "—"}</div>
+                            <div className="font-medium flex items-center gap-1.5">
+                              {c.partnerCompany || "—"}
+                              {c.stripeConnectAccountId && (
+                                <span title="Stripe Connect enabled" className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[10px] font-medium rounded bg-violet-100 text-violet-700">
+                                  <Zap className="w-2.5 h-2.5" /> Stripe
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground">{c.partnerContact}</div>
                           </td>
                           <td className="px-5 py-3 max-w-[220px]">
@@ -254,13 +265,13 @@ export default function AdminCommissions() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-                                    title="Pay Out"
-                                    onClick={() => payoutCommission(c.id)}
+                                    className={`h-7 px-2 text-xs border ${c.stripeConnectAccountId ? "text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-200" : "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"}`}
+                                    title={c.stripeConnectAccountId ? "Pay via Stripe Transfer" : "Record Manual Payout"}
+                                    onClick={() => payoutCommission(c)}
                                     disabled={payingOutId === c.id}
                                   >
                                     {payingOutId === c.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
-                                    Pay Out
+                                    {c.stripeConnectAccountId ? "Pay via Stripe" : "Pay Out"}
                                   </Button>
                                 </>
                               )}

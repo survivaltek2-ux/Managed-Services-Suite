@@ -18,8 +18,10 @@ export interface PartnerUser {
   status: "pending" | "approved" | "rejected" | "suspended";
   totalDeals: number;
   ytdRevenue: string | number;
+  totalRevenue?: string | number;
   isAdmin: boolean;
   isMainSiteAdmin?: boolean;
+  stripeConnectAccountId?: string | null;
 }
 
 interface LoginCredentials {

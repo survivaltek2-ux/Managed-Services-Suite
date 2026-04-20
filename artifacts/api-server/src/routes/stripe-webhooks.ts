@@ -147,6 +147,23 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
         break;
       }
 
+      case "transfer.failed": {
+        const transfer = event.data.object as any;
+        const { commissionId } = transfer.metadata || {};
+        if (commissionId) {
+          const failureMessage = transfer.failure_message || "Transfer failed";
+          await db.update(partnerCommissionsTable).set({
+            status: "approved",
+            paidAt: null,
+            stripeTransferId: null,
+            payoutMethod: null,
+            notes: `Stripe transfer failed: ${failureMessage}. Ready to retry.`,
+          }).where(eq(partnerCommissionsTable.id, parseInt(commissionId)));
+          console.warn(`[Stripe Webhook] Commission #${commissionId} transfer failed: ${failureMessage}`);
+        }
+        break;
+      }
+
       default:
         console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }

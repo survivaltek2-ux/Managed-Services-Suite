@@ -288,7 +288,7 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
 router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { method = "manual" } = req.body;
+    const { method = "auto" } = req.body;
 
     const [commission] = await db.select({
       id: partnerCommissionsTable.id,
@@ -301,33 +301,51 @@ router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res)
     if (!commission) { res.status(404).json({ error: "not_found" }); return; }
     if (commission.status !== "approved") { res.status(400).json({ error: "not_approved", message: "Commission must be approved before payout." }); return; }
 
-    let stripeTransferId: string | null = null;
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, commission.partnerId));
 
-    if (method === "stripe" && isStripeConfigured()) {
+    let stripeTransferId: string | null = null;
+    let resolvedMethod = method;
+
+    const canUseStripe = (method === "stripe" || method === "auto") && isStripeConfigured() && partner?.stripeConnectAccountId;
+
+    if (method === "stripe" && !partner?.stripeConnectAccountId) {
+      res.status(400).json({ error: "no_connect_account", message: "Partner does not have a Stripe Connect account. Use manual payout." });
+      return;
+    }
+
+    if (canUseStripe) {
       const stripe = getStripe();
-      const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, commission.partnerId));
-      if (!partner?.stripeConnectAccountId) {
-        res.status(400).json({ error: "no_connect_account", message: "Partner does not have a Stripe Connect account. Use manual payout." });
-        return;
+      const account = await stripe.accounts.retrieve(partner.stripeConnectAccountId!);
+      if (!account.payouts_enabled) {
+        if (method === "stripe") {
+          res.status(400).json({ error: "payouts_not_enabled", message: "Partner's Stripe account is not fully verified. They must complete Stripe onboarding before receiving payouts." });
+          return;
+        }
+        resolvedMethod = "manual";
+      } else {
+        const transfer = await stripe.transfers.create({
+          amount: Math.round(parseFloat(commission.amount) * 100),
+          currency: "usd",
+          destination: partner.stripeConnectAccountId!,
+          metadata: { commissionId: String(id), partnerId: String(commission.partnerId) },
+        });
+        stripeTransferId = transfer.id;
+        resolvedMethod = "stripe";
+        console.log(`[Stripe Connect] Transfer ${stripeTransferId} initiated for commission #${id}`);
       }
-      const transfer = await stripe.transfers.create({
-        amount: Math.round(parseFloat(commission.amount) * 100),
-        currency: "usd",
-        destination: partner.stripeConnectAccountId,
-        metadata: { commissionId: String(id), partnerId: String(commission.partnerId) },
-      });
-      stripeTransferId = transfer.id;
+    } else {
+      resolvedMethod = "manual";
     }
 
     await db.update(partnerCommissionsTable).set({
       status: "paid",
       paidAt: new Date(),
       stripeTransferId: stripeTransferId || null,
-      payoutMethod: method,
+      payoutMethod: resolvedMethod,
     }).where(eq(partnerCommissionsTable.id, id));
 
     const [updated] = await db.select().from(partnerCommissionsTable).where(eq(partnerCommissionsTable.id, id));
-    res.json({ commission: updated, stripeTransferId });
+    res.json({ commission: updated, stripeTransferId, method: resolvedMethod });
   } catch (err: any) {
     console.error("[Stripe] Commission payout error:", err);
     res.status(500).json({ error: "stripe_error", message: err.message });

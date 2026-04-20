@@ -1,16 +1,102 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { PortalLayout } from "@/components/layout/PortalLayout";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Building, Mail, User, Shield, Lock } from "lucide-react";
+import { Save, Building, Mail, User, Shield, Lock, CreditCard, CheckCircle, Loader2, Unlink, ExternalLink, AlertCircle } from "lucide-react";
 
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [location] = useLocation();
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+
+  const [connectStatus, setConnectStatus] = useState<{ connected: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean; accountId: string | null } | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [connectStatusLoading, setConnectStatusLoading] = useState(true);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const headers = getAuthHeaders();
+
+  useEffect(() => {
+    fetchConnectStatus();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripe_connect_return") === "1") {
+      toast({ title: "Stripe account connected!", description: "Your Stripe account has been linked for commission payouts." });
+      fetchConnectStatus();
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("stripe_connect_refresh") === "1") {
+      toast({ title: "Stripe onboarding incomplete", description: "Please connect your Stripe account to receive payouts.", variant: "destructive" });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  const fetchConnectStatus = async () => {
+    setConnectStatusLoading(true);
+    try {
+      const res = await fetch("/api/partner/stripe-connect/status", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setConnectStatus(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch Stripe Connect status", err);
+    } finally {
+      setConnectStatusLoading(false);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    setConnectLoading(true);
+    try {
+      const res = await fetch("/api/partner/stripe-connect/onboard", {
+        method: "POST",
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = data.url;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (err.error === "stripe_not_configured") {
+          toast({ title: "Stripe is not configured", description: "Please contact support to enable Stripe payouts.", variant: "destructive" });
+        } else {
+          toast({ title: err.message || "Failed to start Stripe onboarding", variant: "destructive" });
+        }
+      }
+    } catch (err) {
+      toast({ title: "Error connecting Stripe", variant: "destructive" });
+    } finally {
+      setConnectLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm("Are you sure you want to disconnect your Stripe account? Future payouts will be processed manually.")) return;
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/partner/stripe-connect/disconnect", {
+        method: "POST",
+        headers,
+      });
+      if (res.ok) {
+        toast({ title: "Stripe account disconnected" });
+        setConnectStatus({ connected: false, accountId: null });
+      } else {
+        toast({ title: "Failed to disconnect", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Error disconnecting", variant: "destructive" });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -125,7 +211,7 @@ export default function Profile() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Lifetime Revenue</p>
-                  <p className="text-sm font-bold">${Number(user.lifetimeRevenue).toLocaleString()}</p>
+                  <p className="text-sm font-bold">${Number(user.totalRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -137,6 +223,93 @@ export default function Profile() {
             </button>
           </div>
         </form>
+
+        {/* ─── Stripe Connect / Payout Settings ─────────────────────────────── */}
+        {!user.isMainSiteAdmin && (
+          <div className="sf-card overflow-hidden mt-4">
+            <div className="sf-card-header">
+              <span className="flex items-center gap-2"><CreditCard className="w-3.5 h-3.5" /> Payout Settings</span>
+            </div>
+            <div className="p-4">
+              {connectStatusLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Checking connection status...
+                </div>
+              ) : connectStatus?.connected ? (
+                <div className="space-y-3">
+                  {connectStatus.payoutsEnabled ? (
+                    <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-emerald-800">Stripe account connected — payouts active</p>
+                        <p className="text-xs text-emerald-700 mt-0.5">
+                          Commission payouts will be sent directly to your bank account via Stripe.
+                        </p>
+                        {connectStatus.accountId && (
+                          <p className="text-xs text-emerald-600 font-mono mt-1">{connectStatus.accountId}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Stripe account connected — onboarding incomplete</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          Your account is linked but Stripe requires more information before payouts can be sent. Click "Complete Setup" to finish.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleConnectStripe}
+                      disabled={connectLoading}
+                      className="sf-btn sf-btn-outline text-xs"
+                    >
+                      {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                      {connectStatus.payoutsEnabled ? "Update Stripe Account" : "Complete Setup"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDisconnect}
+                      disabled={disconnecting}
+                      className="sf-btn sf-btn-outline text-xs text-red-600 hover:bg-red-50 border-red-200"
+                    >
+                      {disconnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">No payout account connected</p>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        Connect your Stripe account to receive commission payouts directly to your bank. Without a connected account, payouts are processed manually.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConnectStripe}
+                    disabled={connectLoading}
+                    className="sf-btn sf-btn-primary"
+                  >
+                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                    {connectLoading ? "Redirecting to Stripe..." : "Connect Stripe Account"}
+                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    You'll be redirected to Stripe to complete account setup. This typically takes a few minutes.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {!showPasswordForm && (
           <div className="mt-4 flex justify-center">

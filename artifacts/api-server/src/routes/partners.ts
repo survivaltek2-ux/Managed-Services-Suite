@@ -7,6 +7,7 @@ import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSi
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
+import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 
 const router: IRouter = Router();
 
@@ -190,6 +191,97 @@ router.put("/partner/profile", requirePartnerAuth, async (req: PartnerRequest, r
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to update profile" });
+  }
+});
+
+// ─── Stripe Connect ──────────────────────────────────────────────────────────
+
+router.get("/partner/stripe-connect/status", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null }); return; }
+  try {
+    const [partner] = await db.select({ stripeConnectAccountId: partnersTable.stripeConnectAccountId })
+      .from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (!partner) { res.status(404).json({ error: "not_found" }); return; }
+
+    const accountId = partner.stripeConnectAccountId || null;
+    if (!accountId || !isStripeConfigured()) {
+      res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null });
+      return;
+    }
+
+    try {
+      const stripe = getStripe();
+      const account = await stripe.accounts.retrieve(accountId);
+      res.json({
+        connected: true,
+        payoutsEnabled: account.payouts_enabled ?? false,
+        detailsSubmitted: account.details_submitted ?? false,
+        accountId,
+      });
+    } catch (stripeErr) {
+      console.error("[Stripe Connect] Failed to retrieve account:", stripeErr);
+      res.json({ connected: true, payoutsEnabled: false, detailsSubmitted: false, accountId });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/partner/stripe-connect/onboard", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.status(403).json({ error: "forbidden", message: "Not available for admin accounts" }); return; }
+  if (!isStripeConfigured()) { res.status(503).json({ error: "stripe_not_configured", message: "Stripe is not configured." }); return; }
+  try {
+    const stripe = getStripe();
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+    if (!partner) { res.status(404).json({ error: "not_found" }); return; }
+
+    let accountId = partner.stripeConnectAccountId;
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: partner.email,
+        metadata: { partnerId: String(partner.id), companyName: partner.companyName },
+      });
+      accountId = account.id;
+      await db.update(partnersTable).set({ stripeConnectAccountId: accountId, updatedAt: new Date() })
+        .where(eq(partnersTable.id, req.partnerId!));
+      console.log(`[Stripe Connect] Created Express account ${accountId} for partner #${partner.id}`);
+    }
+
+    const portalBase = process.env.PARTNER_PORTAL_URL
+      ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+      : (() => {
+          const host = req.get("host") || "";
+          const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+          return `${proto}://${host}/partners`;
+        })();
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${portalBase}/profile?stripe_connect_refresh=1`,
+      return_url: `${portalBase}/profile?stripe_connect_return=1`,
+      type: "account_onboarding",
+    });
+
+    res.json({ url: accountLink.url });
+  } catch (err: any) {
+    console.error("[Stripe Connect] Onboard error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.post("/partner/stripe-connect/disconnect", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.status(403).json({ error: "forbidden" }); return; }
+  try {
+    await db.update(partnersTable)
+      .set({ stripeConnectAccountId: null, updatedAt: new Date() })
+      .where(eq(partnersTable.id, req.partnerId!));
+    console.log(`[Stripe Connect] Partner #${req.partnerId} disconnected their Stripe account`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
   }
 });
 
@@ -1109,13 +1201,17 @@ router.get("/admin/partner/commissions", requireAdmin, async (_req, res) => {
       amount: partnerCommissionsTable.amount,
       rate: partnerCommissionsTable.rate,
       status: partnerCommissionsTable.status,
+      notes: partnerCommissionsTable.notes,
       paidAt: partnerCommissionsTable.paidAt,
+      stripeTransferId: partnerCommissionsTable.stripeTransferId,
+      payoutMethod: partnerCommissionsTable.payoutMethod,
       periodStart: partnerCommissionsTable.periodStart,
       periodEnd: partnerCommissionsTable.periodEnd,
       createdAt: partnerCommissionsTable.createdAt,
       partnerCompany: partnersTable.companyName,
       partnerContact: partnersTable.contactName,
       partnerEmail: partnersTable.email,
+      stripeConnectAccountId: partnersTable.stripeConnectAccountId,
     }).from(partnerCommissionsTable)
       .leftJoin(partnersTable, eq(partnerCommissionsTable.partnerId, partnersTable.id))
       .orderBy(desc(partnerCommissionsTable.createdAt));
