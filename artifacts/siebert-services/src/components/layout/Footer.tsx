@@ -40,7 +40,7 @@ const certifications = [
 ];
 
 const serviceArea =
-  "Proudly serving Hudson Valley businesses — Orange, Rockland, Westchester, Putnam, Dutchess & Ulster counties — and remote support nationwide.";
+  "Proudly serving businesses across North America — on-site dispatch and remote support available everywhere.";
 
 export function Footer() {
   return (

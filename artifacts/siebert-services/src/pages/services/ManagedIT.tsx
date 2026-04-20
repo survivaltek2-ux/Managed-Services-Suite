@@ -26,7 +26,7 @@ const content: ServicePageContent = {
   audience: {
     title: "Built for SMBs that can't afford downtime — and don't want to hire a full IT department",
     description:
-      "Most of our managed IT clients are 10–250 person organizations across professional services, healthcare, finance, and light manufacturing in the Hudson Valley and NYC metro. They've outgrown a part-time tech and need real coverage without enterprise pricing.",
+      "Most of our managed IT clients are 10–250 person organizations across professional services, healthcare, finance, and light manufacturing — throughout North America. They've outgrown a part-time tech and need real coverage without enterprise pricing.",
     bullets: [
       "You have 10–500 employees and rely on technology to operate every day.",
       "You're tired of break-fix surprises and unpredictable IT bills.",
@@ -146,7 +146,7 @@ const content: ServicePageContent = {
     { label: "Pricing", href: "/quote" },
   ],
   schemaDescription:
-    "Fully managed and co-managed IT support for SMBs in the Hudson Valley and NYC metro. 24/7 help desk, proactive monitoring, patching, and on-site dispatch on a predictable per-seat plan.",
+    "Fully managed and co-managed IT support for SMBs across North America. 24/7 help desk, proactive monitoring, patching, and on-site dispatch on a predictable per-seat plan.",
 };
 
 export default function ManagedIT() {

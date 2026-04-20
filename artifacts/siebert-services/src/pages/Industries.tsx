@@ -46,7 +46,7 @@ export default function Industries() {
         id="schema-industries-index"
         type="WebPage"
         name="Industries we serve — Siebert Services"
-        description="Specialized managed IT for healthcare, legal, financial services, dental, government contractors, and manufacturing in the Hudson Valley."
+        description="Specialized managed IT for healthcare, legal, financial services, dental, government contractors, and manufacturing businesses across North America."
       />
       <SchemaTag
         id="schema-industries-breadcrumb"
@@ -69,7 +69,7 @@ export default function Industries() {
           <p className="text-lg md:text-xl text-white/80 max-w-3xl">
             Generic IT advice doesn't survive a HIPAA audit, an SEC exam, or a CMMC
             assessment. These pages cover what we do — and what we know — for the industries
-            that drive the Hudson Valley.
+            that power businesses across North America.
           </p>
         </div>
       </section>

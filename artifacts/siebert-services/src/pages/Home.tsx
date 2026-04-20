@@ -72,8 +72,8 @@ export default function Home() {
       <SchemaTag
         id="schema-webpage-home"
         type="WebPage"
-        name="Siebert Services — Hudson Valley Managed IT, Internet & Security"
-        description="Managed IT, internet, and cybersecurity for Hudson Valley businesses. 24/7 helpdesk, < 15 minute response, and one partner for procurement, deployment, and support."
+        name="Siebert Services — Managed IT, Internet & Security for North American Businesses"
+        description="Managed IT, internet, and cybersecurity for businesses across North America. 24/7 helpdesk, < 15 minute response, and one partner for procurement, deployment, and support."
       />
 
       {/* HERO — first 5 seconds: who, what, why, what to do next */}
@@ -97,12 +97,12 @@ export default function Home() {
             >
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-display font-extrabold text-white leading-[1.05] mb-5 tracking-tight">
                 Managed IT, Internet & Security for{" "}
-                <span className="text-gradient">Hudson Valley businesses.</span>
+                <span className="text-gradient">businesses across North America.</span>
               </h1>
               <p className="text-lg text-white/80 leading-relaxed mb-7 max-w-2xl">
-                One local partner for your helpdesk, cloud, cybersecurity, phones, and
-                connectivity — with a 15-minute response SLA and engineers based right here
-                in Orange County.
+                One trusted partner for your helpdesk, cloud, cybersecurity, phones, and
+                connectivity — with a 15-minute response SLA, on-site dispatch, and remote
+                support anywhere in North America.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -138,7 +138,7 @@ export default function Home() {
                 <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-navy-light/50">
                   <img
                     src={`${import.meta.env.BASE_URL}images/about-team.png`}
-                    alt="Siebert Services engineers supporting a Hudson Valley client"
+                    alt="Siebert Services engineers supporting a client"
                     className="w-full h-[380px] object-cover"
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-navy via-navy/80 to-transparent p-6">
@@ -217,7 +217,7 @@ export default function Home() {
                   Client outcomes
                 </h2>
                 <p className="text-lg text-muted-foreground max-w-2xl">
-                  Quantified results from Hudson Valley businesses that trust Siebert as
+                  Quantified results from businesses across North America that trust Siebert as
                   their hybrid MSP partner.
                 </p>
               </div>
@@ -244,8 +244,7 @@ export default function Home() {
               Specialized support for the industries we know best.
             </h2>
             <p className="text-lg text-muted-foreground">
-              Compliance, uptime, and tooling vary by vertical. We tailor our managed stack
-              to the businesses that drive the Hudson Valley economy.
+              Compliance, uptime, and tooling vary by vertical. We tailor our managed stack to the businesses and regulations of every industry we serve.
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

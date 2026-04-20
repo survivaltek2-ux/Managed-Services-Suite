@@ -427,7 +427,7 @@ export function ServicePageTemplate({ content, caseStudies = [] }: Props) {
             </Link>
           </div>
           <p className="text-sm text-white/50 mt-6">
-            Hudson Valley · NYC Metro · Remote nationwide · 24/7 support available
+            Serving businesses across North America · On-site & Remote · 24/7 support available
           </p>
         </div>
       </section>

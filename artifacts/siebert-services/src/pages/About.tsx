@@ -106,13 +106,14 @@ export default function About() {
               <MapPin className="w-3.5 h-3.5" /> Proudly based in Washingtonville, NY
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-extrabold leading-[1.05] mb-6 tracking-tight">
-              The local IT team behind hundreds of{" "}
-              <span className="text-gradient">Hudson Valley businesses.</span>
+              The IT team trusted by{" "}
+              <span className="text-gradient">businesses across North America.</span>
             </h1>
             <p className="text-lg lg:text-xl text-white/80 leading-relaxed max-w-2xl">
-              Siebert Services was founded in the Hudson Valley to give small and mid-sized
-              businesses something national MSPs can't: a senior engineer who knows your
-              network, your team, and your town — and picks up the phone when you call.
+              Founded in the Hudson Valley, Siebert Services has grown into a full hybrid MSP
+              serving businesses coast to coast — with the same promise we've always kept:
+              a senior engineer who knows your network, picks up the phone, and shows up
+              when it counts.
             </p>
           </div>
 
@@ -135,7 +136,7 @@ export default function About() {
                 Our story
               </div>
               <h2 className="text-3xl md:text-4xl font-display font-bold text-navy mb-6">
-                From a one-man repair shop to the Hudson Valley's go-to MSP.
+                From a one-man repair shop to a trusted MSP serving businesses across North America.
               </h2>
               <div className="space-y-4 text-lg text-muted-foreground leading-relaxed">
                 <p>
@@ -149,11 +150,12 @@ export default function About() {
                   cybersecurity, internet circuits — we evolved into a full hybrid managed
                   service provider. Today we run helpdesk, security, cloud, and networking for
                   manufacturers, medical practices, law firms, schools, and nonprofits across
-                  the Hudson Valley.
+                  North America.
                 </p>
                 <p>
-                  We're proud to still be locally owned. Our engineers live in the same towns
-                  as our clients, and when something breaks, we can be on-site the same day.
+                  We're proud to still be independently owned. Whether you're down the road
+                  or across the country, when something breaks we respond fast — on-site or
+                  remote, whatever your situation calls for.
                 </p>
               </div>
             </motion.div>
@@ -286,11 +288,12 @@ export default function About() {
               <MapPin className="w-3.5 h-3.5" /> Local roots
             </div>
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
-              Proudly serving the Hudson Valley.
+              Proudly serving businesses across North America.
             </h2>
             <p className="text-lg text-white/70">
-              We provide on-site support across six counties and remote support nationwide.
-              If you're in the Hudson Valley, an engineer can be at your door the same day.
+              Headquartered in Washingtonville, NY, we provide on-site and remote support
+              to businesses from coast to coast. Wherever you are, our engineers are available
+              24/7 — and on-site when you need us.
             </p>
           </div>
 
@@ -312,8 +315,7 @@ export default function About() {
           </div>
 
           <p className="text-center text-white/60 text-sm mt-10">
-            Don't see your town? We support clients across the greater Hudson Valley and the
-            Mid-Hudson region — just ask.
+            Don't see your area? We support clients across all of North America — remote and on-site. Just ask.
           </p>
         </div>
       </section>
@@ -321,7 +323,7 @@ export default function About() {
       {/* TESTIMONIALS */}
       <TestimonialsSection
         title="Why our clients stay."
-        subtitle="A few words from the Hudson Valley businesses we've supported for years."
+        subtitle="A few words from the businesses we've supported across North America."
         background="muted"
       />
 

@@ -40,7 +40,7 @@ export const industries: Industry[] = [
     shortLabel: "Healthcare & medical practices",
     navTitle: "Healthcare IT",
     metaDescription:
-      "HIPAA-compliant managed IT for medical practices, clinics, and healthcare organizations in the Hudson Valley. EHR support, secure backup, and 24/7 helpdesk.",
+      "HIPAA-compliant managed IT for medical practices, clinics, and healthcare organizations across North America. EHR support, secure backup, and 24/7 helpdesk.",
     hero: {
       eyebrow: "Industry · Healthcare",
       title: "HIPAA-grade IT for medical practices that can't afford downtime.",
@@ -686,7 +686,7 @@ export const industries: Industry[] = [
     shortLabel: "Manufacturing & distribution",
     navTitle: "Manufacturing IT",
     metaDescription:
-      "Managed IT for Hudson Valley manufacturers. ERP support, OT/IT convergence, plant-floor uptime, and cybersecurity for shop-floor and corporate networks.",
+      "Managed IT for manufacturers across North America. ERP support, OT/IT convergence, plant-floor uptime, and cybersecurity for shop-floor and corporate networks.",
     hero: {
       eyebrow: "Industry · Manufacturing",
       title: "Uptime on the shop floor. Visibility from the front office.",

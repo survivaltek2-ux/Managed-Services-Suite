@@ -122,7 +122,7 @@ export default function Services() {
         id="schema-service-list"
         type="Service"
         name="Managed IT, Cybersecurity, Cloud & Network Services"
-        description="Comprehensive managed IT services for Hudson Valley and NYC metro businesses — managed IT, cybersecurity, cloud, backup, compliance, and network infrastructure."
+        description="Comprehensive managed IT services for businesses across North America — managed IT, cybersecurity, cloud, backup, compliance, and network infrastructure."
         serviceType="Managed IT Services"
       />
       <SchemaTag
@@ -144,7 +144,7 @@ export default function Services() {
             One partner. <span className="text-gradient">Six core services.</span>
           </h1>
           <p className="text-xl text-white/80 max-w-3xl mx-auto mb-8 leading-relaxed">
-            Hybrid MSP services purpose-built for Hudson Valley and NYC-metro SMBs — backed by SLAs, delivered by certified engineers, and priced for predictable monthly spend.
+            Hybrid MSP services built for SMBs across North America — backed by SLAs, delivered by certified engineers, and priced for predictable monthly spend.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3">
             <BookingButton label="Book a free assessment" size="lg" />
