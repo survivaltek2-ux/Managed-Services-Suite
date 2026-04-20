@@ -851,7 +851,7 @@ router.get("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (_req: A
 
 router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
+    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active, stripeProductId, stripeMonthlyPriceId, stripeAnnualPriceId } = req.body;
     const autoSlug = slug || String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const [item] = await db.insert(pricingTiersTable).values({
       slug: autoSlug,
@@ -868,6 +868,9 @@ router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: A
       ctaLink: ctaLink || "/quote",
       sortOrder: sortOrder || 0,
       active: active !== false,
+      stripeProductId: stripeProductId || null,
+      stripeMonthlyPriceId: stripeMonthlyPriceId || null,
+      stripeAnnualPriceId: stripeAnnualPriceId || null,
     }).returning();
     await logActivity(req.userId, "create", "pricing_tier", item.id, `Added pricing tier: ${name}`);
     res.status(201).json(parsePricingTier(item));
@@ -880,7 +883,7 @@ router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: A
 router.put("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active } = req.body;
+    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active, stripeProductId, stripeMonthlyPriceId, stripeAnnualPriceId } = req.body;
     const [item] = await db.update(pricingTiersTable).set({
       slug,
       name,
@@ -896,6 +899,9 @@ router.put("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req
       ctaLink: ctaLink || "/quote",
       sortOrder: sortOrder ?? 0,
       active: active !== false,
+      stripeProductId: stripeProductId || null,
+      stripeMonthlyPriceId: stripeMonthlyPriceId || null,
+      stripeAnnualPriceId: stripeAnnualPriceId || null,
       updatedAt: new Date(),
     }).where(eq(pricingTiersTable.id, id)).returning();
     if (!item) { res.status(404).json({ error: "not_found", message: "Pricing tier not found" }); return; }

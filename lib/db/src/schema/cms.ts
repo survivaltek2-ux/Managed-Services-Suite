@@ -150,6 +150,9 @@ export const pricingTiersTable = pgTable("pricing_tiers", {
   ctaLink: text("cta_link").notNull().default("/quote"),
   sortOrder: integer("sort_order").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  stripeProductId: text("stripe_product_id"),
+  stripeMonthlyPriceId: text("stripe_monthly_price_id"),
+  stripeAnnualPriceId: text("stripe_annual_price_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

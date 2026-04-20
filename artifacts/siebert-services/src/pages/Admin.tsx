@@ -463,6 +463,9 @@ export default function Admin() {
                 { key: "mostPopular", label: "Mark as Most Popular", type: "checkbox" },
                 { key: "sortOrder", label: "Sort Order", type: "number" },
                 { key: "active", label: "Active", type: "checkbox" },
+                { key: "stripeProductId", label: "Stripe Product ID (e.g. prod_…) — leave blank to auto-create", type: "text" },
+                { key: "stripeMonthlyPriceId", label: "Stripe Monthly Price ID (e.g. price_…) — leave blank to auto-create", type: "text" },
+                { key: "stripeAnnualPriceId", label: "Stripe Annual Price ID (e.g. price_…) — leave blank to auto-create", type: "text" },
               ]} columns={["name", "startingPrice", "mostPopular", "active"]} />}
               {activeTab === "industries" && <CrudTab items={data.industries || []} refresh={() => fetchData("industries")} headers={headers} entity="industries" fields={[
                 { key: "name", label: "Name (e.g. Healthcare)", type: "text", required: true },

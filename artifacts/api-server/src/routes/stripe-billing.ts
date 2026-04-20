@@ -254,24 +254,54 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       return;
     }
 
-    const priceAmount = billingCycle === "annual"
-      ? Math.round(parseFloat(tier.annualPrice || tier.startingPrice) * 100)
-      : Math.round(parseFloat(tier.startingPrice) * 100);
-
     const base = getBaseUrl(req);
+
+    let priceId: string | null = billingCycle === "annual"
+      ? (tier.stripeAnnualPriceId || null)
+      : (tier.stripeMonthlyPriceId || null);
+
+    let lineItem: any;
+
+    if (priceId) {
+      lineItem = { price: priceId, quantity: 1 };
+    } else {
+      const priceAmount = billingCycle === "annual"
+        ? Math.round(parseFloat(tier.annualPrice || tier.startingPrice) * 100)
+        : Math.round(parseFloat(tier.startingPrice) * 100);
+
+      let productId: string | null = tier.stripeProductId || null;
+      if (!productId) {
+        const product = await stripe.products.create({
+          name: `${tier.name} Plan`,
+          description: tier.tagline || undefined,
+          metadata: { tierId: String(tier.id), planSlug: tier.slug },
+        });
+        productId = product.id;
+        await db.update(pricingTiersTable).set({ stripeProductId: productId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, tier.id));
+      }
+
+      const price = await stripe.prices.create({
+        product: productId,
+        currency: "usd",
+        unit_amount: priceAmount,
+        recurring: { interval: billingCycle === "annual" ? "year" : "month" },
+        metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle },
+      });
+      priceId = price.id;
+
+      if (billingCycle === "annual") {
+        await db.update(pricingTiersTable).set({ stripeAnnualPriceId: priceId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, tier.id));
+      } else {
+        await db.update(pricingTiersTable).set({ stripeMonthlyPriceId: priceId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, tier.id));
+      }
+
+      lineItem = { price: priceId, quantity: 1 };
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       ...(email ? { customer_email: email } : {}),
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          product_data: { name: `${tier.name} Plan`, description: tier.tagline || undefined },
-          unit_amount: priceAmount,
-          recurring: { interval: billingCycle === "annual" ? "year" : "month" },
-        },
-        quantity: 1,
-      }],
+      line_items: [lineItem],
       metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, type: "self_checkout" },
       allow_promotion_codes: true,
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
