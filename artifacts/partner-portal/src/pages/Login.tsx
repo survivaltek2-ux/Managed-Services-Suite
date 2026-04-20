@@ -17,14 +17,6 @@ function MicrosoftIcon() {
   );
 }
 
-function OktaIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="12" fill="#007DC1" />
-      <circle cx="12" cy="12" r="5.5" fill="white" />
-    </svg>
-  );
-}
 
 const SSO_ERROR_MESSAGES: Record<string, string> = {
   access_denied: "Sign-in was cancelled. Please try again.",
@@ -130,11 +122,6 @@ export default function Login() {
     window.location.href = "/api/auth/sso/microsoft?type=partner";
   };
 
-  const handleOktaSSO = () => {
-    setError("");
-    setSsoLoading(true);
-    window.location.href = "/api/auth/sso/okta?type=partner";
-  };
 
   const switchMode = (m: "password" | "code") => {
     setMode(m);
@@ -191,15 +178,7 @@ export default function Login() {
                   <MicrosoftIcon />
                   {ssoLoading ? "Redirecting..." : "Sign in with Microsoft"}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleOktaSSO}
-                  disabled={ssoLoading || isLoggingIn}
-                  className="w-full flex items-center justify-center gap-3 h-12 px-4 border border-border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-semibold text-sm text-foreground disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-                >
-                  <OktaIcon />
-                  {ssoLoading ? "Redirecting..." : "Sign in with Okta"}
-                </button>
+
               </div>
 
               <div className="flex items-center gap-3 mb-6">

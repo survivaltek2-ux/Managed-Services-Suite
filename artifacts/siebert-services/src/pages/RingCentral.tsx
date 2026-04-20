@@ -145,7 +145,7 @@ const services = [
 
 const integrations = [
   "Salesforce", "Microsoft Teams", "Google Workspace", "HubSpot",
-  "Zendesk", "ServiceNow", "Slack", "Zoom", "Okta", "Jira",
+  "Zendesk", "ServiceNow", "Slack", "Zoom", "Jira",
   "Dropbox", "Box", "Clio", "Epic (healthcare)", "Canvas (education)",
 ];
 

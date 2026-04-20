@@ -21,15 +21,6 @@ function MicrosoftIcon() {
   );
 }
 
-function OktaIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="12" fill="#007DC1" />
-      <circle cx="12" cy="12" r="5.5" fill="white" />
-    </svg>
-  );
-}
-
 
 const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -101,11 +92,6 @@ export default function Portal() {
     window.location.href = `${API_BASE}/api/auth/sso/microsoft?type=client`;
   };
 
-  const handleOktaSSO = () => {
-    setSsoError("");
-    setSsoLoading(true);
-    window.location.href = `${API_BASE}/api/auth/sso/okta?type=client`;
-  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -383,14 +369,7 @@ export default function Portal() {
                         <MicrosoftIcon />
                         Sign in with Microsoft
                       </button>
-                      <button
-                        type="button"
-                        onClick={handleOktaSSO}
-                        className="w-full flex items-center justify-center gap-3 h-11 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors font-semibold text-sm text-gray-800 shadow-sm"
-                      >
-                        <OktaIcon />
-                        Sign in with Okta
-                      </button>
+
                     </div>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex-1 border-t border-gray-200" />
