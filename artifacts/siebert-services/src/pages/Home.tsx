@@ -24,7 +24,6 @@ import {
   CertificationsRow,
   GoogleReviewsBlock,
   CaseStudyCard,
-  TrustEyebrow,
   type CaseStudy,
 } from "@/components/trust";
 
@@ -96,7 +95,6 @@ export default function Home() {
               transition={{ duration: 0.5 }}
               className="lg:col-span-7"
             >
-              <TrustEyebrow className="mb-6" />
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-display font-extrabold text-white leading-[1.05] mb-5 tracking-tight">
                 Managed IT, Internet & Security for{" "}
                 <span className="text-gradient">Hudson Valley businesses.</span>
