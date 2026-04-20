@@ -61,6 +61,7 @@ import ResourceThankYou from "./pages/resources/ThankYou";
 import PrintableHipaa from "./pages/resources/PrintableHipaa";
 import PrintableBuyersGuide from "./pages/resources/PrintableBuyersGuide";
 import { ExitIntentPopup } from "@/components/leadMagnets";
+import Welcome from "./pages/Welcome";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ function PublicRouter() {
         <Route path="/contact" component={Contact} />
         <Route path="/quote" component={Quote} />
         <Route path="/pricing" component={Pricing} />
+        <Route path="/welcome" component={Welcome} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
 

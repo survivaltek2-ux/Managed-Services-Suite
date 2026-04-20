@@ -1,0 +1,370 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { db, invoicesTable, subscriptionsTable, partnersTable, usersTable, pricingTiersTable, partnerCommissionsTable } from "@workspace/db";
+import { eq, desc, and } from "drizzle-orm";
+import { requireAuth, requireAdmin } from "../middlewares/auth.js";
+import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY } from "../lib/stripe.js";
+
+const router: IRouter = Router();
+
+function getBaseUrl(req: Request): string {
+  const host = req.get("host") || "";
+  const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+  return `${proto}://${host}`;
+}
+
+function stripeNotConfiguredError(res: Response) {
+  res.status(503).json({ error: "stripe_not_configured", message: "Stripe payment processing is not yet configured." });
+}
+
+router.get("/billing/config", (_req, res) => {
+  res.json({ publishableKey: STRIPE_PUBLISHABLE_KEY, configured: isStripeConfigured() });
+});
+
+router.post("/invoices/:id/pay", requireAuth, async (req: any, res) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const id = parseInt(req.params.id);
+    const userId = req.userId;
+
+    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
+    if (!invoice) { res.status(404).json({ error: "not_found" }); return; }
+    if (invoice.userId !== userId) { res.status(403).json({ error: "forbidden" }); return; }
+    if (invoice.status === "paid") { res.status(400).json({ error: "already_paid" }); return; }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    let customerId = user?.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: user?.email, name: user?.name, metadata: { userId: String(userId) } });
+      customerId = customer.id;
+      await db.update(usersTable).set({ stripeCustomerId: customerId }).where(eq(usersTable.id, userId));
+    }
+
+    const base = getBaseUrl(req);
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: { name: invoice.title || `Invoice ${invoice.invoiceNumber}` },
+          unit_amount: Math.round(parseFloat(invoice.total) * 100),
+        },
+        quantity: 1,
+      }],
+      metadata: { invoiceId: String(invoice.id), type: "invoice_payment" },
+      success_url: `${base}/partners/billing?payment=success&invoice=${invoice.id}`,
+      cancel_url: `${base}/partners/billing?payment=cancelled`,
+    });
+
+    await db.update(invoicesTable).set({ stripeCheckoutSessionId: session.id }).where(eq(invoicesTable.id, id));
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err: any) {
+    console.error("[Stripe] Invoice pay error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.get("/billing/subscription", requireAuth, async (req: any, res) => {
+  try {
+    const userId = req.userId;
+    const subs = await db.select().from(subscriptionsTable)
+      .where(and(eq(subscriptionsTable.userId, userId)))
+      .orderBy(desc(subscriptionsTable.createdAt))
+      .limit(1);
+    res.json({ subscription: subs[0] || null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/admin/billing/subscriptions", requireAdmin, async (req: any, res) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const { userId, partnerId, tierId, billingCycle = "monthly" } = req.body;
+
+    let tier: any = null;
+    if (tierId) {
+      const [t] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, parseInt(tierId)));
+      tier = t;
+    }
+    if (!tier) { res.status(404).json({ error: "tier_not_found" }); return; }
+
+    const priceAmount = billingCycle === "annual"
+      ? Math.round(parseFloat(tier.annualPrice || tier.startingPrice) * 100)
+      : Math.round(parseFloat(tier.startingPrice) * 100);
+
+    let email = "";
+    let name = "";
+    let existingCustomerId: string | null | undefined = null;
+
+    if (userId) {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, parseInt(userId)));
+      if (!user) { res.status(404).json({ error: "user_not_found" }); return; }
+      email = user.email; name = user.name; existingCustomerId = user.stripeCustomerId;
+    } else if (partnerId) {
+      const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, parseInt(partnerId)));
+      if (!partner) { res.status(404).json({ error: "partner_not_found" }); return; }
+      email = partner.email; name = partner.contactName; existingCustomerId = partner.stripeCustomerId;
+    } else {
+      res.status(400).json({ error: "must_provide_userId_or_partnerId" }); return;
+    }
+
+    let customerId = existingCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email, name, metadata: { userId: userId || "", partnerId: partnerId || "" } });
+      customerId = customer.id;
+      if (userId) await db.update(usersTable).set({ stripeCustomerId: customerId }).where(eq(usersTable.id, parseInt(userId)));
+      if (partnerId) await db.update(partnersTable).set({ stripeCustomerId: customerId }).where(eq(partnersTable.id, parseInt(partnerId)));
+    }
+
+    const product = await stripe.products.create({ name: `${tier.name} Plan`, metadata: { tierId: String(tier.id), tierSlug: tier.slug } });
+    const price = await stripe.prices.create({
+      product: product.id,
+      unit_amount: priceAmount,
+      currency: "usd",
+      recurring: { interval: billingCycle === "annual" ? "year" : "month" },
+    });
+
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: price.id }],
+      metadata: { tierId: String(tier.id), planSlug: tier.slug, userId: userId || "", partnerId: partnerId || "" },
+    });
+
+    const [saved] = await db.insert(subscriptionsTable).values({
+      userId: userId ? parseInt(userId) : null,
+      partnerId: partnerId ? parseInt(partnerId) : null,
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: customerId,
+      stripePriceId: price.id,
+      stripeProductId: product.id,
+      planId: tier.slug,
+      planName: tier.name,
+      status: subscription.status as any,
+      currentPeriodStart: new Date(((subscription as any).current_period_start as number) * 1000),
+      currentPeriodEnd: new Date(((subscription as any).current_period_end as number) * 1000),
+      cancelAtPeriodEnd: (subscription as any).cancel_at_period_end ?? false,
+      billingCycle,
+      amount: String(priceAmount / 100),
+    }).returning();
+
+    res.status(201).json({ subscription: saved, stripeSubscription: subscription });
+  } catch (err: any) {
+    console.error("[Stripe] Create subscription error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.put("/admin/billing/subscriptions/:id/cancel", requireAdmin, async (req: any, res) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const id = parseInt(req.params.id);
+    const { immediately = false } = req.body;
+
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    if (!sub) { res.status(404).json({ error: "not_found" }); return; }
+
+    if (immediately) {
+      await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
+      await db.update(subscriptionsTable).set({ status: "canceled", canceledAt: new Date(), updatedAt: new Date() }).where(eq(subscriptionsTable.id, id));
+    } else {
+      await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
+      await db.update(subscriptionsTable).set({ cancelAtPeriodEnd: true, updatedAt: new Date() }).where(eq(subscriptionsTable.id, id));
+    }
+
+    const [updated] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    res.json({ subscription: updated });
+  } catch (err: any) {
+    console.error("[Stripe] Cancel subscription error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.get("/admin/billing/subscriptions", requireAdmin, async (_req, res) => {
+  try {
+    const subs = await db.select().from(subscriptionsTable).orderBy(desc(subscriptionsTable.createdAt));
+    res.json(subs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/admin/billing/stats", requireAdmin, async (_req, res) => {
+  try {
+    const subs = await db.select().from(subscriptionsTable);
+    const invoices = await db.select({
+      id: invoicesTable.id,
+      status: invoicesTable.status,
+      total: invoicesTable.total,
+      paidAt: invoicesTable.paidAt,
+      createdAt: invoicesTable.createdAt,
+      clientName: usersTable.name,
+      clientEmail: usersTable.email,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      title: invoicesTable.title,
+    }).from(invoicesTable)
+      .leftJoin(usersTable, eq(invoicesTable.userId, usersTable.id))
+      .orderBy(desc(invoicesTable.createdAt))
+      .limit(20);
+
+    const activeSubs = subs.filter(s => s.status === "active" || s.status === "trialing");
+    const mrr = activeSubs.reduce((sum, s) => {
+      const amt = parseFloat(s.amount || "0");
+      return sum + (s.billingCycle === "annual" ? amt / 12 : amt);
+    }, 0);
+
+    const allInvoices = await db.select({ status: invoicesTable.status, total: invoicesTable.total }).from(invoicesTable);
+    const outstanding = allInvoices.filter(i => i.status === "sent" || i.status === "viewed" || i.status === "overdue").reduce((s, i) => s + parseFloat(i.total || "0"), 0);
+    const totalRevenue = allInvoices.filter(i => i.status === "paid").reduce((s, i) => s + parseFloat(i.total || "0"), 0);
+    const overdueCount = allInvoices.filter(i => i.status === "overdue").length;
+
+    res.json({ mrr, outstanding, totalRevenue, overdueCount, activeSubscriptions: activeSubs.length, recentInvoices: invoices, subscriptions: subs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/checkout/:tierId", async (req: Request, res: Response) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const tierId = req.params.tierId;
+    const { billingCycle = "monthly", email } = req.body;
+
+    let tier: any = null;
+    const tierIdStr = String(tierId);
+    const isSlug = isNaN(parseInt(tierIdStr));
+    if (isSlug) {
+      const [t] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.slug, tierIdStr));
+      tier = t;
+    } else {
+      const [t] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, parseInt(tierIdStr)));
+      tier = t;
+    }
+
+    if (!tier) { res.status(404).json({ error: "tier_not_found" }); return; }
+    if (tier.slug === "enterprise") {
+      res.status(400).json({ error: "contact_sales", message: "Enterprise plans require a custom quote. Please contact us." });
+      return;
+    }
+
+    const priceAmount = billingCycle === "annual"
+      ? Math.round(parseFloat(tier.annualPrice || tier.startingPrice) * 100)
+      : Math.round(parseFloat(tier.startingPrice) * 100);
+
+    const base = getBaseUrl(req);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      ...(email ? { customer_email: email } : {}),
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: { name: `${tier.name} Plan`, description: tier.tagline || undefined },
+          unit_amount: priceAmount,
+          recurring: { interval: billingCycle === "annual" ? "year" : "month" },
+        },
+        quantity: 1,
+      }],
+      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, type: "self_checkout" },
+      allow_promotion_codes: true,
+      success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/pricing`,
+    });
+
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err: any) {
+    console.error("[Stripe] Self-checkout error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { method = "manual" } = req.body;
+
+    const [commission] = await db.select({
+      id: partnerCommissionsTable.id,
+      amount: partnerCommissionsTable.amount,
+      status: partnerCommissionsTable.status,
+      partnerId: partnerCommissionsTable.partnerId,
+      stripeTransferId: partnerCommissionsTable.stripeTransferId,
+    }).from(partnerCommissionsTable).where(eq(partnerCommissionsTable.id, id));
+
+    if (!commission) { res.status(404).json({ error: "not_found" }); return; }
+    if (commission.status !== "approved") { res.status(400).json({ error: "not_approved", message: "Commission must be approved before payout." }); return; }
+
+    let stripeTransferId: string | null = null;
+
+    if (method === "stripe" && isStripeConfigured()) {
+      const stripe = getStripe();
+      const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, commission.partnerId));
+      if (!partner?.stripeConnectAccountId) {
+        res.status(400).json({ error: "no_connect_account", message: "Partner does not have a Stripe Connect account. Use manual payout." });
+        return;
+      }
+      const transfer = await stripe.transfers.create({
+        amount: Math.round(parseFloat(commission.amount) * 100),
+        currency: "usd",
+        destination: partner.stripeConnectAccountId,
+        metadata: { commissionId: String(id), partnerId: String(commission.partnerId) },
+      });
+      stripeTransferId = transfer.id;
+    }
+
+    await db.update(partnerCommissionsTable).set({
+      status: "paid",
+      paidAt: new Date(),
+      stripeTransferId: stripeTransferId || null,
+      payoutMethod: method,
+    }).where(eq(partnerCommissionsTable.id, id));
+
+    const [updated] = await db.select().from(partnerCommissionsTable).where(eq(partnerCommissionsTable.id, id));
+    res.json({ commission: updated, stripeTransferId });
+  } catch (err: any) {
+    console.error("[Stripe] Commission payout error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.get("/partner/billing/invoices", async (req: any, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) { res.status(401).json({ error: "unauthorized" }); return; }
+    const token = authHeader.replace("Bearer ", "");
+    const jwt = await import("jsonwebtoken");
+    const secret = process.env.JWT_SECRET || "siebert-partner-secret-2024";
+    let payload: any;
+    try {
+      payload = jwt.default.verify(token, secret);
+    } catch {
+      const altSecret = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
+      try { payload = jwt.default.verify(token, altSecret); } catch { res.status(401).json({ error: "unauthorized" }); return; }
+    }
+    const partnerId = payload.partnerId || payload.userId;
+    if (!partnerId) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const invoices = await db.select().from(invoicesTable)
+      .where(eq(invoicesTable.partnerId, partnerId))
+      .orderBy(desc(invoicesTable.createdAt));
+
+    const subs = await db.select().from(subscriptionsTable)
+      .where(eq(subscriptionsTable.partnerId, partnerId))
+      .orderBy(desc(subscriptionsTable.createdAt))
+      .limit(1);
+
+    res.json({ invoices: invoices.map(i => ({ ...i, items: JSON.parse(i.items || "[]") })), subscription: subs[0] || null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+export default router;

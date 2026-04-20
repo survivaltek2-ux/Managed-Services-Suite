@@ -39,6 +39,8 @@ export const partnersTable = pgTable("partners", {
   ssoId: text("sso_id"),
   isAdmin: boolean("is_admin").notNull().default(false),
   clientTicketsEnabled: boolean("client_tickets_enabled").notNull().default(false),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeConnectAccountId: text("stripe_connect_account_id"),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -170,6 +172,8 @@ export const partnerCommissionsTable = pgTable("partner_commissions", {
   paidAt: timestamp("paid_at"),
   periodStart: timestamp("period_start"),
   periodEnd: timestamp("period_end"),
+  stripeTransferId: text("stripe_transfer_id"),
+  payoutMethod: text("payout_method"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

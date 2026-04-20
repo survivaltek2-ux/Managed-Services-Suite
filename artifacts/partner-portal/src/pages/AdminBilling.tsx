@@ -1,0 +1,316 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { PortalLayout } from "@/components/layout/PortalLayout";
+import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/Button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/Input";
+
+interface BillingStats {
+  mrr: number;
+  outstanding: number;
+  totalRevenue: number;
+  overdueCount: number;
+  activeSubscriptions: number;
+  recentInvoices: any[];
+  subscriptions: any[];
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const classes: Record<string, string> = {
+    paid: "bg-emerald-100 text-emerald-800",
+    sent: "bg-blue-100 text-blue-800",
+    viewed: "bg-purple-100 text-purple-800",
+    overdue: "bg-red-100 text-red-800",
+    draft: "bg-gray-100 text-gray-800",
+    active: "bg-emerald-100 text-emerald-800",
+    trialing: "bg-blue-100 text-blue-800",
+    canceled: "bg-gray-100 text-gray-500",
+    past_due: "bg-red-100 text-red-800",
+    incomplete: "bg-yellow-100 text-yellow-800",
+  };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${classes[status] || "bg-gray-100 text-gray-800"}`}>
+      {status.replace(/_/g, " ")}
+    </span>
+  );
+}
+
+export default function AdminBilling() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [stats, setStats] = useState<BillingStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [createSubOpen, setCreateSubOpen] = useState(false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [subForm, setSubForm] = useState({ userId: "", partnerId: "", tierId: "", billingCycle: "monthly" });
+  const [creatingSubscription, setCreatingSubscription] = useState(false);
+  const [tiers, setTiers] = useState<any[]>([]);
+
+  const headers = getAuthHeaders();
+  const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, tiersRes] = await Promise.all([
+        fetch("/api/admin/billing/stats", { headers }),
+        fetch("/api/cms/pricing-tiers"),
+      ]);
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (tiersRes.ok) setTiers(await tiersRes.json());
+    } catch {
+      toast({ title: "Failed to load billing data", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const createSubscription = async () => {
+    setCreatingSubscription(true);
+    try {
+      const res = await fetch("/api/admin/billing/subscriptions", {
+        method: "POST", headers,
+        body: JSON.stringify(subForm),
+      });
+      if (res.ok) {
+        toast({ title: "Subscription created successfully" });
+        setCreateSubOpen(false);
+        setSubForm({ userId: "", partnerId: "", tierId: "", billingCycle: "monthly" });
+        load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: err.message || "Failed to create subscription", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error creating subscription", variant: "destructive" });
+    } finally {
+      setCreatingSubscription(false);
+    }
+  };
+
+  const cancelSubscription = async (id: number) => {
+    setCancellingId(id);
+    try {
+      const res = await fetch(`/api/admin/billing/subscriptions/${id}/cancel`, {
+        method: "PUT", headers,
+        body: JSON.stringify({ immediately: false }),
+      });
+      if (res.ok) {
+        toast({ title: "Subscription set to cancel at period end" });
+        load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: err.message || "Failed to cancel subscription", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error cancelling subscription", variant: "destructive" });
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  if (!user || !user.isAdmin) {
+    return (
+      <PortalLayout>
+        <div className="px-6 py-12 text-center">
+          <p className="text-muted-foreground">Access denied. Admin privileges required.</p>
+        </div>
+      </PortalLayout>
+    );
+  }
+
+  return (
+    <PortalLayout>
+      <div className="px-6 py-4">
+        <div className="max-w-7xl mx-auto space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Billing Dashboard</h1>
+              <p className="text-sm text-muted-foreground mt-1">Revenue, subscriptions, and payment activity</p>
+            </div>
+            <Button size="sm" onClick={() => setCreateSubOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> New Subscription
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : stats ? (
+            <>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {[
+                  { label: "MRR", value: fmt(stats.mrr), icon: TrendingUp, color: "text-emerald-600" },
+                  { label: "Outstanding", value: fmt(stats.outstanding), icon: FileText, color: "text-orange-600" },
+                  { label: "Total Revenue", value: fmt(stats.totalRevenue), icon: CreditCard, color: "text-blue-600" },
+                  { label: "Overdue", value: stats.overdueCount.toString(), icon: AlertTriangle, color: "text-red-600" },
+                  { label: "Active Subscriptions", value: stats.activeSubscriptions.toString(), icon: Users, color: "text-purple-600" },
+                ].map(m => {
+                  const Icon = m.icon;
+                  return (
+                    <Card key={m.label}>
+                      <CardContent className="pt-4 pb-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground">{m.label}</p>
+                            <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
+                          </div>
+                          <Icon className={`w-5 h-5 mt-1 ${m.color} opacity-60`} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Recent Invoices */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="w-4 h-4" /> Recent Payments
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="px-4 py-2.5 text-left">Client</th>
+                            <th className="px-4 py-2.5 text-left">Invoice</th>
+                            <th className="px-4 py-2.5 text-left">Status</th>
+                            <th className="px-4 py-2.5 text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stats.recentInvoices.length === 0 ? (
+                            <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-xs">No recent invoices</td></tr>
+                          ) : stats.recentInvoices.map((inv: any) => (
+                            <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="px-4 py-2.5">
+                                <p className="font-medium text-xs">{inv.clientName || "—"}</p>
+                                <p className="text-xs text-muted-foreground">{inv.clientEmail}</p>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <p className="font-mono text-xs text-muted-foreground">{inv.invoiceNumber}</p>
+                                <p className="text-xs">{inv.title}</p>
+                              </td>
+                              <td className="px-4 py-2.5"><StatusBadge status={inv.status} /></td>
+                              <td className="px-4 py-2.5 text-right font-medium">{fmt(parseFloat(inv.total || "0"))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Active Subscriptions */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" /> Subscriptions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="px-4 py-2.5 text-left">Plan</th>
+                            <th className="px-4 py-2.5 text-left">Status</th>
+                            <th className="px-4 py-2.5 text-right">Amount</th>
+                            <th className="px-4 py-2.5 text-left">Renews</th>
+                            <th className="px-4 py-2.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stats.subscriptions.length === 0 ? (
+                            <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-xs">No subscriptions yet</td></tr>
+                          ) : stats.subscriptions.map((sub: any) => (
+                            <tr key={sub.id} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="px-4 py-2.5">
+                                <p className="font-medium capitalize">{sub.planName}</p>
+                                <p className="text-xs text-muted-foreground capitalize">{sub.billingCycle}</p>
+                              </td>
+                              <td className="px-4 py-2.5"><StatusBadge status={sub.status} /></td>
+                              <td className="px-4 py-2.5 text-right font-medium">{sub.amount ? fmt(parseFloat(sub.amount)) : "—"}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{fmtDate(sub.currentPeriodEnd)}</td>
+                              <td className="px-4 py-2.5 text-right">
+                                {sub.status !== "canceled" && !sub.cancelAtPeriodEnd && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs text-red-600 hover:text-red-700"
+                                    onClick={() => cancelSubscription(sub.id)}
+                                    disabled={cancellingId === sub.id}
+                                  >
+                                    {cancellingId === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                  </Button>
+                                )}
+                                {sub.cancelAtPeriodEnd && <span className="text-xs text-orange-600">Cancels soon</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">Failed to load billing data</div>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={createSubOpen} onOpenChange={setCreateSubOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Subscription</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <Label>User ID (client account)</Label>
+              <Input type="number" value={subForm.userId} onChange={e => setSubForm(p => ({ ...p, userId: e.target.value }))} placeholder="Leave blank if using partner ID" />
+            </div>
+            <div>
+              <Label>Partner ID (partner account)</Label>
+              <Input type="number" value={subForm.partnerId} onChange={e => setSubForm(p => ({ ...p, partnerId: e.target.value }))} placeholder="Leave blank if using user ID" />
+            </div>
+            <div>
+              <Label>Pricing Tier</Label>
+              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background mt-1" value={subForm.tierId} onChange={e => setSubForm(p => ({ ...p, tierId: e.target.value }))}>
+                <option value="">Select a tier...</option>
+                {tiers.map((t: any) => <option key={t.id} value={t.id}>{t.name} — ${t.startingPrice}/mo</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Billing Cycle</Label>
+              <select className="w-full h-9 px-3 rounded-md border text-sm bg-background mt-1" value={subForm.billingCycle} onChange={e => setSubForm(p => ({ ...p, billingCycle: e.target.value }))}>
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground">Stripe must be configured and a valid pricing tier selected. This will create a live Stripe subscription.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateSubOpen(false)}>Cancel</Button>
+            <Button onClick={createSubscription} disabled={creatingSubscription || (!subForm.userId && !subForm.partnerId) || !subForm.tierId}>
+              {creatingSubscription ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Create Subscription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PortalLayout>
+  );
+}

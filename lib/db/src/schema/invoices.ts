@@ -8,6 +8,7 @@ export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "vie
 export const invoicesTable = pgTable("invoices", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => usersTable.id),
+  partnerId: integer("partner_id"),
   invoiceNumber: text("invoice_number").notNull().unique(),
   title: text("title").notNull().default("Invoice"),
   status: invoiceStatusEnum("status").notNull().default("draft"),
@@ -18,6 +19,9 @@ export const invoicesTable = pgTable("invoices", {
   dueDate: timestamp("due_date"),
   paidAt: timestamp("paid_at"),
   notes: text("notes"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

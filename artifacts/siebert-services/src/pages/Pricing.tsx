@@ -118,6 +118,7 @@ export default function Pricing() {
   const [openMobileTier, setOpenMobileTier] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingCycle>("monthly");
   const [, setLocation] = useLocation();
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -143,7 +144,7 @@ export default function Pricing() {
     return { price: monthly, hasDiscount: false, original: monthly };
   };
 
-  const handleTierCta = (tier: PricingTier) => {
+  const handleTierCta = async (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
     window.dataLayer?.push({
       event: "pricing_cta_click",
@@ -154,12 +155,37 @@ export default function Pricing() {
     window.dispatchEvent(new CustomEvent("pricing_cta_click", {
       detail: { tierSlug: slug, tierName: tier.name, ctaLabel: tier.ctaLabel },
     }));
-    const baseLink = tier.ctaLink || "/quote";
-    if (baseLink.startsWith("/quote")) {
+
+    if (slug === "enterprise") {
+      setLocation("/contact?plan=enterprise");
+      return;
+    }
+
+    setCheckoutLoading(slug);
+    try {
+      const res = await fetch(`/api/checkout/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billingCycle: billing }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.error === "stripe_not_configured" || data.error === "tier_not_found") {
+        const baseLink = tier.ctaLink || "/quote";
+        const sep = baseLink.includes("?") ? "&" : "?";
+        setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
+      } else {
+        const baseLink = tier.ctaLink || "/quote";
+        const sep = baseLink.includes("?") ? "&" : "?";
+        setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
+      }
+    } catch {
+      const baseLink = tier.ctaLink || "/quote";
       const sep = baseLink.includes("?") ? "&" : "?";
       setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
-    } else {
-      setLocation(baseLink);
+    } finally {
+      setCheckoutLoading(null);
     }
   };
 
@@ -343,8 +369,19 @@ export default function Pricing() {
                       className="w-full justify-center gap-2"
                       onClick={() => handleTierCta(tier)}
                       data-testid={`pricing-cta-${tier.slug}`}
+                      disabled={checkoutLoading === tier.slug}
                     >
-                      {tier.ctaLabel || "Get Started"} <ArrowRight className="w-4 h-4" />
+                      {checkoutLoading === tier.slug ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Redirecting...
+                        </>
+                      ) : (
+                        <>{tier.ctaLabel || "Get Started"} <ArrowRight className="w-4 h-4" /></>
+                      )}
                     </Button>
                   </CardContent>
                 </Card>

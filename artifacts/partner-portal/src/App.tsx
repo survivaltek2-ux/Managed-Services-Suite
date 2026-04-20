@@ -35,6 +35,8 @@ import AdminTsdProducts from "./pages/AdminTsdProducts";
 import AIPageEditor from "./pages/admin/AIPageEditor";
 import ServiceAvailability from "./pages/ServiceAvailability";
 import Vivint from "./pages/Vivint";
+import Billing from "./pages/Billing";
+import AdminBilling from "./pages/AdminBilling";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -93,6 +95,8 @@ function Router() {
       <Route path="/admin/marketplace"><ProtectedRoute component={AdminMarketplace} /></Route>
       <Route path="/admin/tsd-products"><ProtectedRoute component={AdminTsdProducts} /></Route>
       <Route path="/admin/ai-page-editor"><ProtectedRoute component={AIPageEditor} /></Route>
+      <Route path="/admin/billing"><ProtectedRoute component={AdminBilling} /></Route>
+      <Route path="/billing"><ProtectedRoute component={Billing} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>
 

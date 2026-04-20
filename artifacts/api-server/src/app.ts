@@ -34,7 +34,8 @@ const WEBHOOK_MAX_BYTES = 1 * 1024 * 1024;
 function captureRawBody(req: Request, _res: Response, buf: Buffer): void {
   if (
     req.path.startsWith("/api/webhooks/tsd/") ||
-    req.path.startsWith("/api/webhooks/zoom/")
+    req.path.startsWith("/api/webhooks/zoom/") ||
+    req.path.startsWith("/api/webhooks/stripe")
   ) {
     req.rawBody = Buffer.from(buf);
   }
@@ -46,7 +47,7 @@ app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (
     req.rawBody &&
-    (req.path.startsWith("/api/webhooks/tsd/") || req.path.startsWith("/api/webhooks/zoom/")) &&
+    (req.path.startsWith("/api/webhooks/tsd/") || req.path.startsWith("/api/webhooks/zoom/") || req.path.startsWith("/api/webhooks/stripe")) &&
     req.rawBody.length > WEBHOOK_MAX_BYTES
   ) {
     res.status(413).json({ error: "payload_too_large" });
@@ -70,7 +71,7 @@ if (existsSync(partnerIndex)) {
 
 if (existsSync(marketingIndex)) {
   app.use(express.static(marketingDist, staticOptions));
-  app.get(/^\/(admin|portal|blog|case-studies|services|zoom|about|contact|quote|resources)(\/.*)?$/, (_req, res) => {
+  app.get(/^\/(admin|portal|blog|case-studies|services|zoom|about|contact|quote|resources|welcome|pricing)(\/.*)?$/, (_req, res) => {
     res.sendFile(marketingIndex);
   });
   app.get(/^\/proposal\/.*$/, (_req, res) => {

@@ -3,7 +3,7 @@ import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, Plus, Edit2, Download, Loader2, Save, Check, X, AlertTriangle, DollarSign
+  Search, Plus, Edit2, Download, Loader2, Save, Check, X, AlertTriangle, DollarSign, Send, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -25,6 +25,7 @@ export default function AdminCommissions() {
   const [notesText, setNotesText] = useState("");
   const [form, setForm] = useState({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10", notes: "" });
   const [exporting, setExporting] = useState(false);
+  const [payingOutId, setPayingOutId] = useState<number | null>(null);
 
   const headers = getAuthHeaders();
 
@@ -88,6 +89,26 @@ export default function AdminCommissions() {
       if (res.ok) { toast({ title: "Commission created" }); setCreateOpen(false); setForm({ partnerId: "", dealId: "", type: "deal", description: "", amount: "", rate: "10", notes: "" }); load(); }
       else toast({ title: "Failed to create commission", variant: "destructive" });
     } catch { toast({ title: "Error creating commission", variant: "destructive" }); }
+  };
+
+  const payoutCommission = async (id: number) => {
+    setPayingOutId(id);
+    try {
+      const res = await fetch(`/api/admin/commissions/${id}/payout`, {
+        method: "POST", headers,
+        body: JSON.stringify({ method: "manual" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const msg = data.stripeTransferId ? `Payout via Stripe (${data.stripeTransferId})` : "Manual payout recorded";
+        toast({ title: msg });
+        load();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: err.message || "Payout failed", variant: "destructive" });
+      }
+    } catch { toast({ title: "Error processing payout", variant: "destructive" }); }
+    finally { setPayingOutId(null); }
   };
 
   const exportCSV = async () => {
@@ -229,7 +250,28 @@ export default function AdminCommissions() {
                                 </>
                               )}
                               {c.status === "approved" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Mark Paid" onClick={() => updateStatus(c.id, "paid")}><DollarSign className="w-4 h-4" /></Button>
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
+                                    title="Pay Out"
+                                    onClick={() => payoutCommission(c.id)}
+                                    disabled={payingOutId === c.id}
+                                  >
+                                    {payingOutId === c.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
+                                    Pay Out
+                                  </Button>
+                                </>
+                              )}
+                          {c.status === "paid" && c.stripeTransferId && (
+                                <span className="text-xs text-muted-foreground font-mono flex items-center gap-1" title={c.stripeTransferId}>
+                                  <ExternalLink className="w-3 h-3" />
+                                  {c.stripeTransferId.slice(0, 12)}…
+                                </span>
+                              )}
+                          {c.status === "paid" && c.payoutMethod && (
+                                <span className="text-xs text-muted-foreground capitalize">{c.payoutMethod}</span>
                               )}
                               {c.status === "disputed" && (
                                 <>

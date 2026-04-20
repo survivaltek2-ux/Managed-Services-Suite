@@ -26,6 +26,8 @@ import pageContentRouter from "./page-content";
 import aiAdminRouter from "./ai-admin";
 import storageRouter from "./storage";
 import leadMagnetsRouter from "./lead-magnets.js";
+import stripeBillingRouter from "./stripe-billing.js";
+import stripeWebhooksRouter from "./stripe-webhooks.js";
 
 const router: IRouter = Router();
 
@@ -56,5 +58,7 @@ router.use(pageContentRouter);
 router.use(aiAdminRouter);
 router.use(storageRouter);
 router.use(leadMagnetsRouter);
+router.use(stripeBillingRouter);
+router.use(stripeWebhooksRouter);
 
 export default router;
