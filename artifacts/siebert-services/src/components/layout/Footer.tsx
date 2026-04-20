@@ -40,7 +40,7 @@ const certifications = [
 ];
 
 const serviceArea =
-  "Proudly serving businesses across North America — on-site dispatch and remote support available everywhere.";
+  "Remote support for businesses across North America. On-site dispatch available in Orange County, NY and surrounding counties.";
 
 export function Footer() {
   return (

@@ -146,7 +146,7 @@ const content: ServicePageContent = {
     { label: "Pricing", href: "/quote" },
   ],
   schemaDescription:
-    "Fully managed and co-managed IT support for SMBs across North America. 24/7 help desk, proactive monitoring, patching, and on-site dispatch on a predictable per-seat plan.",
+    "Fully managed and co-managed IT support for SMBs across North America. 24/7 help desk, proactive monitoring, patching, and on-site dispatch (Orange County, NY area) on a predictable per-seat plan.",
 };
 
 export default function ManagedIT() {
