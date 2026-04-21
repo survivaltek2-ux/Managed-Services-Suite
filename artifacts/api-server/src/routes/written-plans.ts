@@ -354,8 +354,8 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
       res.status(403).json({ error: "forbidden" }); return;
     }
-    if (["approved", "declined"].includes(existing.status)) {
-      res.status(400).json({ error: "cannot_send_terminal", message: "Cannot resend a plan that has been approved or declined. Create a revision instead." });
+    if (["approved", "declined", "call_requested"].includes(existing.status)) {
+      res.status(400).json({ error: "cannot_send_terminal", message: "Cannot resend a plan that has been approved, declined, or where a call has been requested. Create a revision instead." });
       return;
     }
     const existingContent = existing.planContent as PlanContentShape | null;

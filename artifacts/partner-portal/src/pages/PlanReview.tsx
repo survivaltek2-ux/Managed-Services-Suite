@@ -205,7 +205,14 @@ export default function PlanReview() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: declineReason, note: declineNote }),
       });
-      if (r.ok) setDone("declined");
+      if (r.ok) {
+        setDone("declined");
+      } else {
+        const body = await r.json().catch(() => ({}));
+        alert(body?.message || "Failed to submit. Please try again.");
+      }
+    } catch {
+      alert("An unexpected error occurred. Please try again.");
     } finally { setSubmitting(false); }
   }
 
@@ -216,7 +223,14 @@ export default function PlanReview() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      if (r.ok) setDone("call");
+      if (r.ok) {
+        setDone("call");
+      } else {
+        const body = await r.json().catch(() => ({}));
+        alert(body?.message || "Failed to submit request. Please try again.");
+      }
+    } catch {
+      alert("An unexpected error occurred. Please try again.");
     } finally { setSubmitting(false); }
   }
 
