@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import { Response, Request, NextFunction } from "express";
+import crypto from "crypto";
 import { db, siteSettingsTable, servicesTable, testimonialsTable, teamMembersTable, faqItemsTable, blogPostsTable, activityLogTable, usersTable, contactsTable, quotesTable, ticketsTable, ticketMessagesTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable, industriesTable } from "@workspace/db";
 import { eq, desc, like, or, sql, count } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
 import jwt from "jsonwebtoken";
-import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache, sendAdminTicketReply, sendTicketStatusUpdate, sendQuoteStatusUpdate } from "../lib/email.js";
+import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache, sendAdminTicketReply, sendTicketStatusUpdate, sendQuoteStatusUpdate, sendClientWelcomeFromQuote } from "../lib/email.js";
 import { stripe, isStripeConfigured } from "../lib/stripe.js";
 import bcrypt from "bcryptjs";
 
@@ -1069,7 +1070,7 @@ router.get("/admin/users", requireAuth, requireAdmin, async (req: AuthRequest, r
     const users = await db.select({
       id: usersTable.id, name: usersTable.name, email: usersTable.email,
       company: usersTable.company, phone: usersTable.phone, role: usersTable.role,
-      createdAt: usersTable.createdAt,
+      createdAt: usersTable.createdAt, mustChangePassword: usersTable.mustChangePassword,
     }).from(usersTable).orderBy(desc(usersTable.createdAt));
     res.json(users);
   } catch (err) {
@@ -1151,6 +1152,38 @@ router.delete("/admin/users/:id", requireAuth, requireAdmin, async (req: AuthReq
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to delete user" });
+  }
+});
+
+router.post("/admin/users/:id/resend-welcome", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "not_found", message: "User not found" });
+      return;
+    }
+    if (!user.mustChangePassword) {
+      res.status(400).json({ error: "invalid_request", message: "This account has already set a permanent password" });
+      return;
+    }
+
+    const temporaryPassword = crypto.randomBytes(8).toString("base64url").slice(0, 12);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    await db.update(usersTable).set({ password: hashedPassword, mustChangePassword: true }).where(eq(usersTable.id, id));
+
+    sendClientWelcomeFromQuote({
+      name: user.name,
+      email: user.email,
+      company: user.company || "",
+      temporaryPassword,
+    }).catch(err => console.error("[Email] Resend welcome error:", err));
+
+    await logActivity(req.userId, "update", "user", id, "Resent welcome email with new temporary password");
+    res.json({ success: true, message: "Welcome email resent successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error", message: "Failed to resend welcome email" });
   }
 });
 

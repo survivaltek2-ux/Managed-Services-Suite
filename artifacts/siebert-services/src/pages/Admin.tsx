@@ -971,8 +971,26 @@ function ImportTab({ headers }: { headers: () => any }) {
   const [mode, setMode] = useState<"users" | "partners">("users");
   const [csvText, setCsvText] = useState("");
   const [importing, setImporting] = useState(false);
-  type ImportRowResult = { row: number; status: "created" | "skipped" | "error"; email?: string; message?: string };
+  const [resendingUserId, setResendingUserId] = useState<number | null>(null);
+  type ImportRowResult = { row: number; status: "created" | "skipped" | "error"; email?: string; message?: string; userId?: number };
   const [results, setResults] = useState<null | { summary: { total: number; created: number; skipped: number; errors: number }; results: ImportRowResult[] }>(null);
+
+  const handleResendImportWelcome = async (userId: number) => {
+    setResendingUserId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/resend-welcome`, { method: "POST", headers: headers() });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Welcome email resent", description: "A fresh temporary password has been sent to the user." });
+      } else {
+        toast({ title: data.message || "Failed to resend welcome email", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error resending welcome email", variant: "destructive" });
+    } finally {
+      setResendingUserId(null);
+    }
+  };
 
   const exampleUsers = "name,email,company,phone,role\nJane Smith,jane@acme.com,Acme Corp,555-0100,client\nBob Admin,bob@acme.com,Acme Corp,,admin";
   const examplePartners = "contactName,companyName,email,businessType,specializations,phone,website,tier\nJohn Doe,Alpha IT,john@alphait.com,msp,Microsoft 365|Azure,555-0200,https://alphait.com,silver";
@@ -1062,6 +1080,7 @@ function ImportTab({ headers }: { headers: () => any }) {
                     <th className="px-3 py-2 text-left">Email</th>
                     <th className="px-3 py-2 text-left">Status</th>
                     <th className="px-3 py-2 text-left">Message</th>
+                    {mode === "users" && <th className="px-3 py-2 text-left">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1075,6 +1094,23 @@ function ImportTab({ headers }: { headers: () => any }) {
                         </Badge>
                       </td>
                       <td className="px-3 py-1.5 text-muted-foreground">{r.message}</td>
+                      {mode === "users" && (
+                        <td className="px-3 py-1.5">
+                          {r.status === "created" && r.userId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleResendImportWelcome(r.userId!)}
+                              disabled={resendingUserId === r.userId}
+                              title="Resend welcome email with new temporary password"
+                            >
+                              {resendingUserId === r.userId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+                              Resend
+                            </Button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1532,6 +1568,7 @@ function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; re
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", company: "", phone: "", role: "client" });
   const [isCreating, setIsCreating] = useState(false);
+  const [resendingId, setResendingId] = useState<number | null>(null);
   
   const filtered = useMemo(() => {
     if (!search) return users;
@@ -1553,6 +1590,23 @@ function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; re
       await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: headers() });
       toast({ title: "Deleted" }); refresh();
     } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  const handleResendWelcome = async (id: number) => {
+    setResendingId(id);
+    try {
+      const res = await fetch(`/api/admin/users/${id}/resend-welcome`, { method: "POST", headers: headers() });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Welcome email resent", description: "A new temporary password has been sent to the user." });
+      } else {
+        toast({ title: data.message || "Failed to resend welcome email", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error resending welcome email", variant: "destructive" });
+    } finally {
+      setResendingId(null);
+    }
   };
 
   const createUser = async () => {
@@ -1650,7 +1704,16 @@ function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; re
             <tbody>
               {filtered.map(u => (
                 <tr key={u.id} className="border-b last:border-0 hover:bg-muted/50">
-                  <td className="px-5 py-3 font-medium">{u.name}</td>
+                  <td className="px-5 py-3 font-medium">
+                    <div className="flex items-center gap-2">
+                      {u.name}
+                      {u.mustChangePassword && (
+                        <Badge variant="secondary" className="text-xs gap-1 text-amber-700 bg-amber-100 border-amber-200">
+                          <KeyRound className="w-3 h-3" />Temp password
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-5 py-3">{u.email}</td>
                   <td className="px-5 py-3">{u.company}</td>
                   <td className="px-5 py-3">
@@ -1661,7 +1724,22 @@ function UsersTab({ users, refresh, headers, currentUserId }: { users: any[]; re
                   </td>
                   <td className="px-5 py-3 text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td className="px-5 py-3 text-right">
-                    {u.id !== currentUserId && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(u.id)}><Trash2 className="w-4 h-4" /></Button>}
+                    <div className="flex items-center justify-end gap-1">
+                      {u.mustChangePassword && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleResendWelcome(u.id)}
+                          disabled={resendingId === u.id}
+                          title="Resend welcome email with new temporary password"
+                        >
+                          {resendingId === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          Resend Welcome
+                        </Button>
+                      )}
+                      {u.id !== currentUserId && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(u.id)}><Trash2 className="w-4 h-4" /></Button>}
+                    </div>
                   </td>
                 </tr>
               ))}

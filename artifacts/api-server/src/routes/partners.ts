@@ -1858,6 +1858,7 @@ interface ImportRowResult {
   status: "created" | "skipped" | "error";
   email?: string;
   message?: string;
+  userId?: number;
 }
 
 function parseCsv(text: string): Array<Record<string, string>> {
@@ -1926,11 +1927,11 @@ router.post("/admin/import/users", requireAuth, requireAdmin, async (req: AuthRe
         const role: "client" | "admin" = roleRaw === "admin" ? "admin" : "client";
         const tempPassword = crypto.randomBytes(8).toString("base64url").slice(0, 12);
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
-        await db.insert(usersTable).values({ name, email, password: hashedPassword, company, phone, role, mustChangePassword: true });
+        const [newUser] = await db.insert(usersTable).values({ name, email, password: hashedPassword, company, phone, role, mustChangePassword: true }).returning({ id: usersTable.id });
         const { sendClientWelcomeFromImport } = await import("../lib/email.js");
         sendClientWelcomeFromImport({ name, email, company, temporaryPassword: tempPassword })
           .catch(err => console.error("[CSV Import] Welcome email error:", err));
-        results.push({ row: i + 2, status: "created", email, message: "Account created, welcome email sent" });
+        results.push({ row: i + 2, status: "created", email, message: "Account created, welcome email sent", userId: newUser?.id });
       } catch (rowErr: unknown) {
         const errMsg = rowErr instanceof Error ? rowErr.message : "Unknown error";
         results.push({ row: i + 2, status: "error", email: email || undefined, message: errMsg });
