@@ -61,8 +61,8 @@ export function invalidateSmtpCache() {
   _configCacheAt = 0;
 }
 
-const MS_SMTP_HOST = "smtp-hve.office365.com";
-const MS_SMTP_PORT = 587;
+const MS_SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
+const MS_SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
 
 function buildMicrosoftTransport(user: string, pass: string) {
   return nodemailer.createTransport({
