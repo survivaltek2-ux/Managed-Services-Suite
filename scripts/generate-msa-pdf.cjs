@@ -560,6 +560,29 @@ bodyText(
   "limitations arising solely from third-party products."
 );
 
+sectionHeading("2.7  Beta and Preview Features", 2);
+bodyText(
+  "From time to time Provider may make new tools, dashboards, or service capabilities available to " +
+  "Customer on a beta, preview, early-access, or evaluation basis (collectively, \"Preview Features\"). " +
+  "Preview Features are provided strictly AS-IS and AS-AVAILABLE, without any service-level commitment, " +
+  "warranty, or indemnity, and may be modified, suspended, or discontinued at any time without notice. " +
+  "Sections 11 (Warranties), 12 (Limitation of Liability), and 13 (Indemnification) apply to Preview " +
+  "Features as if they were Services, and Customer's exclusive remedy for any dissatisfaction with a " +
+  "Preview Feature is to discontinue use."
+);
+
+sectionHeading("2.8  Change Control", 2);
+bodyText(
+  `Work falling outside the scope of the selected Service Tier or an existing Order Form is handled as ` +
+  `follows. Routine, low-risk requests estimated at or under ${placeholder("CHANGE EMAIL THRESHOLD, e.g., two (2) hours")} ` +
+  "of effort may be authorized by Customer's primary point of contact via email and will be invoiced at " +
+  `Provider's then-current professional services rate. Engagements exceeding that threshold, or any work ` +
+  "that introduces new recurring fees, requires a written Order Form or signed change order before work " +
+  "begins. Provider will not perform out-of-scope work without Customer's documented authorization, and " +
+  "Customer agrees that emailed approval from its designated contact constitutes binding authorization " +
+  "for the threshold described above."
+);
+
 // SECTION 3 — TERM AND TERMINATION
 sectionHeading("SECTION 3 — TERM AND TERMINATION", 1);
 
@@ -664,6 +687,8 @@ bodyText(
 // SECTION 5 — CUSTOMER OBLIGATIONS
 addPage();
 sectionHeading("SECTION 5 — CUSTOMER OBLIGATIONS", 1);
+
+sectionHeading("5.1  General Cooperation", 2);
 bodyText(
   "Customer shall: (a) provide Provider with reasonable access to Customer's systems, networks, facilities, " +
   "and personnel necessary for Provider to perform the Services; (b) maintain current, valid licenses for " +
@@ -672,6 +697,27 @@ bodyText(
   "(e) promptly notify Provider of any changes to Customer's environment that may affect the Services; " +
   "(f) obtain all third-party consents, authorizations, and licenses required to allow Provider to access " +
   "and process Customer Data; and (g) comply with the Customer Responsibilities set forth in Schedule D."
+);
+
+sectionHeading("5.2  Minimum Security Baseline", 2);
+bodyText(
+  "As a condition of receiving the Services, Customer shall maintain at minimum the following security " +
+  "controls in its environment. Provider's SLA, security warranties, and indemnification obligations are " +
+  "expressly conditioned on Customer's reasonable compliance with this baseline:"
+);
+bulletList([
+  "Multi-factor authentication (MFA) enforced on all email accounts, VPN access, remote-desktop access, and any administrator-level account.",
+  "Named individual user accounts; no shared credentials for production or administrative access.",
+  "Endpoint protection (Provider-supplied EDR or equivalent) installed and active on all Customer-owned endpoints used to access Customer Data.",
+  "Operating systems and applications kept within vendor-supported versions; end-of-life software is removed or quarantined within ninety (90) days.",
+  "Backups of Customer-managed systems outside Provider's scope (if any) are tested at least quarterly by Customer.",
+  "Security awareness training completed at least annually by all Authorized Users with email access.",
+]);
+bodyText(
+  "If Customer materially deviates from this baseline (for example, by disabling MFA on administrator " +
+  "accounts), Provider may, after written notice and a reasonable opportunity to cure, suspend dependent " +
+  "Services and is excused from any resulting SLA failures, security warranties, or indemnity obligations " +
+  "to the extent the failure is attributable to the deviation."
 );
 
 // SECTION 6 — ACCEPTABLE USE
@@ -745,12 +791,60 @@ bodyText(
 
 // SECTION 9 — DATA PROTECTION
 sectionHeading("SECTION 9 — DATA PROTECTION & PRIVACY", 1);
+
+sectionHeading("9.1  Roles and Safeguards", 2);
 bodyText(
   "Provider will process Customer Data in accordance with this Agreement, applicable law, and Schedule E " +
   "(Data Protection & Security Addendum). Customer is the data controller (or equivalent); Provider acts " +
   "as a data processor (or equivalent) with respect to Personal Data. Provider implements and maintains " +
   "commercially reasonable administrative, technical, and physical safeguards designed to protect Customer " +
   "Data from unauthorized access, use, or disclosure."
+);
+
+sectionHeading("9.2  Data Residency", 2);
+bodyText(
+  "Provider will store and process Customer Data within the United States. If Provider proposes to relocate " +
+  "any Customer Data outside the United States — for example, by adopting a non-U.S. cloud region or " +
+  "subprocessor — Provider will obtain Customer's prior written consent and, if required, execute appropriate " +
+  "cross-border transfer mechanisms. Provider's standard tooling, backups, and support operations are " +
+  "U.S.-based as of the Effective Date."
+);
+
+sectionHeading("9.3  Subprocessor Notice", 2);
+bodyText(
+  "Provider engages a list of subprocessors to deliver the Services (including, as of the Effective Date, " +
+  "Provider's RMM/PSA platform, EDR vendor, backup cloud, after-hours NOC partner, and Microsoft 365 / " +
+  "cloud-hosting providers used to operate Customer's tenants). The current subprocessor list is maintained " +
+  "in Schedule E and is available to Customer on written request. Provider will provide at least thirty (30) " +
+  "days' prior written notice (which may be by email to Customer's designated contact) before adding or " +
+  "replacing any subprocessor that materially processes Customer Data. If Customer has a reasonable, " +
+  "documented objection to a new subprocessor, the parties will work in good faith to find an alternative; " +
+  "if no alternative is available, Customer may terminate the affected Services without early-termination fee."
+);
+
+sectionHeading("9.4  No Use of Customer Data for AI Training", 2);
+bodyText(
+  "Provider will not use Customer Data — including without limitation Customer Personal Data, message " +
+  "content, ticket content, configuration files, or backups — to train, fine-tune, or otherwise improve " +
+  "any generative-AI or machine-learning model that is made available to Provider's other customers or to " +
+  "the public. Provider may use generative-AI tools internally to assist in delivering the Services (for " +
+  "example, drafting ticket responses or summarizing logs), provided that: (a) any such tool is configured " +
+  "to disable vendor training on Provider's inputs; (b) Customer Data is not transmitted to consumer-tier " +
+  "AI services; and (c) Provider remains responsible under this Agreement for the work product regardless " +
+  "of whether AI tools assisted in producing it. Customer may opt out of Provider's internal AI-assisted " +
+  "service delivery for its account by written notice to Provider."
+);
+
+sectionHeading("9.5  HIPAA / Business Associate Agreement", 2);
+bodyText(
+  "Where Customer is a Covered Entity or Business Associate (each as defined under HIPAA, 45 C.F.R. " +
+  "Parts 160 and 164) and Provider's performance of the Services involves the creation, receipt, " +
+  "maintenance, or transmission of Protected Health Information (\"PHI\") on Customer's behalf, the parties " +
+  "will execute Provider's standard Business Associate Agreement (\"BAA\"), which is incorporated into " +
+  "this Agreement upon execution. In the event of any conflict between this Agreement and the BAA with " +
+  "respect to PHI, the BAA controls. Customer represents that it will not transmit PHI to Provider until " +
+  "a BAA has been executed, and Provider may suspend the affected Services if PHI is transmitted in " +
+  "advance of a fully executed BAA."
 );
 
 // SECTION 10 — SECURITY INCIDENT HANDLING
@@ -787,6 +881,19 @@ bodyText(
   "OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A " +
   "PARTICULAR PURPOSE, OR NON-INFRINGEMENT. PROVIDER DOES NOT WARRANT THAT THE SERVICES WILL BE " +
   "UNINTERRUPTED, ERROR-FREE, OR FREE FROM SECURITY VULNERABILITIES."
+);
+
+sectionHeading("11.4  Provider Personnel and Background Checks", 2);
+bodyText(
+  "Provider represents that all of its employees and any subcontractor personnel who will have logical " +
+  "or physical access to Customer's systems, Customer Data, or Customer facilities have, prior to such " +
+  "access being granted, completed: (a) a documented criminal-history background check covering at least " +
+  "the prior seven (7) years in jurisdictions of residence or employment, to the extent permitted by " +
+  "applicable law; (b) identity verification; and (c) Provider's confidentiality and acceptable-use " +
+  "training. Provider will retain records of such checks and will, on Customer's reasonable written " +
+  "request and subject to applicable privacy law, confirm in writing that a specific named individual " +
+  "assigned to Customer's account satisfies this requirement. Provider remains responsible under this " +
+  "Agreement for the acts and omissions of its personnel and subcontractors."
 );
 
 // SECTION 12 — LIMITATION OF LIABILITY
@@ -922,7 +1029,19 @@ bodyText(
   "This Agreement is for the sole benefit of the parties and their permitted successors; it does not " +
   "create any rights in third parties. (h) Headings. Section headings are for convenience only. " +
   "(i) Construction. This Agreement has been negotiated by both parties, and any ambiguity will not be " +
-  "construed against the drafter."
+  "construed against the drafter. " +
+  "(j) Mutual Non-Solicitation. During the Term and for twelve (12) months after termination, neither " +
+  "party shall directly or indirectly solicit for employment or engagement any employee or contractor of " +
+  "the other party who has been substantially involved in performing or receiving the Services, without " +
+  "the other party's prior written consent. General public job postings, recruitment-firm searches not " +
+  "targeted at the other party, and the hiring of an individual who responds to such general efforts " +
+  "without solicitation are not a breach of this clause. " +
+  "(k) Publicity and Logo Use. Provider may identify Customer as a customer and use Customer's name and " +
+  "logo on Provider's website, sales decks, capabilities statements, and similar marketing materials, " +
+  "provided that any such use is consistent with any usage guidelines Customer reasonably provides in " +
+  "writing. Customer may revoke this permission at any time by written notice to Provider, in which case " +
+  "Provider will remove Customer's name and logo from publicly distributed materials within thirty (30) " +
+  "days. Any case study, press release, or quoted testimonial requires Customer's prior written approval."
 );
 
 // SIGNATURE PAGE
@@ -1581,6 +1700,17 @@ const addenda = [
       `Annual software-license reconciliation (Microsoft, Adobe, and others)`,
     ],
     pricing: "Hardware and software: cost + 15% unless volume pricing is negotiated separately. No markup on licenses sourced at Microsoft CSP rates.",
+    extra: "Hardware Return & E-Waste: Hardware that is owned by Provider and loaned, leased, or " +
+      "consigned to Customer (including loaner laptops, evaluation units, and Provider-owned spares) " +
+      "shall be returned to Provider within thirty (30) days after termination of the applicable Order " +
+      "Form, in substantially the same condition as delivered, ordinary wear and tear excepted. " +
+      "Customer is responsible for shipping costs for returns within the continental United States; " +
+      "Provider will provide return labels on request. Hardware not returned within the thirty (30) day " +
+      "window will be invoiced at the depreciated replacement value set forth in the applicable Order " +
+      "Form (or, if not specified, at fair market value as reasonably determined by Provider). For " +
+      "Customer-owned hardware that Customer wishes to dispose of through Provider, Provider offers " +
+      "secure data sanitization (NIST SP 800-88-aligned) and certified e-waste recycling at Provider's " +
+      "then-current rates. A certificate of data destruction will be provided for each device sanitized.",
   },
 ];
 
@@ -1609,6 +1739,11 @@ addenda.forEach((add, i) => {
     .text("Pricing: ", PAGE.margin + 4, doc.y, { continued: true });
   doc.font(FONTS.regular).fontSize(8.5).fillColor(COLORS.gray)
     .text(add.pricing, { width: CONTENT_WIDTH - 20 });
+  if (add.extra) {
+    doc.moveDown(0.25);
+    doc.font(FONTS.italic).fontSize(8.5).fillColor(COLORS.gray)
+      .text(add.extra, PAGE.margin + 4, doc.y, { width: CONTENT_WIDTH - 8, align: "justify" });
+  }
   doc.moveDown(0.2);
   doc.rect(PAGE.margin, doc.y, CONTENT_WIDTH, 0.5).fill(COLORS.rule);
   doc.moveDown(0.3);
