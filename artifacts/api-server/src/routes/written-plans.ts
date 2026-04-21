@@ -514,8 +514,12 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
       res.status(400).json({ error: "validation_error", message: "signerName and signatureImage are required" });
       return;
     }
-    if (typeof signerName !== "string" || signerName.trim().length > 200) {
-      res.status(400).json({ error: "validation_error", message: "signerName must be a string of 200 characters or fewer" });
+    if (typeof signerName !== "string" || !signerName.trim()) {
+      res.status(400).json({ error: "validation_error", message: "signerName must be a non-empty string" });
+      return;
+    }
+    if (signerName.trim().length > 200) {
+      res.status(400).json({ error: "validation_error", message: "signerName must be 200 characters or fewer" });
       return;
     }
     if (signerTitle !== undefined && signerTitle !== null && (typeof signerTitle !== "string" || signerTitle.length > 200)) {
@@ -569,8 +573,15 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
       res.status(400).json({ error: "validation_error", message: "A decline reason is required" });
       return;
     }
-    if (reason.trim().length > 500) {
-      res.status(400).json({ error: "validation_error", message: "Decline reason must be 500 characters or fewer" });
+    const VALID_DECLINE_REASONS = [
+      "Budget constraints",
+      "Timing isn't right",
+      "Going with another provider",
+      "Scope doesn't match our needs",
+      "Other",
+    ];
+    if (!VALID_DECLINE_REASONS.includes(reason.trim())) {
+      res.status(400).json({ error: "validation_error", message: `Decline reason must be one of: ${VALID_DECLINE_REASONS.join(", ")}` });
       return;
     }
     if (note !== undefined && note !== null && (typeof note !== "string" || note.length > 2000)) {
