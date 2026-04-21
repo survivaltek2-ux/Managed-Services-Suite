@@ -111,6 +111,11 @@ Replit App Storage (GCS-backed) is provisioned and active. The following environ
     - Zoom Server-to-Server OAuth (`ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_SECRET`)
     - Zoom Phone API (for SMS webhook at `POST /api/webhooks/zoom/sms`)
 - **Monorepo Tool**: pnpm workspaces
+
+## Deployment Configuration
+
+- **`PUBLIC_URL`** (production environment, set to `https://siebertrservices.com`): Canonical site URL the API server uses to build Stripe Checkout `success_url`/`cancel_url` redirects (see `artifacts/api-server/src/routes/stripe-billing.ts` → `getBaseUrl()`). Pinning this avoids any chance of a checkout redirect landing on a stale Replit preview hostname or an internal hostname if a proxy header is missing. The server falls back, in order, to `PUBLIC_BASE_URL`, the `X-Forwarded-Host`/`Host` request headers, then `REPLIT_DOMAINS` / `REPLIT_DEV_DOMAIN`, then `localhost:$PORT`. The resolved value is logged once at boot — look for `[Stripe Checkout] Boot-time public base URL = …` in the API server logs to verify. If the canonical hostname ever changes (e.g. corrected to `siebertservices.com`), update this env var in production.
+
 ## Lead Magnets (Task #33)
 
 Four high-converting lead magnets live under `/resources/*` in the Siebert Services site:

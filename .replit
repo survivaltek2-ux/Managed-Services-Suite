@@ -41,6 +41,9 @@ OKTA_DOMAIN = "integrator-3295524.okta.com"
 OKTA_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/okta/callback"
 ZOOM_WS_SUBSCRIPTION_ID = "UaDd__jFTTilfIn9yc7c9Q"
 
+[userenv.production]
+PUBLIC_URL = "https://siebertrservices.com"
+
 [nix]
 channel = "stable-25_05"
 
