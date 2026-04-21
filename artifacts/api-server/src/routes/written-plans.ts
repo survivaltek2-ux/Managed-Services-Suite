@@ -348,8 +348,8 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
       res.status(400).json({ error: "cannot_send_terminal", message: "Cannot resend a plan that has been approved or declined. Create a revision instead." });
       return;
     }
-    const content = existing.planContent as PlanContentShape | null;
-    if (!content?.executiveSummary || !content?.recommendedServices?.length) {
+    const existingContent = existing.planContent as PlanContentShape | null;
+    if (!existingContent?.executiveSummary || !existingContent?.recommendedServices?.length) {
       res.status(400).json({ error: "plan_content_missing", message: "Plan content must be generated before sending. Use 'Generate Plan' first." });
       return;
     }
@@ -498,6 +498,15 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
       res.status(400).json({ error: "validation_error", message: "signerName and signatureImage are required" });
       return;
     }
+    if (typeof signatureImage !== "string" || !signatureImage.startsWith("data:image/") || !signatureImage.includes(";base64,")) {
+      res.status(400).json({ error: "validation_error", message: "signatureImage must be a base64-encoded data URL" });
+      return;
+    }
+    const MAX_SIGNATURE_BYTES = 5 * 1024 * 1024;
+    if (Buffer.byteLength(signatureImage, "utf8") > MAX_SIGNATURE_BYTES) {
+      res.status(400).json({ error: "validation_error", message: "signatureImage exceeds the 5 MB size limit" });
+      return;
+    }
     const [plan] = await db.select().from(writtenPlansTable)
       .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
@@ -535,6 +544,9 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
     const [plan] = await db.select().from(writtenPlansTable)
       .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (plan.expiresAt && plan.expiresAt < new Date()) {
+      res.status(400).json({ error: "expired" }); return;
+    }
     if (["approved", "declined"].includes(plan.status)) {
       res.status(400).json({ error: "already_responded" }); return;
     }
@@ -561,6 +573,9 @@ router.post("/public/plan-review/:token/request-call", async (req: Request, res:
     const [plan] = await db.select().from(writtenPlansTable)
       .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (plan.expiresAt && plan.expiresAt < new Date()) {
+      res.status(400).json({ error: "expired" }); return;
+    }
     if (["approved", "declined"].includes(plan.status)) {
       res.status(400).json({ error: "already_responded" }); return;
     }
