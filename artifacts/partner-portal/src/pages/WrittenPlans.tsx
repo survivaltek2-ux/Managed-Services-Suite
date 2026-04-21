@@ -10,7 +10,7 @@ import {
   Plus, FileText, Clock, CheckCircle, XCircle, Mail, Phone, Eye,
   Download, ChevronLeft, Send, Edit2, RefreshCw, Trash2, X,
   Loader, AlertCircle,
-  ChevronDown, ChevronUp, RotateCcw,
+  ChevronDown, ChevronUp, RotateCcw, CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -736,6 +736,9 @@ function PlanDetail({ planId, onBack, onRevise }: {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [resending, setResending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [extendDays, setExtendDays] = useState<7 | 14 | 30 | 60>(14);
+  const [extending, setExtending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -770,6 +773,22 @@ function PlanDetail({ planId, onBack, onRevise }: {
     finally { setSaving(false); }
   }
 
+  async function handleExtend() {
+    setExtending(true);
+    try {
+      const res = await fetch(`${BASE}/${plan.id}/extend`, {
+        method: "PUT",
+        headers: authHeader(),
+        body: JSON.stringify({ validityDays: extendDays }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast({ title: `Deadline extended by ${extendDays} days` });
+      setExtendOpen(false);
+      load();
+    } catch { toast({ title: "Extension failed", variant: "destructive" }); }
+    finally { setExtending(false); }
+  }
+
   async function handleResend() {
     setResending(true);
     try {
@@ -789,10 +808,12 @@ function PlanDetail({ planId, onBack, onRevise }: {
     created: "Plan created", sent: "Sent to client", viewed: "Client viewed plan",
     approved: "Plan approved & signed", declined: "Client declined", call_requested: "Client requested a call",
     revised: "New revision created", reminder_sent: "Expiry reminder sent",
+    extended: "Deadline extended",
   };
 
   const canResend = ["draft", "viewed", "sent"].includes(plan.status);
   const canRevise = ["declined", "approved", "call_requested"].includes(plan.status);
+  const canExtend = ["sent", "viewed"].includes(plan.status);
   const isEditable = plan.status === "draft";
 
   return (
@@ -814,6 +835,11 @@ function PlanDetail({ planId, onBack, onRevise }: {
           {isEditable && (
             <Button variant="outline" size="sm" onClick={handleSaveEdits} disabled={saving} className="gap-1.5">
               {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Edit2 className="w-3.5 h-3.5" />} Save
+            </Button>
+          )}
+          {canExtend && (
+            <Button variant="outline" size="sm" onClick={() => setExtendOpen(true)} className="gap-1.5">
+              <CalendarClock className="w-3.5 h-3.5" /> Extend Deadline
             </Button>
           )}
           {canResend && (
@@ -912,6 +938,53 @@ function PlanDetail({ planId, onBack, onRevise }: {
         </div>
         {editedContent && <PlanDocument content={editedContent} editable={isEditable} onChange={setEditedContent} />}
       </Card>
+
+      {/* Extend Deadline Modal */}
+      {extendOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !extending && setExtendOpen(false)}>
+          <Card className="w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-[#032d60] text-base flex items-center gap-2">
+                <CalendarClock className="w-4 h-4" /> Extend Deadline
+              </h3>
+              <button onClick={() => !extending && setExtendOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Give your client more time to review. The existing review link stays the same — no new version is created.
+            </p>
+            {plan.expiresAt && (
+              <p className="text-xs text-muted-foreground mb-3">
+                Current expiry: <span className="font-medium text-foreground">{format(new Date(plan.expiresAt), "MMM d, yyyy")}</span>
+              </p>
+            )}
+            <Label className="text-xs">New validity window</Label>
+            <div className="grid grid-cols-4 gap-2 mt-1.5 mb-4">
+              {([7, 14, 30, 60] as const).map(d => (
+                <button key={d} type="button" onClick={() => setExtendDays(d)}
+                  className={cn("px-2 py-2 rounded border text-sm font-medium transition-colors",
+                    extendDays === d ? "border-[#0176d3] bg-[#0176d3]/5 text-[#032d60]" : "border-border hover:border-muted-foreground text-muted-foreground")}>
+                  {d} days
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              New expiry will be{" "}
+              <span className="font-medium text-foreground">
+                {format(new Date(Date.now() + extendDays * 86400000), "MMM d, yyyy")}
+              </span>.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setExtendOpen(false)} disabled={extending}>Cancel</Button>
+              <Button size="sm" onClick={handleExtend} disabled={extending} className="gap-1.5 bg-[#032d60] hover:bg-[#0176d3] text-white">
+                {extending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CalendarClock className="w-3.5 h-3.5" />}
+                {extending ? "Extending…" : "Extend Deadline"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Signature */}
       {plan.status === "approved" && plan.signatureImage && (

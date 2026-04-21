@@ -436,6 +436,45 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
   }
 });
 
+router.put("/partner/plans/:id/extend", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
+    const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    if (!["sent", "viewed"].includes(existing.status)) {
+      res.status(400).json({ error: "invalid_status", message: "Only sent or viewed plans can have their deadline extended." });
+      return;
+    }
+    const ALLOWED_DAYS = [7, 14, 30, 60];
+    const raw = req.body?.validityDays;
+    const days = typeof raw === "number" ? raw : parseInt(raw, 10);
+    if (!ALLOWED_DAYS.includes(days)) {
+      res.status(400).json({ error: "invalid_validity", message: "validityDays must be one of 7, 14, 30, 60." });
+      return;
+    }
+    const previousExpiresAt = existing.expiresAt;
+    const expiresAt = new Date(Date.now() + days * 86400000);
+    const [plan] = await db.update(writtenPlansTable).set({
+      expiresAt,
+      validityDays: days,
+      updatedAt: new Date(),
+    }).where(eq(writtenPlansTable.id, id)).returning();
+    await logEvent(plan.id, "extended", {
+      validityDays: days,
+      newExpiresAt: expiresAt.toISOString(),
+      previousExpiresAt: previousExpiresAt ? previousExpiresAt.toISOString() : null,
+    });
+    res.json({ plan });
+  } catch (err) {
+    console.error("[WrittenPlans] extend error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
 router.post("/partner/plans/:id/revise", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
     const id = parseId(req.params.id);
