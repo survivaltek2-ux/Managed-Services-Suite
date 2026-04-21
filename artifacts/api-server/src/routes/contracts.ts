@@ -61,7 +61,14 @@ function findApiServerNodeModules(): string {
 }
 
 function formatLongDate(d: Date): string {
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  // Use UTC accessors so a date-only input ("YYYY-MM-DD" parsed as UTC midnight)
+  // never drifts by one day in negative-offset server timezones.
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function formatCurrency(n: number): string {
