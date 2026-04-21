@@ -42,6 +42,7 @@ import ResetPassword from "./pages/ResetPassword";
 import PendingApproval from "./pages/PendingApproval";
 import NotFound from "./pages/not-found";
 import AdminUsers from "./pages/AdminUsers";
+import AdminMSAGenerator from "./pages/AdminMSAGenerator";
 import ForceChangePassword from "./pages/ForceChangePassword";
 
 import { useAuth } from "./hooks/use-auth";
@@ -115,6 +116,7 @@ function Router() {
       <Route path="/admin/ai-page-editor"><ProtectedRoute component={AIPageEditor} /></Route>
       <Route path="/admin/billing"><ProtectedRoute component={AdminBilling} /></Route>
       <Route path="/admin/users"><ProtectedRoute component={AdminUsers} /></Route>
+      <Route path="/admin/msa-generator"><ProtectedRoute component={AdminMSAGenerator} /></Route>
       <Route path="/billing"><ProtectedRoute component={Billing} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>

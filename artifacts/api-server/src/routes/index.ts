@@ -28,6 +28,7 @@ import storageRouter from "./storage";
 import leadMagnetsRouter from "./lead-magnets.js";
 import stripeBillingRouter from "./stripe-billing.js";
 import stripeWebhooksRouter from "./stripe-webhooks.js";
+import contractsRouter from "./contracts.js";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(storageRouter);
 router.use(leadMagnetsRouter);
 router.use(stripeBillingRouter);
 router.use(stripeWebhooksRouter);
+router.use(contractsRouter);
 
 export default router;

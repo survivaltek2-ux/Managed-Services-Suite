@@ -288,6 +288,7 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/tsd-products", label: "TSD Products", icon: Package },
     { href: "/admin/tsd-vendor-routing", label: "TSD Vendor Routing", icon: RefreshCw },
     { href: "/admin/documents", label: "Documents", icon: FileText },
+    { href: "/admin/msa-generator", label: "MSA Generator", icon: FileText },
     { href: "/admin/invoices", label: "Invoices", icon: FileText },
     { href: "/admin/affiliate-clicks", label: "ISP Affiliate Clicks", icon: MousePointerClick },
     { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
