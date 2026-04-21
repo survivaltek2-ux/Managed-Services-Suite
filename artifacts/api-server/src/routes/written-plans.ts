@@ -189,9 +189,18 @@ async function resolvePartnerEmail(partnerId: number | null): Promise<string | u
 router.get("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
     const partnerId = req.partnerId!;
+    const { status, limit: limitParam, offset: offsetParam } = req.query as Record<string, string | undefined>;
+    const VALID_STATUSES = ["draft", "sent", "viewed", "approved", "declined", "call_requested"];
+    const limit = Math.min(Math.max(parseInt(limitParam || "500", 10) || 500, 1), 1000);
+    const offset = Math.max(parseInt(offsetParam || "0", 10) || 0, 0);
+    const partnerFilter = partnerId !== MAIN_SITE_ADMIN_SENTINEL ? eq(writtenPlansTable.partnerId, partnerId) : undefined;
+    const statusFilter = status && VALID_STATUSES.includes(status) ? eq(writtenPlansTable.status, status) : undefined;
+    const where = partnerFilter && statusFilter ? and(partnerFilter, statusFilter) : partnerFilter ?? statusFilter;
     const plans = await db.select().from(writtenPlansTable)
-      .where(partnerId === MAIN_SITE_ADMIN_SENTINEL ? undefined : eq(writtenPlansTable.partnerId, partnerId))
-      .orderBy(desc(writtenPlansTable.createdAt));
+      .where(where)
+      .orderBy(desc(writtenPlansTable.createdAt))
+      .limit(limit)
+      .offset(offset);
     res.json({ plans });
   } catch (err) {
     console.error("[WrittenPlans] list error:", err);
