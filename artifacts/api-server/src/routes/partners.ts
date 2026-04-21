@@ -413,6 +413,20 @@ router.post("/partner/stripe-connect/onboard", requirePartnerAuth, async (req: P
 router.post("/partner/stripe-connect/disconnect", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   if (isMainSiteAdmin(req)) { res.status(403).json({ error: "forbidden" }); return; }
   try {
+    const [partner] = await db.select({ stripeConnectAccountId: partnersTable.stripeConnectAccountId })
+      .from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
+
+    if (partner?.stripeConnectAccountId && isStripeConfigured()) {
+      try {
+        const stripe = getStripe();
+        await stripe.accounts.del(partner.stripeConnectAccountId);
+        console.log(`[Stripe Connect] Deleted Express account ${partner.stripeConnectAccountId} for partner #${req.partnerId}`);
+      } catch (stripeErr: unknown) {
+        const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
+        console.warn(`[Stripe Connect] Could not delete Stripe account (may already be deleted): ${msg}`);
+      }
+    }
+
     await db.update(partnersTable)
       .set({ stripeConnectAccountId: null, updatedAt: new Date() })
       .where(eq(partnersTable.id, req.partnerId!));
@@ -1243,7 +1257,7 @@ router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdm
       await db.update(partnersTable).set({ lastStripeReminderSentAt: sentAt }).where(eq(partnersTable.id, id));
     }
 
-    console.log(`[Stripe Bulk Reminder] sent=${sent}, skippedCooldown=${skippedCooldown}, requested=${ids.length}`);
+    console.log(`[Stripe Bulk Reminder] sent=${sent}, skippedCooldown=${skippedCooldown}, requested=${validIds.length}`);
     res.json({ success: true, sent, skippedCooldown, total: candidates.length });
   } catch (err) {
     console.error("[Stripe Bulk Reminder] Error:", err);

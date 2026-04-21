@@ -211,6 +211,25 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
         break;
       }
 
+      case "account.updated": {
+        const account = event.data.object as any;
+        const accountId: string = account.id;
+        const payoutsEnabled: boolean = account.payouts_enabled ?? false;
+        const detailsSubmitted: boolean = account.details_submitted ?? false;
+
+        const rows = await db.select({ id: partnersTable.id, email: partnersTable.email })
+          .from(partnersTable)
+          .where(eq(partnersTable.stripeConnectAccountId, accountId))
+          .limit(1);
+
+        if (rows.length > 0) {
+          console.log(`[Stripe Webhook] account.updated for partner #${rows[0].id}: payoutsEnabled=${payoutsEnabled}, detailsSubmitted=${detailsSubmitted}`);
+        } else {
+          console.log(`[Stripe Webhook] account.updated for unknown account ${accountId} — no matching partner`);
+        }
+        break;
+      }
+
       default:
         console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
