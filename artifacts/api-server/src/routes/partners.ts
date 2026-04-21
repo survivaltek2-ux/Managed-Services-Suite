@@ -1450,22 +1450,26 @@ router.post("/admin/partners/:id/send-stripe-onboarding-link", requireAuth, requ
       type: "account_onboarding",
     });
 
-    const sent = await sendPartnerStripeOnboardingEmail({
+    let emailFailed = false;
+    await sendPartnerStripeOnboardingEmail({
       companyName: partner.companyName,
       contactName: partner.contactName,
       email: partner.email,
     }, accountLink.url).catch(err => {
+      emailFailed = true;
       console.error("[Admin Stripe Onboarding] Email error:", err);
-      return false;
     });
 
-    if (!sent) {
-      res.status(500).json({ error: "email_failed", message: "Onboarding link generated but email failed to send. Check your SMTP configuration." });
-      return;
-    }
-
-    console.log(`[Admin Stripe Onboarding] Onboarding link emailed to ${partner.email} (account: ${accountId})`);
-    res.json({ success: true, message: `Onboarding link sent to ${partner.email}`, stripeConnectAccountId: accountId });
+    console.log(`[Admin Stripe Onboarding] Onboarding link generated for ${partner.email} (account: ${accountId})`);
+    res.json({
+      success: true,
+      message: emailFailed
+        ? `Onboarding link generated for ${partner.email}, but the email could not be sent.`
+        : `Onboarding link sent to ${partner.email}`,
+      stripeConnectAccountId: accountId,
+      onboardingUrl: accountLink.url,
+      emailFailed,
+    });
   } catch (err: any) {
     console.error("[Admin Stripe Onboarding] Error:", err);
     res.status(500).json({ error: "stripe_error", message: err.message || "Failed to send onboarding link" });
