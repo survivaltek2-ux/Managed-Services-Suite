@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { getAuthHeaders } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/utils";
-import { DollarSign, TrendingUp, Clock, CheckCircle, Search, AlertTriangle } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle, Search, AlertTriangle, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 
 interface Commission {
@@ -16,6 +16,7 @@ interface Commission {
   notes: string | null;
   paidAt: string | null;
   createdAt: string;
+  stripeTransferId: string | null;
 }
 
 interface CommissionSummary {
@@ -38,6 +39,7 @@ export default function Commissions() {
   const [disputeReason, setDisputeReason] = useState("");
   const [disputing, setDisputing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const load = () => {
     Promise.all([
@@ -52,6 +54,13 @@ export default function Commissions() {
   useEffect(() => { load(); }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+
+  const copyTransferId = (commissionId: number, transferId: string) => {
+    navigator.clipboard.writeText(transferId).then(() => {
+      setCopiedId(commissionId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => showToast("Could not copy to clipboard"));
+  };
 
   const filtered = commissions.filter(c => {
     const matchSearch = !search || (c.description || "").toLowerCase().includes(search.toLowerCase()) || c.type.toLowerCase().includes(search.toLowerCase());
@@ -180,7 +189,28 @@ export default function Commissions() {
                     <td><span className="sf-badge sf-badge-default capitalize">{c.type.replace('_', ' ')}</span></td>
                     <td className="text-sm text-muted-foreground">{c.rate ? `${c.rate}%` : "—"}</td>
                     <td className="text-right font-semibold text-[#2e844a]">{formatCurrency(parseFloat(c.amount))}</td>
-                    <td><CommissionStatus status={c.status} /></td>
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        <CommissionStatus status={c.status} />
+                        {c.status === "paid" && c.stripeTransferId && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="sf-badge bg-[#635bff1a] text-[#635bff] border border-[#635bff33] text-[10px] font-semibold tracking-wide">Stripe</span>
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono hover:text-foreground transition-colors group"
+                              title={`Copy transfer ID: ${c.stripeTransferId}`}
+                              onClick={() => copyTransferId(c.id, c.stripeTransferId!)}
+                            >
+                              <span>{c.stripeTransferId.slice(0, 14)}…</span>
+                              {copiedId === c.id
+                                ? <Check className="w-2.5 h-2.5 text-[#2e844a]" />
+                                : <Copy className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              }
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(c.createdAt), 'MMM d, yyyy')}</td>
                     <td className="text-right">
                       {["pending", "approved"].includes(c.status) && (
