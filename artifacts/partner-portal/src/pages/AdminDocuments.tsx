@@ -279,7 +279,7 @@ export default function AdminDocuments() {
                               <div className="mt-1">
                                 <EnvelopeStatusBadge
                                   envelope={doc.envelope}
-                                  onNavigate={() => navigate("/admin/esign")}
+                                  onNavigate={() => navigate(`/admin/esign?envelope=${doc.envelope.id}`)}
                                 />
                               </div>
                             )}

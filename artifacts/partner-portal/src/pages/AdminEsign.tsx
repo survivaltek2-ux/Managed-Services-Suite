@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useSearch } from "wouter";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +41,16 @@ export default function AdminEsign() {
   const [refreshing, setRefreshing] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [providerStatus, setProviderStatus] = useState<any>(null);
+  const targetRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-expand a specific envelope when arriving via ?envelope=<id> link
+  // (e.g. clicking the status badge in the Admin Documents list).
+  const search = useSearch();
+  const targetEnvelopeId = useMemo(() => {
+    const p = new URLSearchParams(search);
+    const v = p.get("envelope");
+    return v ? parseInt(v, 10) : null;
+  }, [search]);
 
   const load = async () => {
     setLoading(true);
@@ -58,6 +69,17 @@ export default function AdminEsign() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // When envelopes load and a target ID is in the URL, expand and scroll to it.
+  useEffect(() => {
+    if (!loading && targetEnvelopeId !== null) {
+      setExpanded(targetEnvelopeId);
+      // Defer scroll so the DOM has rendered the expanded row.
+      setTimeout(() => {
+        targetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [loading, targetEnvelopeId]);
 
   const handleRefresh = async (id: number) => {
     setRefreshing(id);
@@ -182,17 +204,18 @@ export default function AdminEsign() {
               ) : (
                 <div className="divide-y">
                   {envelopes.map((env: any) => (
-                    <EnvelopeRow
-                      key={env.id}
-                      envelope={env}
-                      expanded={expanded === env.id}
-                      onToggle={() => setExpanded(prev => prev === env.id ? null : env.id)}
-                      onRefresh={() => handleRefresh(env.id)}
-                      refreshing={refreshing === env.id}
-                      onDownload={env.executed_document_id
-                        ? () => handleDownloadExecuted(env.id, env.executed_document_id)
-                        : undefined}
-                    />
+                    <div key={env.id} ref={env.id === targetEnvelopeId ? targetRef : undefined}>
+                      <EnvelopeRow
+                        envelope={env}
+                        expanded={expanded === env.id}
+                        onToggle={() => setExpanded(prev => prev === env.id ? null : env.id)}
+                        onRefresh={() => handleRefresh(env.id)}
+                        refreshing={refreshing === env.id}
+                        onDownload={env.executed_document_id
+                          ? () => handleDownloadExecuted(env.id, env.executed_document_id)
+                          : undefined}
+                      />
+                    </div>
                   ))}
                 </div>
               )}

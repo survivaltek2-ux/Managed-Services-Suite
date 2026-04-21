@@ -153,10 +153,12 @@ router.get("/admin/documents", requireAuth, async (_req, res) => {
     let envelopeByDocId: Record<number, { id: number; status: string }> = {};
     if (docs.length > 0) {
       const docIds = docs.map(d => d.id);
+      // Build a fully parameterized IN list — avoids sql.raw() for safety.
+      const idList = sql.join(docIds.map(id => sql`${id}`), sql`, `);
       const rows = await db.execute(sql`
         SELECT DISTINCT ON (document_id) document_id, id, status
         FROM esign_envelopes
-        WHERE document_id = ANY(ARRAY[${sql.raw(docIds.join(","))}]::int[])
+        WHERE document_id IN (${idList})
         ORDER BY document_id, created_at DESC
       `);
       for (const row of rows.rows as { document_id: number; id: number; status: string }[]) {
