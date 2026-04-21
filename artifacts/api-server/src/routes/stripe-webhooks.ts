@@ -6,6 +6,19 @@ import { sendPaymentReceiptEmail } from "../lib/email.js";
 
 const router: IRouter = Router();
 
+const processedReceiptEventIds = new Set<string>();
+const RECEIPT_EVENT_MAX = 1000;
+
+function markReceiptEventProcessed(eventId: string): boolean {
+  if (processedReceiptEventIds.has(eventId)) return false;
+  if (processedReceiptEventIds.size >= RECEIPT_EVENT_MAX) {
+    const first = processedReceiptEventIds.values().next().value;
+    if (first) processedReceiptEventIds.delete(first);
+  }
+  processedReceiptEventIds.add(eventId);
+  return true;
+}
+
 router.post("/webhooks/stripe", async (req: Request, res: Response) => {
   if (!isStripeConfigured()) {
     res.status(503).json({ error: "stripe_not_configured" });
@@ -101,6 +114,11 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
       case "invoice.payment_succeeded": {
         const stripeInvoice = event.data.object as any;
         const customerEmail: string | null = stripeInvoice.customer_email || null;
+
+        if (!markReceiptEventProcessed(event.id)) {
+          console.log(`[Stripe Webhook] invoice.payment_succeeded ${event.id} already processed — skipping duplicate receipt`);
+          break;
+        }
 
         if (customerEmail && stripeInvoice.amount_paid > 0) {
           try {

@@ -1425,12 +1425,12 @@ export async function sendPaymentReceiptEmail(invoice: {
           ${invoice.description ? `<tr><td style="padding: 10px 14px; color: #706e6b; font-size: 13px; border-top: 1px solid #e5e5e5;">Description</td><td style="padding: 10px 14px; border-top: 1px solid #e5e5e5;">${esc(invoice.description)}</td></tr>` : ""}
         </table>
 
-        ${invoice.hostedInvoiceUrl || invoice.invoicePdf ? `
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
-          ${invoice.hostedInvoiceUrl ? `<a href="${esc(invoice.hostedInvoiceUrl)}" style="display: inline-block; background: #0176d3; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; text-decoration: none;">View Invoice</a>` : ""}
+          ${invoice.hostedInvoiceUrl
+            ? `<a href="${esc(invoice.hostedInvoiceUrl)}" style="display: inline-block; background: #0176d3; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; text-decoration: none;">View Invoice</a>`
+            : `<a href="https://siebertrservices.com/portal" style="display: inline-block; background: #0176d3; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; text-decoration: none;">View Billing &amp; Receipts</a>`}
           ${invoice.invoicePdf ? `<a href="${esc(invoice.invoicePdf)}" style="display: inline-block; background: #fff; color: #0176d3; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #0176d3;">Download PDF</a>` : ""}
         </div>
-        ` : ""}
 
         <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Questions about this payment? Contact us:</p>
         <p style="font-size: 13px; margin: 0;">
