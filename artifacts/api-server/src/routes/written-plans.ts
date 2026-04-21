@@ -465,8 +465,8 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
     if (plan.expiresAt && plan.expiresAt < new Date()) {
       res.status(400).json({ error: "expired" }); return;
     }
-    if (plan.status === "approved") {
-      res.status(400).json({ error: "already_approved" }); return;
+    if (["approved", "declined"].includes(plan.status)) {
+      res.status(400).json({ error: "already_responded" }); return;
     }
     const [updated] = await db.update(writtenPlansTable).set({
       status: "approved",

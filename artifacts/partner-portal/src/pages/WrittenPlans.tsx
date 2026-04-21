@@ -40,7 +40,7 @@ interface WrittenPlan {
   clientTitle: string | null;
   clientCompany: string;
   clientPhone: string | null;
-  questionnaireAnswers: Record<string, any>;
+  questionnaireAnswers: WizardAnswers;
   planContent: PlanContent;
   status: string;
   reviewToken: string | null;
@@ -59,11 +59,13 @@ interface WrittenPlan {
   updatedAt: string;
 }
 
+type EventMetadata = Record<string, string | number | boolean | null | undefined>;
+
 interface ActivityEvent {
   id: number;
   planId: number;
   eventType: string;
-  metadata: Record<string, any>;
+  metadata: EventMetadata;
   createdAt: string;
 }
 
@@ -180,7 +182,7 @@ function PlanDocument({ content, editable, onChange }: {
   editable?: boolean;
   onChange?: (updated: PlanContent) => void;
 }) {
-  function updateSection(key: keyof PlanContent, val: any) {
+  function updateSection(key: keyof PlanContent, val: PlanContent[typeof key]) {
     if (onChange) onChange({ ...content, [key]: val });
   }
 
@@ -645,6 +647,7 @@ function PlanDetail({ planId, onBack, onRevise }: {
   const [editedContent, setEditedContent] = useState<PlanContent | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
+  const [resending, setResending] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
@@ -680,6 +683,21 @@ function PlanDetail({ planId, onBack, onRevise }: {
     finally { setSaving(false); }
   }
 
+  async function handleResend() {
+    setResending(true);
+    try {
+      const res = await fetch(`${BASE}/${plan.id}/send`, {
+        method: "POST",
+        headers: authHeader(),
+        body: JSON.stringify({ clientEmail: plan.clientEmail, validityDays: plan.validityDays }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast({ title: "Plan resent to client" });
+      load();
+    } catch { toast({ title: "Resend failed", variant: "destructive" }); }
+    finally { setResending(false); }
+  }
+
   const EVENT_LABELS: Record<string, string> = {
     created: "Plan created", sent: "Sent to client", viewed: "Client viewed plan",
     approved: "Plan approved & signed", declined: "Client declined", call_requested: "Client requested a call",
@@ -709,6 +727,12 @@ function PlanDetail({ planId, onBack, onRevise }: {
           {isEditable && (
             <Button variant="outline" size="sm" onClick={handleSaveEdits} disabled={saving} className="gap-1.5">
               {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Edit2 className="w-3.5 h-3.5" />} Save
+            </Button>
+          )}
+          {canResend && (
+            <Button variant="outline" size="sm" onClick={handleResend} disabled={resending} className="gap-1.5">
+              {resending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              {resending ? "Sending…" : "Resend"}
             </Button>
           )}
           {canRevise && (
