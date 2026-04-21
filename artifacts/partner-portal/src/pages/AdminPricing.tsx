@@ -12,7 +12,18 @@ import {
   Zap,
   Info,
   Check,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Layers,
 } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -30,6 +41,66 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+type FeatureRow =
+  | { id: string; kind: "feature"; value: string }
+  | { id: string; kind: "divider"; mode: "parent"; parentSlug: string | null }
+  | { id: string; kind: "divider"; mode: "custom"; label: string };
+
+const DIVIDER_PREFIX = "__divider__:";
+
+let _rowSeq = 0;
+const makeRowId = () => `r${++_rowSeq}`;
+
+function parseFeaturesToRows(
+  features: string[],
+  allTiers: { slug: string; name: string }[]
+): FeatureRow[] {
+  return (features || []).map<FeatureRow>((f) => {
+    if (f.startsWith(DIVIDER_PREFIX)) {
+      const label = f.slice(DIVIDER_PREFIX.length);
+      const m = label.match(/^Everything in (.+), plus:$/i);
+      if (m) {
+        const parentName = m[1].trim();
+        const parent = allTiers.find(
+          (t) => t.name.toLowerCase() === parentName.toLowerCase()
+        );
+        if (parent) {
+          return {
+            id: makeRowId(),
+            kind: "divider",
+            mode: "parent",
+            parentSlug: parent.slug,
+          };
+        }
+      }
+      return { id: makeRowId(), kind: "divider", mode: "custom", label };
+    }
+    return { id: makeRowId(), kind: "feature", value: f };
+  });
+}
+
+function serializeRows(
+  rows: FeatureRow[],
+  allTiers: { slug: string; name: string }[]
+): string[] {
+  const out: string[] = [];
+  for (const row of rows) {
+    if (row.kind === "feature") {
+      const v = row.value.trim();
+      if (v) out.push(v);
+    } else if (row.mode === "parent") {
+      const parent = allTiers.find((t) => t.slug === row.parentSlug);
+      if (parent) {
+        out.push(`${DIVIDER_PREFIX}Everything in ${parent.name}, plus:`);
+      }
+    } else {
+      const v = row.label.trim();
+      if (v) out.push(`${DIVIDER_PREFIX}${v}`);
+    }
+  }
+  return out;
+}
 
 interface PricingTier {
   id: number;
@@ -86,7 +157,7 @@ export default function AdminPricing() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [form, setForm] = useState<Omit<PricingTier, "id">>(EMPTY_FORM);
-  const [featuresText, setFeaturesText] = useState("");
+  const [featureRows, setFeatureRows] = useState<FeatureRow[]>([]);
   const [excludedText, setExcludedText] = useState("");
 
   const load = async () => {
@@ -108,7 +179,7 @@ export default function AdminPricing() {
   const openCreate = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setFeaturesText("");
+    setFeatureRows([]);
     setExcludedText("");
     setDialogOpen(true);
   };
@@ -135,12 +206,56 @@ export default function AdminPricing() {
       stripeMonthlyPriceId: tier.stripeMonthlyPriceId,
       stripeAnnualPriceId: tier.stripeAnnualPriceId,
     });
-    setFeaturesText(Array.isArray(tier.features) ? tier.features.join("\n") : "");
+    setFeatureRows(parseFeaturesToRows(tier.features || [], tiers));
     setExcludedText(
       Array.isArray(tier.excludedFeatures) ? tier.excludedFeatures.join("\n") : ""
     );
     setDialogOpen(true);
   };
+
+  const otherTiers = tiers.filter((t) => t.id !== editingId);
+
+  const updateRow = (id: string, patch: Partial<FeatureRow>) =>
+    setFeatureRows((rows) =>
+      rows.map((r) => (r.id === id ? ({ ...r, ...patch } as FeatureRow) : r))
+    );
+  const removeRow = (id: string) =>
+    setFeatureRows((rows) => rows.filter((r) => r.id !== id));
+  const moveRow = (id: string, dir: -1 | 1) =>
+    setFeatureRows((rows) => {
+      const idx = rows.findIndex((r) => r.id === id);
+      if (idx < 0) return rows;
+      const j = idx + dir;
+      if (j < 0 || j >= rows.length) return rows;
+      const next = rows.slice();
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  const addFeatureRow = () =>
+    setFeatureRows((rows) => [
+      ...rows,
+      { id: makeRowId(), kind: "feature", value: "" },
+    ]);
+  const addDividerRow = () =>
+    setFeatureRows((rows) => {
+      const firstParent = otherTiers[0]?.slug ?? null;
+      return [
+        ...rows,
+        firstParent
+          ? {
+              id: makeRowId(),
+              kind: "divider",
+              mode: "parent",
+              parentSlug: firstParent,
+            }
+          : {
+              id: makeRowId(),
+              kind: "divider",
+              mode: "custom",
+              label: "Everything above, plus:",
+            },
+      ];
+    });
 
   const save = async () => {
     if (!form.name.trim()) {
@@ -151,10 +266,7 @@ export default function AdminPricing() {
     try {
       const payload = {
         ...form,
-        features: featuresText
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean),
+        features: serializeRows(featureRows, tiers),
         excludedFeatures: excludedText
           .split("\n")
           .map((l) => l.trim())
@@ -459,13 +571,183 @@ export default function AdminPricing() {
             </div>
 
             <div>
-              <Label>Features (one per line)</Label>
-              <textarea
-                className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring"
-                value={featuresText}
-                onChange={(e) => setFeaturesText(e.target.value)}
-                placeholder={"Unlimited users\nPriority support\nAdvanced reporting"}
-              />
+              <div className="flex items-center justify-between">
+                <Label>Features</Label>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={addFeatureRow}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Feature
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={addDividerRow}
+                  >
+                    <Layers className="w-3 h-3 mr-1" /> Section divider
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add features one at a time. Use a section divider (e.g.{" "}
+                <span className="font-medium">"Everything in Essentials, plus:"</span>) to mark
+                where features inherited from another tier end and new features begin.
+              </p>
+
+              <div className="mt-2 space-y-1.5">
+                {featureRows.length === 0 && (
+                  <div className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+                    No features yet. Click <span className="font-medium">Feature</span> to
+                    add the first one.
+                  </div>
+                )}
+                {featureRows.map((row, idx) => (
+                  <div
+                    key={row.id}
+                    className={
+                      row.kind === "divider"
+                        ? "flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5"
+                        : "flex items-center gap-1.5 rounded-md border px-2 py-1.5"
+                    }
+                  >
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        className="h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        onClick={() => moveRow(row.id, -1)}
+                        disabled={idx === 0}
+                        aria-label="Move up"
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        className="h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        onClick={() => moveRow(row.id, 1)}
+                        disabled={idx === featureRows.length - 1}
+                        aria-label="Move down"
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {row.kind === "feature" ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <Input
+                          className="h-8 flex-1"
+                          value={row.value}
+                          onChange={(e) =>
+                            updateRow(row.id, { value: e.target.value })
+                          }
+                          placeholder="Feature description"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Minus className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider shrink-0">
+                          Section
+                        </span>
+                        {row.mode === "parent" ? (
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              Everything in
+                            </span>
+                            <Select
+                              value={row.parentSlug ?? ""}
+                              onValueChange={(v) =>
+                                updateRow(row.id, { parentSlug: v })
+                              }
+                            >
+                              <SelectTrigger className="h-8 flex-1 min-w-[120px]">
+                                <SelectValue placeholder="Choose tier…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {otherTiers.length === 0 ? (
+                                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                    No other tiers available
+                                  </div>
+                                ) : (
+                                  otherTiers.map((t) => (
+                                    <SelectItem key={t.slug} value={t.slug}>
+                                      {t.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              , plus:
+                            </span>
+                            <button
+                              type="button"
+                              className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                              onClick={() =>
+                                updateRow(row.id, {
+                                  mode: "custom",
+                                  label:
+                                    (otherTiers.find(
+                                      (t) => t.slug === row.parentSlug
+                                    )?.name &&
+                                      `Everything in ${
+                                        otherTiers.find(
+                                          (t) => t.slug === row.parentSlug
+                                        )!.name
+                                      }, plus:`) ||
+                                    "Everything above, plus:",
+                                })
+                              }
+                            >
+                              custom
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <Input
+                              className="h-8 flex-1"
+                              value={row.label}
+                              onChange={(e) =>
+                                updateRow(row.id, { label: e.target.value })
+                              }
+                              placeholder="e.g. Everything in Essentials, plus:"
+                            />
+                            {otherTiers.length > 0 && (
+                              <button
+                                type="button"
+                                className="text-[10px] text-muted-foreground hover:text-foreground underline shrink-0"
+                                onClick={() =>
+                                  updateRow(row.id, {
+                                    mode: "parent",
+                                    parentSlug: otherTiers[0].slug,
+                                  })
+                                }
+                              >
+                                use tier
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-red-600 shrink-0"
+                      onClick={() => removeRow(row.id)}
+                      aria-label="Remove row"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>
