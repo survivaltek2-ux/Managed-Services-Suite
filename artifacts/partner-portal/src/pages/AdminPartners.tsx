@@ -144,9 +144,15 @@ export default function AdminPartners() {
   };
 
   const handleSendBulkReminder = async () => {
+    const ids = filtered.filter(p => !p.stripeConnectAccountId).map((p: any) => p.id);
+    if (ids.length === 0) return;
     setSendingBulkReminder(true);
     try {
-      const res = await fetch("/api/admin/partners/send-stripe-reminder-bulk", { method: "POST", headers });
+      const res = await fetch("/api/admin/partners/send-stripe-reminder-bulk", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
       const d = await res.json();
       if (res.ok) {
         const parts: string[] = [`${d.sent} reminder${d.sent !== 1 ? "s" : ""} sent`];

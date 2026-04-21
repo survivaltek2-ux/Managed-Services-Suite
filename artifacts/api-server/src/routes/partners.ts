@@ -1037,18 +1037,26 @@ router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: Auth
   }
 });
 
-router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
+    const { ids } = req.body as { ids?: number[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "bad_request", message: "Provide a non-empty array of partner IDs to send reminders to." });
+      return;
+    }
+
     const cooldownMs = 24 * 60 * 60 * 1000;
+
     const candidates = await db.select({
       id: partnersTable.id,
       companyName: partnersTable.companyName,
       contactName: partnersTable.contactName,
       email: partnersTable.email,
+      stripeConnectAccountId: partnersTable.stripeConnectAccountId,
       lastStripeReminderSentAt: partnersTable.lastStripeReminderSentAt,
     }).from(partnersTable).where(
       and(
-        eq(partnersTable.status, "approved"),
+        sql`${partnersTable.id} = ANY(${sql.raw(`ARRAY[${ids.map(Number).join(",")}]::int[]`)})`,
         isNull(partnersTable.stripeConnectAccountId)
       )
     );
@@ -1077,7 +1085,7 @@ router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdm
       await db.update(partnersTable).set({ lastStripeReminderSentAt: sentAt }).where(eq(partnersTable.id, id));
     }
 
-    console.log(`[Stripe Bulk Reminder] sent=${sent}, skippedCooldown=${skippedCooldown}`);
+    console.log(`[Stripe Bulk Reminder] sent=${sent}, skippedCooldown=${skippedCooldown}, requested=${ids.length}`);
     res.json({ success: true, sent, skippedCooldown, total: candidates.length });
   } catch (err) {
     console.error("[Stripe Bulk Reminder] Error:", err);
