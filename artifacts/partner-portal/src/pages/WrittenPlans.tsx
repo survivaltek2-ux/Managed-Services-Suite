@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  HEADCOUNT_OPTIONS, PAIN_POINT_OPTIONS, COMPLIANCE_OPTIONS,
+  PRIORITY_OPTIONS, BUDGET_OPTIONS, TIMELINE_OPTIONS,
+} from "@workspace/db/questionnaire";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -81,24 +85,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   call_requested: { label: "Call Requested", color: "text-orange-600",       bg: "bg-orange-50",      icon: <Phone className="w-3 h-3" /> },
 };
 
-const PAIN_POINT_OPTIONS = [
-  { value: "downtime", label: "Frequent downtime / outages" },
-  { value: "security", label: "Security concerns / past breaches" },
-  { value: "compliance", label: "Compliance requirements (HIPAA, SOC2, etc.)" },
-  { value: "backup", label: "Backup & disaster recovery" },
-  { value: "email", label: "Email & Microsoft 365 management" },
-  { value: "remote", label: "Remote workforce / VPN" },
-  { value: "hardware", label: "Aging hardware / lifecycle" },
-  { value: "cloud", label: "Cloud migration or management" },
-  { value: "voip", label: "Phone system / VoIP" },
-  { value: "vendor", label: "Vendor / ISP management" },
-];
-
-const COMPLIANCE_OPTIONS = ["HIPAA", "SOC 2", "CMMC", "PCI DSS", "NIST", "ISO 27001", "GDPR", "Other"];
-const PRIORITY_OPTIONS = ["Cost reduction", "Improved security", "Better uptime", "Compliance", "Scalability", "Modernize infrastructure", "Employee productivity"];
-const BUDGET_OPTIONS = ["Under $1,000/mo", "$1,000–$2,500/mo", "$2,500–$5,000/mo", "$5,000–$10,000/mo", "$10,000+/mo", "Flexible / TBD"];
-const TIMELINE_OPTIONS = ["ASAP", "Within 30 days", "Within 60–90 days", "Within 6 months", "Evaluating options"];
-const HEADCOUNT_OPTIONS = ["1–10", "11–25", "26–50", "51–100", "101–250", "250+"];
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -377,8 +363,8 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
 
   const canProceed: Record<number, boolean> = {
     1: !!(answers.clientName && answers.clientEmail && answers.clientCompany),
-    2: !!(answers.headcount && answers.locations),
-    3: answers.painPoints.length > 0,
+    2: !!(answers.headcount && answers.locations && answers.currentItSetup.trim()),
+    3: answers.painPoints.length > 0 && answers.complianceNeeds.length > 0,
     4: !!generatedPlan,
     5: !!(sendEmail),
   };
@@ -449,9 +435,10 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
               </div>
             </div>
             <div>
-              <Label className="text-xs">Current IT Setup <span className="text-muted-foreground">(optional)</span></Label>
+              <Label className="text-xs">Current IT Setup *</Label>
               <Textarea value={answers.currentItSetup} onChange={e => upd("currentItSetup", e.target.value)}
-                placeholder="Describe the current infrastructure — servers, cloud services, devices, etc." rows={3} />
+                placeholder="Describe the current infrastructure — servers, cloud services, devices, managed by whom, etc." rows={3} />
+              <p className="text-xs text-muted-foreground mt-1">This helps tailor the plan to the client's actual environment.</p>
             </div>
             <div>
               <Label className="text-xs">Current Vendors / Tools <span className="text-muted-foreground">(optional)</span></Label>
@@ -470,7 +457,7 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
               <MultiCheck options={PAIN_POINT_OPTIONS} value={answers.painPoints} onChange={v => upd("painPoints", v)} />
             </div>
             <div>
-              <Label className="text-xs mb-2 block">Compliance Requirements <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-xs mb-2 block">Compliance Requirements * <span className="text-muted-foreground font-normal">(select 'None / Not applicable' if there are no obligations)</span></Label>
               <MultiCheck options={COMPLIANCE_OPTIONS} value={answers.complianceNeeds} onChange={v => upd("complianceNeeds", v)} />
             </div>
             <div>

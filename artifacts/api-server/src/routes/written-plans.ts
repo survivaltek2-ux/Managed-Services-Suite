@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { db, writtenPlansTable, planActivityEventsTable } from "@workspace/db";
+import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers } from "@workspace/db";
 import { eq, desc, and, lt, gt, inArray } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import {
@@ -209,6 +209,12 @@ router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, re
     const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, validityDays, onBehalfOfPartnerId } = req.body;
     if (!clientName || !clientEmail || !clientCompany) {
       res.status(400).json({ error: "validation_error", message: "clientName, clientEmail, and clientCompany are required" });
+      return;
+    }
+    // Validate required questionnaire fields
+    const qaErrors = validateQuestionnaireAnswers({ ...(questionnaireAnswers || {}), clientName, clientEmail, clientCompany });
+    if (qaErrors.length > 0) {
+      res.status(400).json({ error: "validation_error", message: qaErrors.join("; ") });
       return;
     }
     const planContent = generatePlanContent({ ...(questionnaireAnswers as QuestionnaireAnswers), clientCompany, clientName });
@@ -458,7 +464,7 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
     }).where(eq(writtenPlansTable.id, plan.id)).returning();
     await logEvent(plan.id, "approved", { signerName, signerTitle });
 
-    sendPlanApprovedEmail(plan).catch(e => console.error("[Email] plan approved error:", e));
+    sendPlanApprovedEmail(updated).catch(e => console.error("[Email] plan approved error:", e));
 
     res.json({ success: true, plan: updated });
   } catch (err) {

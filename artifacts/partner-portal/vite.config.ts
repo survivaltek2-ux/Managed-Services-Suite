@@ -16,6 +16,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      "@workspace/db/questionnaire": path.resolve(import.meta.dirname, "../../lib/db/src/writtenPlanQuestionnaire.ts"),
     },
     dedupe: ["react", "react-dom"],
   },
@@ -36,6 +37,10 @@ export default defineConfig({
     },
     fs: {
       strict: true,
+      allow: [
+        path.resolve(import.meta.dirname),
+        path.resolve(import.meta.dirname, "../../lib/db/src"),
+      ],
       deny: ["**/.*"],
     },
   },
