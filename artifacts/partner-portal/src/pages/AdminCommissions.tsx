@@ -95,10 +95,9 @@ export default function AdminCommissions() {
     const id = commission.id;
     setPayingOutId(id);
     try {
-      const method = commission.stripeConnectAccountId ? "stripe" : "manual";
       const res = await fetch(`/api/admin/commissions/${id}/payout`, {
         method: "POST", headers,
-        body: JSON.stringify({ method }),
+        body: JSON.stringify({ method: "auto" }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -106,6 +105,9 @@ export default function AdminCommissions() {
           ? `Stripe transfer initiated (${data.stripeTransferId.slice(0, 16)}…)`
           : "Manual payout recorded";
         toast({ title: msg });
+        if (data.warning) {
+          toast({ title: data.warning, variant: "warning" as any, description: "Follow up with the partner to complete their Stripe onboarding." });
+        }
         load();
       } else {
         const err = await res.json().catch(() => ({}));

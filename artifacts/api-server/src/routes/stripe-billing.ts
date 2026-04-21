@@ -335,6 +335,7 @@ router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res)
 
     let stripeTransferId: string | null = null;
     let resolvedMethod = method;
+    let warning: string | undefined;
 
     const canUseStripe = (method === "stripe" || method === "auto") && isStripeConfigured() && partner?.stripeConnectAccountId;
 
@@ -352,6 +353,8 @@ router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res)
           return;
         }
         resolvedMethod = "manual";
+        warning = "Stripe account not fully verified — payout recorded as manual";
+        console.warn(`[Stripe Connect] Auto-fallback to manual for commission #${id}: partner #${commission.partnerId} payouts_enabled=false`);
       } else {
         const transfer = await stripe.transfers.create({
           amount: Math.round(parseFloat(commission.amount) * 100),
@@ -375,7 +378,7 @@ router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res)
     }).where(eq(partnerCommissionsTable.id, id));
 
     const [updated] = await db.select().from(partnerCommissionsTable).where(eq(partnerCommissionsTable.id, id));
-    res.json({ commission: updated, stripeTransferId, method: resolvedMethod });
+    res.json({ commission: updated, stripeTransferId, method: resolvedMethod, ...(warning ? { warning } : {}) });
   } catch (err: any) {
     console.error("[Stripe] Commission payout error:", err);
     res.status(500).json({ error: "stripe_error", message: err.message });
