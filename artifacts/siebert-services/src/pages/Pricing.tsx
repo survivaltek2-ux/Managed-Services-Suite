@@ -12,6 +12,7 @@ interface PricingTier {
   tagline: string;
   startingPrice: string;
   annualPrice?: string;
+  annualPriceLabel?: string;
   priceUnit: string;
   pricePrefix: string;
   mostPopular: boolean;
@@ -27,7 +28,7 @@ const FALLBACK_TIERS: PricingTier[] = [
   {
     id: -1, slug: "essentials", name: "Essentials",
     tagline: "Core managed IT for small teams that need reliable coverage.",
-    startingPrice: "89", annualPrice: "76", priceUnit: "per user / month", pricePrefix: "Starting at",
+    startingPrice: "89", annualPrice: "76", annualPriceLabel: "76", priceUnit: "per user / month", pricePrefix: "Starting at",
     mostPopular: false, sortOrder: 0, active: true,
     ctaLabel: "Get Started", ctaLink: "/quote",
     features: [
@@ -48,7 +49,7 @@ const FALLBACK_TIERS: PricingTier[] = [
   {
     id: -2, slug: "business", name: "Business",
     tagline: "Full-stack IT, security, and cloud for growing businesses.",
-    startingPrice: "149", annualPrice: "127", priceUnit: "per user / month", pricePrefix: "Starting at",
+    startingPrice: "149", annualPrice: "127", annualPriceLabel: "127", priceUnit: "per user / month", pricePrefix: "Starting at",
     mostPopular: true, sortOrder: 1, active: true,
     ctaLabel: "Get Started", ctaLink: "/quote",
     features: [
@@ -70,7 +71,7 @@ const FALLBACK_TIERS: PricingTier[] = [
   {
     id: -3, slug: "enterprise", name: "Enterprise",
     tagline: "24/7 coverage, compliance, and a named team for complex orgs.",
-    startingPrice: "229", annualPrice: "195", priceUnit: "per user / month", pricePrefix: "Starting at",
+    startingPrice: "229", annualPrice: "195", annualPriceLabel: "195", priceUnit: "per user / month", pricePrefix: "Starting at",
     mostPopular: false, sortOrder: 2, active: true,
     ctaLabel: "Talk to Sales", ctaLink: "/quote",
     features: [
@@ -138,7 +139,7 @@ export default function Pricing() {
 
   const priceFor = (tier: PricingTier): { price: string; hasDiscount: boolean; original: string } => {
     const monthly = tier.startingPrice;
-    const annualRaw = (tier.annualPrice ?? "").trim();
+    const annualRaw = (tier.annualPriceLabel ?? tier.annualPrice ?? "").trim();
     const annualNum = Number(annualRaw);
     const monthlyNum = Number(monthly);
     const validAnnual =
@@ -151,7 +152,7 @@ export default function Pricing() {
 
   const getUnitPrice = (tier: PricingTier): number => {
     if (billing === "annual") {
-      const annual = Number((tier.annualPrice ?? "").trim());
+      const annual = Number((tier.annualPriceLabel ?? tier.annualPrice ?? "").trim());
       if (Number.isFinite(annual) && annual > 0) return annual;
     }
     return Number(tier.startingPrice) || 0;
