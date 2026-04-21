@@ -84,6 +84,7 @@ export default function AdminPartners() {
   const [filterTier, setFilterTier] = useState("all");
   const [filterStripe, setFilterStripe] = useState("all");
   const [sendingReminder, setSendingReminder] = useState<number | null>(null);
+  const [sendingBulkReminder, setSendingBulkReminder] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editPartner, setEditPartner] = useState<any | null>(null);
   const [deletePartner, setDeletePartner] = useState<any | null>(null);
@@ -140,6 +141,23 @@ export default function AdminPartners() {
       }
     } catch { toast({ title: "Error sending reminder", variant: "destructive" }); }
     finally { setSendingReminder(null); }
+  };
+
+  const handleSendBulkReminder = async () => {
+    setSendingBulkReminder(true);
+    try {
+      const res = await fetch("/api/admin/partners/send-stripe-reminder-bulk", { method: "POST", headers });
+      const d = await res.json();
+      if (res.ok) {
+        const parts: string[] = [`${d.sent} reminder${d.sent !== 1 ? "s" : ""} sent`];
+        if (d.skippedCooldown > 0) parts.push(`${d.skippedCooldown} skipped (sent recently)`);
+        toast({ title: parts.join(" · ") });
+        load();
+      } else {
+        toast({ title: d.message || "Failed to send bulk reminders", variant: "destructive" });
+      }
+    } catch { toast({ title: "Error sending bulk reminders", variant: "destructive" }); }
+    finally { setSendingBulkReminder(false); }
   };
 
   const reminderCooldownHours = 24;
@@ -288,7 +306,20 @@ export default function AdminPartners() {
                     <option value="connected">Stripe Connected</option>
                   </select>
                 </div>
-                <Button onClick={openCreate} className="shrink-0"><Plus className="w-4 h-4 mr-2" />New Partner</Button>
+                <div className="flex gap-2 shrink-0">
+                  {filterStripe === "missing" && (
+                    <Button
+                      variant="outline"
+                      onClick={handleSendBulkReminder}
+                      disabled={sendingBulkReminder || filtered.filter(p => !p.stripeConnectAccountId).length === 0}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      {sendingBulkReminder ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                      Send Reminders to All
+                    </Button>
+                  )}
+                  <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" />New Partner</Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">

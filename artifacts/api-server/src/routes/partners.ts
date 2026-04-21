@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
 import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
-import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, asc, isNull } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder } from "../lib/email.js";
@@ -1034,6 +1034,54 @@ router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: Auth
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to delete partner" });
+  }
+});
+
+router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const cooldownMs = 24 * 60 * 60 * 1000;
+    const candidates = await db.select({
+      id: partnersTable.id,
+      companyName: partnersTable.companyName,
+      contactName: partnersTable.contactName,
+      email: partnersTable.email,
+      lastStripeReminderSentAt: partnersTable.lastStripeReminderSentAt,
+    }).from(partnersTable).where(
+      and(
+        eq(partnersTable.status, "approved"),
+        isNull(partnersTable.stripeConnectAccountId)
+      )
+    );
+
+    let sent = 0;
+    let skippedCooldown = 0;
+    const updates: { id: number; sentAt: Date }[] = [];
+
+    for (const p of candidates) {
+      if (p.lastStripeReminderSentAt) {
+        const msSinceLast = Date.now() - new Date(p.lastStripeReminderSentAt).getTime();
+        if (msSinceLast < cooldownMs) { skippedCooldown++; continue; }
+      }
+      const ok = await sendStripeConnectReminder({
+        companyName: p.companyName,
+        contactName: p.contactName,
+        email: p.email,
+      });
+      if (ok) {
+        sent++;
+        updates.push({ id: p.id, sentAt: new Date() });
+      }
+    }
+
+    for (const { id, sentAt } of updates) {
+      await db.update(partnersTable).set({ lastStripeReminderSentAt: sentAt }).where(eq(partnersTable.id, id));
+    }
+
+    console.log(`[Stripe Bulk Reminder] sent=${sent}, skippedCooldown=${skippedCooldown}`);
+    res.json({ success: true, sent, skippedCooldown, total: candidates.length });
+  } catch (err) {
+    console.error("[Stripe Bulk Reminder] Error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to send bulk reminders" });
   }
 });
 
