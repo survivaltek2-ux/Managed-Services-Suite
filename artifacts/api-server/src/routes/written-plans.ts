@@ -349,6 +349,10 @@ router.put("/partner/plans/:id/regenerate", requirePartnerAuth, async (req: Part
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
       res.status(403).json({ error: "forbidden" }); return;
     }
+    if (existing.status === "approved") {
+      res.status(400).json({ error: "plan_approved", message: "Cannot regenerate an approved plan. Create a revision instead." });
+      return;
+    }
     const answers = (existing.questionnaireAnswers as QuestionnaireAnswers) ?? {};
     const planContent = generatePlanContent({ ...answers, clientCompany: existing.clientCompany, clientName: existing.clientName });
     const [plan] = await db.update(writtenPlansTable).set({ planContent, updatedAt: new Date() })
