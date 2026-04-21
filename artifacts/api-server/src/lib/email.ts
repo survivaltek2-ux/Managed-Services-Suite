@@ -172,6 +172,86 @@ export async function getSmtpSettings(): Promise<{
   };
 }
 
+export async function sendAdminWelcomeEmail(
+  to: string,
+  name: string,
+  tempPassword: string,
+  loginUrl: string,
+): Promise<boolean> {
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Welcome to Siebert Services Admin</h1>
+      </div>
+      <div style="background: #fff; border: 1px solid #e2e8f0; border-top: none; padding: 32px 24px; border-radius: 0 0 4px 4px;">
+        <p style="color: #374151; font-size: 16px; margin: 0 0 12px;">Hi ${esc(name)},</p>
+        <p style="color: #374151; font-size: 15px; margin: 0 0 24px;">
+          An admin account has been created for you on the Siebert Services portal.
+          Use the temporary password below to sign in. You will be prompted to set a new password on your first login.
+        </p>
+        <div style="background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
+          <p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Your temporary password</p>
+          <p style="color: #111827; font-size: 20px; font-family: 'Courier New', monospace; font-weight: 700; letter-spacing: 1px; margin: 0;">${esc(tempPassword)}</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${loginUrl}"
+             style="background: #0176d3; color: #fff; padding: 14px 32px; border-radius: 8px;
+                    text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
+            Sign In Now
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px; margin: 24px 0 8px;">
+          For security, please do not share this email. This temporary password will remain active until you change it.
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+          Or copy this link into your browser:<br>
+          <a href="${loginUrl}" style="color: #0176d3; word-break: break-all;">${loginUrl}</a>
+        </p>
+      </div>
+    </div>`;
+  return sendEmail(to, "Your Siebert Services admin account is ready", html);
+}
+
+export async function sendAdminPasswordResetNotification(
+  to: string,
+  name: string,
+  tempPassword: string,
+  loginUrl: string,
+): Promise<boolean> {
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Your Admin Password Has Been Reset</h1>
+      </div>
+      <div style="background: #fff; border: 1px solid #e2e8f0; border-top: none; padding: 32px 24px; border-radius: 0 0 4px 4px;">
+        <p style="color: #374151; font-size: 16px; margin: 0 0 12px;">Hi ${esc(name)},</p>
+        <p style="color: #374151; font-size: 15px; margin: 0 0 24px;">
+          An administrator has reset your Siebert Services admin password.
+          Use the temporary password below to sign in. You will be prompted to set a new password immediately.
+        </p>
+        <div style="background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
+          <p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Your temporary password</p>
+          <p style="color: #111827; font-size: 20px; font-family: 'Courier New', monospace; font-weight: 700; letter-spacing: 1px; margin: 0;">${esc(tempPassword)}</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${loginUrl}"
+             style="background: #0176d3; color: #fff; padding: 14px 32px; border-radius: 8px;
+                    text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
+            Sign In &amp; Set New Password
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px; margin: 24px 0 8px;">
+          If you did not expect this reset, please contact your system administrator immediately.
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+          Or copy this link into your browser:<br>
+          <a href="${loginUrl}" style="color: #0176d3; word-break: break-all;">${loginUrl}</a>
+        </p>
+      </div>
+    </div>`;
+  return sendEmail(to, "Your Siebert Services admin password has been reset", html);
+}
+
 export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string): Promise<boolean> {
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">

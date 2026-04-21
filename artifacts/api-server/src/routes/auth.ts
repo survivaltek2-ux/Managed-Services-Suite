@@ -6,7 +6,7 @@ import { loginCodesTable, partnersTable } from "@workspace/db/schema";
 import { eq, and, gt, isNull, asc } from "drizzle-orm";
 import { generateToken, requireAuth, requireAdmin, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
-import { sendLoginCode, sendUserRegistrationNotification, sendPasswordResetEmail } from "../lib/email.js";
+import { sendLoginCode, sendUserRegistrationNotification, sendPasswordResetEmail, sendAdminWelcomeEmail, sendAdminPasswordResetNotification } from "../lib/email.js";
 import { inviteGuestUser } from "../lib/microsoft-graph.js";
 
 function getAppBaseUrl(): string {
@@ -434,6 +434,11 @@ router.post("/admin/users", requireAdmin, async (req: AuthRequest, res: Response
       },
       tempPassword,
     });
+
+    const loginUrl = `${getAppBaseUrl()}/admin`;
+    sendAdminWelcomeEmail(user.email, user.name, tempPassword, loginUrl).catch(err =>
+      console.error("[Email] Admin welcome email error:", err)
+    );
   } catch (err) {
     console.error("Create admin user error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to create admin user" });
@@ -448,7 +453,7 @@ router.post("/admin/users/:id/reset-password", requireAdmin, async (req: AuthReq
       return;
     }
 
-    const [target] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
+    const [target] = await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
     if (!target) {
       res.status(404).json({ error: "not_found", message: "User not found" });
       return;
@@ -466,6 +471,11 @@ router.post("/admin/users/:id/reset-password", requireAdmin, async (req: AuthReq
       .where(eq(usersTable.id, targetId));
 
     res.json({ tempPassword });
+
+    const loginUrl = `${getAppBaseUrl()}/admin`;
+    sendAdminPasswordResetNotification(target.email, target.name, tempPassword, loginUrl).catch(err =>
+      console.error("[Email] Admin password reset notification error:", err)
+    );
   } catch (err) {
     console.error("Reset admin password error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to reset password" });
