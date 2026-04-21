@@ -95,8 +95,14 @@ const FALLBACK_TIERS: PricingTier[] = [
     mostPopular: true, sortOrder: 1, active: true,
     ctaLabel: "Get Started", ctaLink: "/quote",
     features: [
-      "Extended-hours help desk (7am–8pm)",
+      "Business-hours help desk (M–F 8–5)",
       "Remote monitoring & patching",
+      "Endpoint antivirus",
+      "Microsoft 365 administration",
+      "Quarterly health check",
+      "Email & phone support",
+      "__divider__:Everything in Essentials, plus:",
+      "Extended-hours help desk (7am–8pm)",
       "Endpoint Detection & Response (EDR)",
       "Microsoft 365 + security hardening",
       "Multi-factor authentication rollout",
@@ -117,6 +123,20 @@ const FALLBACK_TIERS: PricingTier[] = [
     mostPopular: false, sortOrder: 2, active: true,
     ctaLabel: "Talk to Sales", ctaLink: "/quote",
     features: [
+      "Business-hours help desk (M–F 8–5)",
+      "Remote monitoring & patching",
+      "Endpoint antivirus",
+      "Microsoft 365 administration",
+      "Quarterly health check",
+      "Email & phone support",
+      "Extended-hours help desk (7am–8pm)",
+      "Endpoint Detection & Response (EDR)",
+      "Microsoft 365 + security hardening",
+      "Multi-factor authentication rollout",
+      "Backup & disaster-recovery monitoring",
+      "Quarterly business reviews (vCIO)",
+      "On-site dispatch (4 hrs / month, New York only)",
+      "__divider__:Everything in Business, plus:",
       "24/7/365 help desk + emergency line",
       "Full EDR + Managed SOC monitoring",
       "Microsoft 365 E3/E5 management",
@@ -276,6 +296,7 @@ export default function Pricing() {
     const rows: { key: string; in: string[] }[] = [];
     for (const tier of filteredTiers) {
       for (const f of [...tier.features, ...tier.excludedFeatures]) {
+        if (f.startsWith("__divider__:")) continue;
         if (!seen.has(f)) {
           seen.add(f);
           rows.push({
@@ -545,12 +566,24 @@ export default function Pricing() {
                     )}
 
                     <ul className="space-y-2.5 flex-1 mb-7">
-                      {tier.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2.5 text-sm text-navy-light">
-                          <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                          <span className="leading-snug">{f}</span>
-                        </li>
-                      ))}
+                      {tier.features.map((f) => {
+                        if (f.startsWith("__divider__:")) {
+                          const label = f.slice(12);
+                          return (
+                            <li key={f} className="flex items-center gap-2 pt-2 pb-0.5">
+                              <div className="h-px flex-1 bg-border/60" />
+                              <span className="text-[10px] font-bold text-primary uppercase tracking-wider whitespace-nowrap px-1">{label}</span>
+                              <div className="h-px flex-1 bg-border/60" />
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={f} className="flex items-start gap-2.5 text-sm text-navy-light">
+                            <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                            <span className="leading-snug">{f}</span>
+                          </li>
+                        );
+                      })}
                       {tier.excludedFeatures.map((f) => (
                         <li key={f} className="flex items-start gap-2.5 text-sm text-muted-foreground/70">
                           <X className="w-4 h-4 text-muted-foreground/40 mt-0.5 shrink-0" />
