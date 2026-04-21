@@ -437,6 +437,10 @@ router.delete("/partner/plans/:id", requirePartnerAuth, async (req: PartnerReque
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
       res.status(403).json({ error: "forbidden" }); return;
     }
+    if (existing.status === "approved") {
+      res.status(400).json({ error: "cannot_delete_approved", message: "Approved plans cannot be deleted for audit retention." });
+      return;
+    }
     await db.delete(planActivityEventsTable).where(eq(planActivityEventsTable.planId, id));
     await db.delete(writtenPlansTable).where(eq(writtenPlansTable.id, id));
     res.json({ success: true });
@@ -637,7 +641,6 @@ async function runReminderBatch() {
   try {
     const now = new Date();
     const threeDaysOut = new Date(Date.now() + 3 * 86400000);
-    const oneDayAgo = new Date(Date.now() - 86400000);
     // Include sent AND viewed; exclude already expired plans
     const plans = await db.select().from(writtenPlansTable)
       .where(
@@ -648,12 +651,11 @@ async function runReminderBatch() {
         )
       );
     for (const plan of plans) {
+      // Single reminder per plan — skip if any reminder has ever been sent
       const events = await db.select().from(planActivityEventsTable)
         .where(and(eq(planActivityEventsTable.planId, plan.id), eq(planActivityEventsTable.eventType, "reminder_sent")))
-        .orderBy(desc(planActivityEventsTable.createdAt))
         .limit(1);
-      const lastReminder = events[0];
-      if (lastReminder && lastReminder.createdAt > oneDayAgo) continue;
+      if (events.length > 0) continue;
       const partnerEmail = await resolvePartnerEmail(plan.partnerId);
       await sendPlanExpiringEmail(plan, partnerEmail).catch(e => console.error("[Email] expiry reminder error:", e));
       await logEvent(plan.id, "reminder_sent");
