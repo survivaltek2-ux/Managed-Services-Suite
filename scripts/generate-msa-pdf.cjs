@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 /**
- * Siebert Services — MSA Template PDF Generator
+ * Siebert Services — MSA PDF Generator
  *
  * This script is the CANONICAL source for the MSA PDF.
- * The companion markdown file (attached_assets/contracts/siebert-msa-template.md)
- * is a human-readable reference only and may not stay in sync automatically.
  *
  * Usage:
  *   node scripts/generate-msa-pdf.cjs [output-path]
@@ -12,7 +10,7 @@
  * Requires pdfkit:
  *   npm install pdfkit     (or: cd /tmp/pdf-gen && npm install pdfkit)
  *
- * Output defaults to: attached_assets/contracts/siebert-msa-template.pdf
+ * Output defaults to: attached_assets/contracts/siebert-msa.pdf
  */
 
 "use strict";
@@ -22,7 +20,7 @@ const fs = require("fs");
 const path = require("path");
 
 const OUTPUT_PATH = process.argv[2] ||
-  path.join(__dirname, "../attached_assets/contracts/siebert-msa-template.pdf");
+  path.join(__dirname, "../attached_assets/contracts/siebert-msa.pdf");
 
 fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
 
@@ -66,9 +64,9 @@ const doc = new PDFDocument({
   size: "LETTER",
   margins: { top: PAGE.margin, bottom: 80, left: PAGE.margin, right: PAGE.margin },
   info: {
-    Title: "Siebert Services — Master Services Agreement Template",
+    Title: "Siebert Services — Master Services Agreement",
     Author: "Siebert Services",
-    Subject: "MSA Template for Managed IT Services",
+    Subject: "Managed Services Agreement — Managed IT Services",
     Keywords: "MSA, MSP, managed IT, contract, New York",
     CreationDate: new Date(),
   },
@@ -98,7 +96,7 @@ function drawFooter() {
   doc.font(FONTS.regular)
     .fontSize(8)
     .fillColor(COLORS.lightGray)
-    .text("Siebert Services — Master Services Agreement Template", PAGE.margin, y + 6,
+    .text("Siebert Services — Master Services Agreement", PAGE.margin, y + 6,
       { width: CONTENT_WIDTH / 2, align: "left" });
 
   doc.font(FONTS.regular)
@@ -289,7 +287,7 @@ doc.font(FONTS.bold).fontSize(22).fillColor(COLORS.white)
     { width: CONTENT_WIDTH, align: "center" });
 
 doc.font(FONTS.bold).fontSize(14).fillColor("#7eb8f5")
-  .text("Template — Managed IT Services", PAGE.margin, 94,
+  .text("Managed IT Services Agreement", PAGE.margin, 94,
     { width: CONTENT_WIDTH, align: "center" });
 
 doc.font(FONTS.regular).fontSize(10).fillColor("#a5c8f0")
@@ -315,53 +313,45 @@ fields.forEach(([label, val], i) => {
     .text(val, PAGE.margin + 68 + 132, fy, { width: CONTENT_WIDTH - 120 - 140 });
 });
 
-doc.y = 264;
+doc.y = 280;
 
-const usageY = doc.y + 10;
-doc.rect(PAGE.margin, usageY, CONTENT_WIDTH, 3).fill("#2563eb");
-doc.y = usageY + 12;
+// Confidential notice
+doc.rect(PAGE.margin, doc.y, CONTENT_WIDTH, 0.5).fill("#2563eb");
+doc.moveDown(0.8);
 
-doc.font(FONTS.bold).fontSize(11).fillColor(COLORS.navy)
-  .text("HOW TO USE THIS TEMPLATE", PAGE.margin, doc.y);
+doc.font(FONTS.bold).fontSize(10).fillColor(COLORS.navy)
+  .text("AGREEMENT OVERVIEW", PAGE.margin, doc.y);
 doc.moveDown(0.4);
 
-const usageSteps = [
-  "Search-and-replace every bracketed placeholder (e.g., [CUSTOMER LEGAL NAME]) with the customer's actual information before sending.",
-  "Select the Service Tier (Schedule A) and attach only the Addenda that apply to this engagement. Remove or mark inapplicable Optional Addenda as 'Not Applicable.'",
-  "Confirm the Seat Count and Billing Cycle in Schedule C (fees auto-calculate from the published tier rates or from a custom quote).",
-  "Have both parties (Siebert Services and the Customer) sign the Signature Page at the end of the main MSA body and initial each Schedule that is attached.",
-  "Retain one fully-executed original for each party. Send the Customer a countersigned PDF within 5 business days of the Effective Date.",
+const coverItems = [
+  ["Service Provider", "Siebert Repair Services LLC d/b/a Siebert Services — Washingtonville, New York"],
+  ["Customer", inlinePlaceholder("CUSTOMER LEGAL NAME")],
+  ["Service Tier", inlinePlaceholder("ESSENTIALS / BUSINESS / ENTERPRISE") + " Plan"],
+  ["Effective Date", inlinePlaceholder("EFFECTIVE DATE")],
+  ["Contracted Seats", inlinePlaceholder("NUMBER OF SEATS") + "  (minimum 3)"],
+  ["Document Sections", "Master Services Agreement · Schedules A–E · Optional Addenda"],
 ];
 
-usageSteps.forEach((step, i) => {
-  doc.font(FONTS.regular).fontSize(9.5).fillColor(COLORS.gray)
-    .text(`${i + 1}.  ${step}`, PAGE.margin, doc.y,
-      { width: CONTENT_WIDTH, indent: 16 });
-  doc.moveDown(0.3);
+coverItems.forEach(([label, value], i) => {
+  const rowY = doc.y;
+  if (i % 2 === 0) doc.rect(PAGE.margin, rowY, CONTENT_WIDTH, 18).fill("#f8fafc");
+  doc.font(FONTS.bold).fontSize(8.5).fillColor(COLORS.navyMed)
+    .text(label, PAGE.margin + 6, rowY + 4, { width: 130, lineBreak: false });
+  doc.font(FONTS.regular).fontSize(8.5).fillColor(COLORS.gray)
+    .text(value, PAGE.margin + 140, rowY + 4, { width: CONTENT_WIDTH - 146 });
+  doc.y = rowY + 18;
 });
 
-doc.moveDown(0.5);
-
-doc.rect(PAGE.margin, doc.y, CONTENT_WIDTH, 1).fill(COLORS.rule);
-doc.moveDown(0.6);
-
-doc.font(FONTS.bold).fontSize(9.5).fillColor("#b45309")
-  .text("⚠  IMPORTANT LEGAL DISCLAIMER", PAGE.margin, doc.y);
-doc.moveDown(0.3);
-doc.font(FONTS.italic).fontSize(9).fillColor(COLORS.gray)
-  .text(
-    "This document is a starting-point template prepared by Siebert Services for internal sales use. " +
-    "It is NOT legal advice and does NOT constitute a final, binding agreement until reviewed by qualified legal counsel, " +
-    "negotiated between the parties, and duly executed. Siebert Services strongly recommends that both parties have " +
-    "this agreement reviewed by their respective attorneys before signing. Laws and regulations vary; this template " +
-    "reflects New York State law and may require modification for other jurisdictions or specific regulatory requirements.",
-    PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: "justify" }
-  );
-
 doc.moveDown(1.2);
-doc.font(FONTS.regular).fontSize(8).fillColor(COLORS.lightGray)
-  .text(`Version 1.0  ·  ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}  ·  Proprietary — Siebert Services Internal Use Only`,
-    PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: "center" });
+doc.rect(PAGE.margin, doc.y, CONTENT_WIDTH, 0.5).fill(COLORS.rule);
+doc.moveDown(0.8);
+
+doc.font(FONTS.italic).fontSize(8.5).fillColor(COLORS.lightGray)
+  .text(
+    "CONFIDENTIAL — This document and the information contained herein are proprietary to Siebert Services " +
+    "and the Customer identified above. Do not distribute without authorization.",
+    PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: "center" }
+  );
 
 drawFooter();
 
@@ -1452,9 +1442,6 @@ addPage();
 
 doc.font(FONTS.bold).fontSize(14).fillColor(COLORS.navy)
   .text("OPTIONAL ADDENDA", PAGE.margin, 80, { width: CONTENT_WIDTH, align: "center" });
-doc.font(FONTS.regular).fontSize(10).fillColor(COLORS.gray)
-  .text("Attach only the Addenda applicable to this engagement. Mark inapplicable Addenda 'NOT APPLICABLE.'",
-    PAGE.margin, doc.y + 6, { width: CONTENT_WIDTH, align: "center" });
 hRule(COLORS.blue, 1.5);
 doc.moveDown(0.4);
 
