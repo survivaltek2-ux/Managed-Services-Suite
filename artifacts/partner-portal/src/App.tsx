@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,24 +41,37 @@ import AdminBilling from "./pages/AdminBilling";
 import ResetPassword from "./pages/ResetPassword";
 import PendingApproval from "./pages/PendingApproval";
 import NotFound from "./pages/not-found";
+import AdminUsers from "./pages/AdminUsers";
+import ForceChangePassword from "./pages/ForceChangePassword";
 
 import { useAuth } from "./hooks/use-auth";
 
 const queryClient = new QueryClient();
 
 // Protected route wrapper
-function ProtectedRoute({ component: Component }: { component: any }) {
+function ProtectedRoute({ component: Component, allowWithMustChangePassword }: { component: any; allowWithMustChangePassword?: boolean }) {
   const { user, isLoading } = useAuth();
-  
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && user && user.mustChangePassword && !allowWithMustChangePassword) {
+      setLocation("/force-change-password");
+    }
+  }, [isLoading, user, allowWithMustChangePassword]);
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">Loading...</div>;
   }
-  
+
   if (!user) {
     window.location.href = `${import.meta.env.BASE_URL}login`;
     return null;
   }
-  
+
+  if (user.mustChangePassword && !allowWithMustChangePassword) {
+    return null;
+  }
+
   return <Component />;
 }
 
@@ -100,9 +114,11 @@ function Router() {
       <Route path="/admin/tsd-products"><ProtectedRoute component={AdminTsdProducts} /></Route>
       <Route path="/admin/ai-page-editor"><ProtectedRoute component={AIPageEditor} /></Route>
       <Route path="/admin/billing"><ProtectedRoute component={AdminBilling} /></Route>
+      <Route path="/admin/users"><ProtectedRoute component={AdminUsers} /></Route>
       <Route path="/billing"><ProtectedRoute component={Billing} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>
+      <Route path="/force-change-password"><ProtectedRoute component={ForceChangePassword} allowWithMustChangePassword /></Route>
 
       <Route component={NotFound} />
     </Switch>

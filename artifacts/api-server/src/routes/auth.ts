@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable } from "@workspace/db";
 import { loginCodesTable, partnersTable } from "@workspace/db/schema";
-import { eq, and, gt, isNull } from "drizzle-orm";
-import { generateToken, requireAuth, AuthRequest } from "../middlewares/auth.js";
+import { eq, and, gt, isNull, asc } from "drizzle-orm";
+import { generateToken, requireAuth, requireAdmin, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
 import { sendLoginCode, sendUserRegistrationNotification, sendPasswordResetEmail } from "../lib/email.js";
 import { inviteGuestUser } from "../lib/microsoft-graph.js";
@@ -102,6 +102,7 @@ router.post("/auth/login", async (req, res) => {
     }
 
     const token = generateToken(user.id, user.role);
+    await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, user.id));
     res.json({
       token,
       user: {
@@ -332,6 +333,142 @@ router.post("/auth/verify-code", async (req, res) => {
   } catch (err) {
     console.error("verify-code error:", err);
     res.status(500).json({ message: "Failed to verify code" });
+  }
+});
+
+router.post("/auth/set-password", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword) {
+      res.status(400).json({ error: "validation_error", message: "newPassword is required" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: "validation_error", message: "Password must be at least 8 characters" });
+      return;
+    }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "not_found", message: "User not found" });
+      return;
+    }
+    if (!user.mustChangePassword) {
+      res.status(403).json({ error: "forbidden", message: "Password change not required for this account" });
+      return;
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.update(usersTable).set({ password: hashedPassword, mustChangePassword: false }).where(eq(usersTable.id, req.userId!));
+    res.json({ success: true, message: "Password set successfully" });
+  } catch (err) {
+    console.error("Set password error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to set password" });
+  }
+});
+
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let password = "";
+  const bytes = crypto.randomBytes(10);
+  for (let i = 0; i < 10; i++) {
+    password += chars[bytes[i] % chars.length];
+  }
+  return `Tmp@${password}`;
+}
+
+router.get("/admin/users", requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const admins = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        mustChangePassword: usersTable.mustChangePassword,
+        lastLoginAt: usersTable.lastLoginAt,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.role, "admin"))
+      .orderBy(asc(usersTable.createdAt));
+    res.json(admins);
+  } catch (err) {
+    console.error("List admin users error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to list admin users" });
+  }
+});
+
+router.post("/admin/users", requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, email: rawEmail } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    if (!name || !email) {
+      res.status(400).json({ error: "validation_error", message: "name and email are required" });
+      return;
+    }
+
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (existing.length > 0) {
+      res.status(400).json({ error: "conflict", message: "An account with this email already exists" });
+      return;
+    }
+
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    const [user] = await db.insert(usersTable).values({
+      name,
+      email,
+      password: hashedPassword,
+      company: "Siebert Services",
+      role: "admin" as const,
+      mustChangePassword: true,
+    }).returning();
+
+    res.status(201).json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        mustChangePassword: user.mustChangePassword,
+        lastLoginAt: user.lastLoginAt,
+        createdAt: user.createdAt,
+      },
+      tempPassword,
+    });
+  } catch (err) {
+    console.error("Create admin user error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to create admin user" });
+  }
+});
+
+router.post("/admin/users/:id/reset-password", requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const targetId = parseInt(req.params.id, 10);
+    if (isNaN(targetId)) {
+      res.status(400).json({ error: "validation_error", message: "Invalid user id" });
+      return;
+    }
+
+    const [target] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
+    if (!target) {
+      res.status(404).json({ error: "not_found", message: "User not found" });
+      return;
+    }
+    if (target.role !== "admin") {
+      res.status(403).json({ error: "forbidden", message: "Can only reset passwords for admin accounts" });
+      return;
+    }
+
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    await db.update(usersTable)
+      .set({ password: hashedPassword, mustChangePassword: true })
+      .where(eq(usersTable.id, targetId));
+
+    res.json({ tempPassword });
+  } catch (err) {
+    console.error("Reset admin password error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to reset password" });
   }
 });
 

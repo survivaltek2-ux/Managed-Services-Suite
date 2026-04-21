@@ -19,6 +19,7 @@ export const usersTable = pgTable("users", {
   resetToken: text("reset_token"),
   resetTokenExpires: timestamp("reset_token_expires"),
   msObjectId: text("ms_object_id"),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

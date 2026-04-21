@@ -71,6 +71,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/impact", label: "Impact.com", icon: Zap },
   { href: "/admin/marketplace", label: "Marketplace", icon: ShoppingCart },
   { href: "/admin/ai-page-editor", label: "AI Page Editor", icon: Sparkles },
+  { href: "/admin/users", label: "Admin Users", icon: ShieldCheck },
 ];
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -292,6 +293,7 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/affiliate-programs", label: "Affiliate Programs", icon: DollarSign },
     { href: "/admin/impact", label: "Impact.com", icon: Zap },
     { href: "/admin/ai-page-editor", label: "AI Page Editor", icon: Sparkles },
+    { href: "/admin/users", label: "Admin Users", icon: ShieldCheck },
   ];
 
   return (

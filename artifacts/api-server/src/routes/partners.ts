@@ -217,6 +217,7 @@ router.get("/partner/auth/me", requirePartnerAuth, async (req: PartnerRequest, r
         ytdRevenue: "0",
         isAdmin: true,
         isMainSiteAdmin: true,
+        mustChangePassword: user.mustChangePassword ?? false,
         specializations: [],
       });
       return;

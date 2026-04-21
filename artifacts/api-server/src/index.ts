@@ -41,6 +41,7 @@ async function runStartupMigrations() {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token text`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires timestamp`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS ms_object_id text`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at timestamp`);
 
   // ── partners — Microsoft guest ────────────────────────────────────────────
   await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS ms_object_id text`);

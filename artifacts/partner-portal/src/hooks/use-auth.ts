@@ -35,6 +35,7 @@ export interface PartnerUser {
   isAdmin: boolean;
   isMainSiteAdmin?: boolean;
   stripeConnectAccountId?: string | null;
+  mustChangePassword?: boolean;
 }
 
 interface LoginCredentials {
@@ -127,7 +128,11 @@ export function useAuth() {
       if (data.token) {
         localStorage.setItem("partner_token", data.token);
         queryClient.invalidateQueries({ queryKey: ["/api/partner/auth/me"] });
-        setLocation("/dashboard");
+        if (data.user?.mustChangePassword) {
+          setLocation("/force-change-password");
+        } else {
+          setLocation("/dashboard");
+        }
       }
     },
   });
