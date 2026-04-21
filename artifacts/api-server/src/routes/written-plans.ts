@@ -1,0 +1,533 @@
+import { Router, Request, Response } from "express";
+import { db, writtenPlansTable, planActivityEventsTable } from "@workspace/db";
+import { eq, desc, and, or, isNull, lt } from "drizzle-orm";
+import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
+import {
+  sendPlanReadyEmail,
+  sendPlanApprovedEmail,
+  sendPlanCallRequestedEmail,
+  sendPlanDeclinedEmail,
+  sendPlanExpiringEmail,
+} from "../lib/email.js";
+import { generatePlanPdf } from "../lib/planPdf.js";
+import crypto from "crypto";
+
+const router = Router();
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function generatePlanNumber(): string {
+  const now = new Date();
+  const y = now.getFullYear().toString().slice(-2);
+  const m = (now.getMonth() + 1).toString().padStart(2, "0");
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `WP-${y}${m}-${rand}`;
+}
+
+function generateReviewToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+async function logEvent(planId: number, eventType: string, metadata: object = {}) {
+  await db.insert(planActivityEventsTable).values({ planId, eventType, metadata });
+}
+
+// ─── Pain-point → service mapping ────────────────────────────────────────────
+
+const PAIN_POINT_MAP: Record<string, { service: string; description: string }> = {
+  downtime: {
+    service: "Managed IT Support",
+    description: "Proactive monitoring and rapid response to eliminate unplanned downtime and keep your systems running at full capacity.",
+  },
+  security: {
+    service: "Cybersecurity Bundle",
+    description: "Endpoint detection & response, threat monitoring, and security hardening to protect your business from modern threats.",
+  },
+  compliance: {
+    service: "Compliance Services",
+    description: "HIPAA, SOC 2, and CMMC program management to help you meet regulatory requirements and pass audits confidently.",
+  },
+  backup: {
+    service: "Backup & Disaster Recovery",
+    description: "Immutable, tested backups with rapid restore capabilities to ensure business continuity after any incident.",
+  },
+  email: {
+    service: "Microsoft 365 Management",
+    description: "Full administration of Microsoft 365, including security hardening, licensing, and user lifecycle management.",
+  },
+  remote: {
+    service: "Remote Workforce Enablement",
+    description: "Secure VPN, MFA, and collaboration tools to support a productive and protected distributed team.",
+  },
+  hardware: {
+    service: "Hardware Lifecycle Management",
+    description: "Procurement, deployment, and refresh planning so your team always has reliable, up-to-date equipment.",
+  },
+  cloud: {
+    service: "Cloud Migration & Management",
+    description: "Strategy, migration, and ongoing management of cloud workloads on Azure, AWS, or Microsoft 365.",
+  },
+  voip: {
+    service: "VoIP & Unified Communications",
+    description: "Modern phone systems that reduce costs, improve flexibility, and integrate with your business workflows.",
+  },
+  vendor: {
+    service: "Vendor & ISP Management",
+    description: "Single point of accountability for all your technology vendors, including ISP and telecom relationships.",
+  },
+};
+
+function generatePlanContent(answers: Record<string, any>): Record<string, any> {
+  const company = answers.clientCompany || answers.companyName || "your company";
+  const headcount = answers.headcount || "your team";
+  const locations = answers.locations || "your location(s)";
+  const painPoints: string[] = Array.isArray(answers.painPoints) ? answers.painPoints : [];
+  const complianceNeeds: string[] = Array.isArray(answers.complianceNeeds) ? answers.complianceNeeds : [];
+  const currentSetup = answers.currentItSetup || "current infrastructure";
+  const priorities: string[] = Array.isArray(answers.priorities) ? answers.priorities : [];
+  const budget = answers.budgetRange || null;
+  const timeline = answers.preferredTimeline || null;
+
+  // Map pain points to recommended services
+  const recommendedServices: { service: string; description: string }[] = [];
+  const seen = new Set<string>();
+
+  for (const pp of painPoints) {
+    const key = pp.toLowerCase().replace(/[^a-z]/g, "");
+    for (const [mapKey, val] of Object.entries(PAIN_POINT_MAP)) {
+      if (key.includes(mapKey) && !seen.has(val.service)) {
+        seen.add(val.service);
+        recommendedServices.push(val);
+      }
+    }
+  }
+
+  if (complianceNeeds.length > 0 && !seen.has("Compliance Services")) {
+    seen.add("Compliance Services");
+    recommendedServices.push(PAIN_POINT_MAP.compliance);
+  }
+
+  if (recommendedServices.length === 0) {
+    recommendedServices.push(PAIN_POINT_MAP.downtime, PAIN_POINT_MAP.security);
+  }
+
+  const keyFindings: string[] = [
+    `${company} currently operates with approximately ${headcount} employees across ${locations}.`,
+    ...(painPoints.length > 0
+      ? [`Key challenges identified: ${painPoints.join(", ")}.`]
+      : ["General IT optimization opportunities were identified during assessment."]),
+    ...(complianceNeeds.length > 0
+      ? [`Compliance obligations noted: ${complianceNeeds.join(", ")}.`]
+      : []),
+    `Current IT environment: ${currentSetup}.`,
+    ...(priorities.length > 0
+      ? [`Top priorities expressed: ${priorities.join(", ")}.`]
+      : []),
+  ];
+
+  const nextSteps = [
+    "Schedule a discovery call with your Siebert Services account executive to finalize service scope.",
+    "Review and sign this written plan to formally begin the engagement.",
+    "Siebert Services will conduct a full technical onboarding within 5 business days of agreement.",
+    ...(budget ? [`Budget alignment discussion based on your stated range of ${budget}.`] : []),
+    ...(timeline ? [`Target go-live aligned to your preferred timeline: ${timeline}.`] : []),
+  ];
+
+  return {
+    executiveSummary: `This IT assessment plan has been prepared for ${company} following a discovery session with Siebert Services. Based on our evaluation of your current environment and business objectives, this document outlines key findings, recommended services, and a clear path forward to modernize and secure your technology infrastructure. Siebert Services is committed to delivering measurable improvements in uptime, security, and operational efficiency for your organization.`,
+    currentEnvironment: `${company} maintains an IT environment supporting approximately ${headcount} employees across ${locations}. ${currentSetup ? `The current setup includes: ${currentSetup}.` : ""} This assessment identifies areas where targeted improvements will deliver the greatest business value.`,
+    keyFindings,
+    recommendedServices,
+    nextSteps,
+  };
+}
+
+// ─── Partner/Admin Routes ────────────────────────────────────────────────────
+
+router.get("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const partnerId = req.partnerId!;
+    const plans = await db.select().from(writtenPlansTable)
+      .where(partnerId === MAIN_SITE_ADMIN_SENTINEL ? undefined : eq(writtenPlansTable.partnerId, partnerId))
+      .orderBy(desc(writtenPlansTable.createdAt));
+    res.json({ plans });
+  } catch (err) {
+    console.error("[WrittenPlans] list error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [plan] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && plan.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    const events = await db.select().from(planActivityEventsTable)
+      .where(eq(planActivityEventsTable.planId, id))
+      .orderBy(planActivityEventsTable.createdAt);
+    // Fetch revision history
+    const revisions = plan.parentPlanId
+      ? await db.select().from(writtenPlansTable)
+          .where(eq(writtenPlansTable.parentPlanId, plan.parentPlanId ?? id))
+          .orderBy(writtenPlansTable.version)
+      : await db.select().from(writtenPlansTable)
+          .where(eq(writtenPlansTable.parentPlanId, id))
+          .orderBy(writtenPlansTable.version);
+    res.json({ plan, events, revisions });
+  } catch (err) {
+    console.error("[WrittenPlans] get error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, validityDays } = req.body;
+    if (!clientName || !clientEmail || !clientCompany) {
+      res.status(400).json({ error: "validation_error", message: "clientName, clientEmail, and clientCompany are required" });
+      return;
+    }
+    const planContent = generatePlanContent({ ...questionnaireAnswers, clientCompany, clientName });
+    const planNumber = generatePlanNumber();
+    const [plan] = await db.insert(writtenPlansTable).values({
+      partnerId: req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId,
+      planNumber,
+      clientName, clientEmail,
+      clientTitle: clientTitle || null,
+      clientCompany, clientPhone: clientPhone || null,
+      questionnaireAnswers: questionnaireAnswers || {},
+      planContent,
+      validityDays: validityDays || 30,
+    }).returning();
+    await logEvent(plan.id, "created", { planNumber });
+    res.status(201).json({ plan });
+  } catch (err) {
+    console.error("[WrittenPlans] create error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.put("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    if (existing.status === "approved") {
+      res.status(400).json({ error: "cannot_edit_approved" }); return;
+    }
+    const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, planContent, validityDays, personalNote } = req.body;
+    const [plan] = await db.update(writtenPlansTable).set({
+      clientName: clientName || existing.clientName,
+      clientEmail: clientEmail || existing.clientEmail,
+      clientTitle: clientTitle ?? existing.clientTitle,
+      clientCompany: clientCompany || existing.clientCompany,
+      clientPhone: clientPhone ?? existing.clientPhone,
+      questionnaireAnswers: questionnaireAnswers ?? existing.questionnaireAnswers,
+      planContent: planContent ?? existing.planContent,
+      validityDays: validityDays ?? existing.validityDays,
+      personalNote: personalNote ?? existing.personalNote,
+      updatedAt: new Date(),
+    }).where(eq(writtenPlansTable.id, id)).returning();
+    res.json({ plan });
+  } catch (err) {
+    console.error("[WrittenPlans] update error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.put("/partner/plans/:id/regenerate", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    const answers = (existing.questionnaireAnswers as Record<string, any>) || {};
+    const planContent = generatePlanContent({ ...answers, clientCompany: existing.clientCompany, clientName: existing.clientName });
+    const [plan] = await db.update(writtenPlansTable).set({ planContent, updatedAt: new Date() })
+      .where(eq(writtenPlansTable.id, id)).returning();
+    res.json({ plan });
+  } catch (err) {
+    console.error("[WrittenPlans] regenerate error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    const { personalNote, validityDays, clientEmail } = req.body;
+    const token = generateReviewToken();
+    const vdays = validityDays || existing.validityDays || 30;
+    const expiresAt = new Date(Date.now() + vdays * 86400000);
+    const finalEmail = clientEmail || existing.clientEmail;
+
+    const [plan] = await db.update(writtenPlansTable).set({
+      status: "sent",
+      reviewToken: token,
+      expiresAt,
+      validityDays: vdays,
+      personalNote: personalNote ?? existing.personalNote,
+      clientEmail: finalEmail,
+      sentAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(writtenPlansTable.id, id)).returning();
+
+    await logEvent(plan.id, "sent", { to: finalEmail });
+
+    const baseUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partner-portal";
+    const reviewUrl = `${baseUrl}/plan-review/${token}`;
+
+    const content = plan.planContent as any;
+    sendPlanReadyEmail({
+      clientName: plan.clientName,
+      clientEmail: finalEmail,
+      company: plan.clientCompany,
+      planNumber: plan.planNumber,
+      reviewUrl,
+      expiresAt,
+      executiveSummary: content?.executiveSummary || "",
+      personalNote: plan.personalNote || undefined,
+    }).catch(e => console.error("[WrittenPlans] send email error:", e));
+
+    res.json({ plan, reviewUrl });
+  } catch (err) {
+    console.error("[WrittenPlans] send error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/partner/plans/:id/revise", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    const parentId = existing.parentPlanId || existing.id;
+    const siblings = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.parentPlanId, parentId));
+    const nextVersion = Math.max(existing.version, ...siblings.map(s => s.version)) + 1;
+    const planNumber = generatePlanNumber();
+    const [newPlan] = await db.insert(writtenPlansTable).values({
+      partnerId: existing.partnerId,
+      planNumber,
+      version: nextVersion,
+      parentPlanId: parentId,
+      clientName: existing.clientName,
+      clientEmail: existing.clientEmail,
+      clientTitle: existing.clientTitle,
+      clientCompany: existing.clientCompany,
+      clientPhone: existing.clientPhone,
+      questionnaireAnswers: existing.questionnaireAnswers as any,
+      planContent: existing.planContent as any,
+      validityDays: existing.validityDays,
+      personalNote: existing.personalNote,
+    }).returning();
+    await logEvent(newPlan.id, "revised", { fromPlanId: id, fromVersion: existing.version });
+    res.status(201).json({ plan: newPlan });
+  } catch (err) {
+    console.error("[WrittenPlans] revise error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.delete("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    await db.delete(planActivityEventsTable).where(eq(planActivityEventsTable.planId, id));
+    await db.delete(writtenPlansTable).where(eq(writtenPlansTable.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[WrittenPlans] delete error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ─── PDF Download ─────────────────────────────────────────────────────────────
+
+router.get("/partner/plans/:id/pdf", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const [plan] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && plan.partnerId !== req.partnerId) {
+      res.status(403).json({ error: "forbidden" }); return;
+    }
+    const pdfBuffer = await generatePlanPdf(plan);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="plan-${plan.planNumber}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("[WrittenPlans] PDF error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ─── Public Routes (token-based, no auth) ────────────────────────────────────
+
+router.get("/public/plan-review/:token", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const [plan] = await db.select().from(writtenPlansTable)
+      .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (plan.expiresAt && plan.expiresAt < new Date() && plan.status !== "approved") {
+      res.json({ plan: { ...plan, signatureImage: null }, expired: true });
+      return;
+    }
+    if (plan.status === "sent") {
+      await db.update(writtenPlansTable).set({ status: "viewed", viewedAt: new Date(), updatedAt: new Date() })
+        .where(eq(writtenPlansTable.id, plan.id));
+      await logEvent(plan.id, "viewed");
+    }
+    res.json({ plan: { ...plan, signatureImage: plan.status === "approved" ? plan.signatureImage : null }, expired: false });
+  } catch (err) {
+    console.error("[WrittenPlans] public get error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/public/plan-review/:token/sign", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const { signerName, signerTitle, signatureImage } = req.body;
+    if (!signerName || !signatureImage) {
+      res.status(400).json({ error: "validation_error", message: "signerName and signatureImage are required" });
+      return;
+    }
+    const [plan] = await db.select().from(writtenPlansTable)
+      .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (plan.expiresAt && plan.expiresAt < new Date()) {
+      res.status(400).json({ error: "expired" }); return;
+    }
+    if (plan.status === "approved") {
+      res.status(400).json({ error: "already_approved" }); return;
+    }
+    const [updated] = await db.update(writtenPlansTable).set({
+      status: "approved",
+      approvedAt: new Date(),
+      signerName,
+      signerTitle: signerTitle || null,
+      signatureImage,
+      updatedAt: new Date(),
+    }).where(eq(writtenPlansTable.id, plan.id)).returning();
+    await logEvent(plan.id, "approved", { signerName, signerTitle });
+
+    sendPlanApprovedEmail(plan).catch(e => console.error("[Email] plan approved error:", e));
+
+    res.json({ success: true, plan: updated });
+  } catch (err) {
+    console.error("[WrittenPlans] sign error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/public/plan-review/:token/decline", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const { reason, note } = req.body;
+    const [plan] = await db.select().from(writtenPlansTable)
+      .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (["approved", "declined"].includes(plan.status)) {
+      res.status(400).json({ error: "already_responded" }); return;
+    }
+    await db.update(writtenPlansTable).set({
+      status: "declined",
+      declineReason: reason || "not specified",
+      declineNote: note || null,
+      updatedAt: new Date(),
+    }).where(eq(writtenPlansTable.id, plan.id));
+    await logEvent(plan.id, "declined", { reason, note });
+    sendPlanDeclinedEmail(plan, reason, note).catch(e => console.error("[Email] plan declined error:", e));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[WrittenPlans] decline error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/public/plan-review/:token/request-call", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const [plan] = await db.select().from(writtenPlansTable)
+      .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (["approved", "declined"].includes(plan.status)) {
+      res.status(400).json({ error: "already_responded" }); return;
+    }
+    await db.update(writtenPlansTable).set({ status: "call_requested", updatedAt: new Date() })
+      .where(eq(writtenPlansTable.id, plan.id));
+    await logEvent(plan.id, "call_requested");
+    sendPlanCallRequestedEmail(plan).catch(e => console.error("[Email] call requested error:", e));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[WrittenPlans] request-call error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/public/plan-review/:token/pdf", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const [plan] = await db.select().from(writtenPlansTable)
+      .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
+    if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    const pdfBuffer = await generatePlanPdf(plan);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="plan-${plan.planNumber}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("[WrittenPlans] public PDF error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ─── Reminder Cron ───────────────────────────────────────────────────────────
+
+export async function sendPlanExpiryReminders() {
+  try {
+    const threeDaysOut = new Date(Date.now() + 3 * 86400000);
+    const oneDayAgo = new Date(Date.now() - 86400000);
+    const plans = await db.select().from(writtenPlansTable)
+      .where(
+        and(
+          eq(writtenPlansTable.status, "sent"),
+          lt(writtenPlansTable.expiresAt, threeDaysOut)
+        )
+      );
+    for (const plan of plans) {
+      const events = await db.select().from(planActivityEventsTable)
+        .where(and(eq(planActivityEventsTable.planId, plan.id), eq(planActivityEventsTable.eventType, "reminder_sent")))
+        .orderBy(desc(planActivityEventsTable.createdAt))
+        .limit(1);
+      const lastReminder = events[0];
+      if (lastReminder && lastReminder.createdAt > oneDayAgo) continue;
+      await sendPlanExpiringEmail(plan).catch(e => console.error("[Email] expiry reminder error:", e));
+      await logEvent(plan.id, "reminder_sent");
+    }
+  } catch (err) {
+    console.error("[WrittenPlans] reminder cron error:", err);
+  }
+}
+
+export default router;

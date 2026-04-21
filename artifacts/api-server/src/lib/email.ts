@@ -2053,3 +2053,130 @@ export async function sendSubscriptionRejectedEmail(params: {
     </div>`;
   return sendEmail(customerEmail, "Update on your Siebert Services application", html);
 }
+
+// ─── Written Plan Email Helpers ──────────────────────────────────────────────
+
+interface PlanReadyParams {
+  clientName: string;
+  clientEmail: string;
+  company: string;
+  planNumber: string;
+  reviewUrl: string;
+  expiresAt: Date;
+  executiveSummary: string;
+  personalNote?: string;
+}
+
+export async function sendPlanReadyEmail(params: PlanReadyParams): Promise<boolean> {
+  const { clientName, clientEmail, company, planNumber, reviewUrl, expiresAt, executiveSummary, personalNote } = params;
+  const expiry = expiresAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const summarySnippet = executiveSummary.length > 300 ? executiveSummary.slice(0, 297) + "…" : executiveSummary;
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Your IT Assessment Plan is Ready</h1>
+        <p style="color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 13px;">Prepared for ${esc(company)} · Plan ${esc(planNumber)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;">Hi ${esc(clientName)},</p>
+        ${personalNote ? `<p style="font-size: 14px; color: #374151; margin: 0 0 20px; padding: 16px; background: #f0f9ff; border-left: 3px solid #0176d3; border-radius: 4px;">${esc(personalNote)}</p>` : ""}
+        <p style="font-size: 14px; color: #374151; margin: 0 0 16px;">Siebert Services has prepared a tailored IT Assessment Plan for <strong>${esc(company)}</strong>. Click the button below to review it, ask questions, or provide your approval.</p>
+        ${summarySnippet ? `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;"><p style="color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; font-weight: 600;">Executive Summary Preview</p><p style="color: #374151; font-size: 14px; margin: 0; line-height: 1.6;">${esc(summarySnippet)}</p></div>` : ""}
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${reviewUrl}" style="background: #0176d3; color: #fff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block;">Review Your Plan</a>
+        </div>
+        <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">This plan is valid until <strong>${expiry}</strong>. After that date, you will need to request a new assessment.</p>
+        <p style="font-size: 12px; color: #9ca3af; margin: 8px 0 0;">Or copy this link: <a href="${reviewUrl}" style="color: #0176d3; word-break: break-all;">${reviewUrl}</a></p>
+      </div>
+    </div>`;
+  return sendEmail(clientEmail, `Your IT Assessment Plan is Ready — ${esc(company)}`, html);
+}
+
+export async function sendPlanApprovedEmail(plan: {
+  clientName: string; clientEmail: string; clientCompany: string;
+  signerName: string | null; signerTitle: string | null;
+  approvedAt: Date | null; planNumber: string; partnerId: number | null;
+}): Promise<boolean> {
+  const cfg = await loadEmailConfig();
+  const approvedAt = plan.approvedAt ? plan.approvedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "just now";
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Plan Approved ✓</h1>
+        <p style="color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 13px;">Plan ${esc(plan.planNumber)} · ${esc(plan.clientCompany)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 20px;">Great news! A client has signed and approved their IT Assessment Plan.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;background:#f8fafc;border-radius:8px;overflow:hidden;">
+          <tr><td style="padding:10px 16px;color:#6b7280;width:140px;">Client</td><td style="padding:10px 16px;font-weight:600;">${esc(plan.clientName)}</td></tr>
+          <tr><td style="padding:10px 16px;color:#6b7280;">Company</td><td style="padding:10px 16px;">${esc(plan.clientCompany)}</td></tr>
+          <tr><td style="padding:10px 16px;color:#6b7280;">Signed By</td><td style="padding:10px 16px;">${esc(plan.signerName || plan.clientName)}${plan.signerTitle ? `, ${esc(plan.signerTitle)}` : ""}</td></tr>
+          <tr><td style="padding:10px 16px;color:#6b7280;">Approved At</td><td style="padding:10px 16px;">${approvedAt}</td></tr>
+        </table>
+        <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">Log in to the Partner Portal to view the full signed plan and download a PDF copy.</p>
+      </div>
+    </div>`;
+  return sendEmail(cfg.notificationEmail, `Plan Approved: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+}
+
+export async function sendPlanCallRequestedEmail(plan: {
+  clientName: string; clientEmail: string; clientCompany: string; planNumber: string;
+}): Promise<boolean> {
+  const cfg = await loadEmailConfig();
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Client Requesting a Call</h1>
+        <p style="color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 13px;">Plan ${esc(plan.planNumber)} · ${esc(plan.clientCompany)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;"><strong>${esc(plan.clientName)}</strong> at <strong>${esc(plan.clientCompany)}</strong> has reviewed their IT Assessment Plan and would like to schedule a call before making a decision.</p>
+        <p style="font-size: 14px; color: #374151; margin: 0 0 16px;">Reach out to them at <a href="mailto:${esc(plan.clientEmail)}" style="color:#0176d3;">${esc(plan.clientEmail)}</a> to schedule a conversation.</p>
+        <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">Log in to the Partner Portal to view the plan and take next steps.</p>
+      </div>
+    </div>`;
+  return sendEmail(cfg.notificationEmail, `Call Requested: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+}
+
+export async function sendPlanDeclinedEmail(plan: {
+  clientName: string; clientEmail: string; clientCompany: string; planNumber: string;
+}, reason: string, note?: string): Promise<boolean> {
+  const cfg = await loadEmailConfig();
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Plan Declined</h1>
+        <p style="color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 13px;">Plan ${esc(plan.planNumber)} · ${esc(plan.clientCompany)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;"><strong>${esc(plan.clientName)}</strong> at <strong>${esc(plan.clientCompany)}</strong> has declined the IT Assessment Plan.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;background:#f8fafc;border-radius:8px;overflow:hidden;">
+          <tr><td style="padding:10px 16px;color:#6b7280;width:100px;">Reason</td><td style="padding:10px 16px;">${esc(reason || "Not specified")}</td></tr>
+          ${note ? `<tr><td style="padding:10px 16px;color:#6b7280;vertical-align:top;">Note</td><td style="padding:10px 16px;">${esc(note)}</td></tr>` : ""}
+        </table>
+        <p style="font-size: 14px; color: #374151; margin: 20px 0 0;">You can revise the plan and resend it from the Partner Portal, or reach out to ${esc(plan.clientName)} at <a href="mailto:${esc(plan.clientEmail)}" style="color:#0176d3;">${esc(plan.clientEmail)}</a> to follow up.</p>
+      </div>
+    </div>`;
+  return sendEmail(cfg.notificationEmail, `Plan Declined: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+}
+
+export async function sendPlanExpiringEmail(plan: {
+  clientName: string; clientEmail: string; clientCompany: string;
+  planNumber: string; expiresAt: Date | null; partnerId: number | null;
+}): Promise<boolean> {
+  const cfg = await loadEmailConfig();
+  const expiry = plan.expiresAt ? plan.expiresAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "soon";
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Plan Expiring Soon</h1>
+        <p style="color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 13px;">Plan ${esc(plan.planNumber)} · ${esc(plan.clientCompany)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;">The IT Assessment Plan for <strong>${esc(plan.clientCompany)}</strong> has not been signed yet and will expire on <strong>${expiry}</strong>.</p>
+        <p style="font-size: 14px; color: #374151; margin: 0 0 16px;">Consider following up with ${esc(plan.clientName)} at <a href="mailto:${esc(plan.clientEmail)}" style="color:#0176d3;">${esc(plan.clientEmail)}</a> to prompt a decision before the plan expires.</p>
+        <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">Log in to the Partner Portal to resend, revise, or extend the plan.</p>
+      </div>
+    </div>`;
+  return sendEmail(cfg.notificationEmail, `Plan Expiring ${expiry}: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+}

@@ -44,6 +44,7 @@ const BASE_NAV_ITEMS = [
   { href: "/deals", label: "Deals", icon: Handshake },
   { href: "/leads", label: "Leads", icon: Target },
   { href: "/proposals/generate", label: "Generate Proposal", icon: FileText },
+  { href: "/plans", label: "Written Plans", icon: FileSignature },
   { href: "/commissions", label: "Commissions", icon: DollarSign },
   { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingCart },
@@ -299,6 +300,7 @@ function AdminNavDropdown({ location }: { location: string }) {
     { href: "/admin/impact", label: "Impact.com", icon: Zap },
     { href: "/admin/ai-page-editor", label: "AI Page Editor", icon: Sparkles },
     { href: "/admin/esign", label: "E-Signatures", icon: FileSignature },
+    { href: "/admin/plans", label: "Written Plans", icon: FileText },
     { href: "/admin/users", label: "Admin Users", icon: ShieldCheck },
   ];
 

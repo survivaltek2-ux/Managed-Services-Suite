@@ -46,6 +46,9 @@ import AdminMSAGenerator from "./pages/AdminMSAGenerator";
 import AdminEsign from "./pages/AdminEsign";
 import AdminPricing from "./pages/AdminPricing";
 import ForceChangePassword from "./pages/ForceChangePassword";
+import WrittenPlans from "./pages/WrittenPlans";
+import PlanReview from "./pages/PlanReview";
+import AdminPlans from "./pages/AdminPlans";
 
 import { useAuth } from "./hooks/use-auth";
 
@@ -102,6 +105,8 @@ function Router() {
       <Route path="/documents"><ProtectedRoute component={Documents} /></Route>
       <Route path="/admin/inquiries"><ProtectedRoute component={AdminInquiries} /></Route>
       <Route path="/proposals/generate"><ProtectedRoute component={ProposalGenerator} /></Route>
+      <Route path="/plans"><ProtectedRoute component={WrittenPlans} /></Route>
+      <Route path="/plan-review/:token" component={PlanReview} />
 
       {/* Admin-only Partner Management Routes */}
       <Route path="/admin/partners"><ProtectedRoute component={AdminPartners} /></Route>
@@ -121,6 +126,7 @@ function Router() {
       <Route path="/admin/msa-generator"><ProtectedRoute component={AdminMSAGenerator} /></Route>
       <Route path="/admin/esign"><ProtectedRoute component={AdminEsign} /></Route>
       <Route path="/admin/pricing"><ProtectedRoute component={AdminPricing} /></Route>
+      <Route path="/admin/plans"><ProtectedRoute component={AdminPlans} /></Route>
       <Route path="/billing"><ProtectedRoute component={Billing} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>

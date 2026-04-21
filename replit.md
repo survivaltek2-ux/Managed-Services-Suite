@@ -50,6 +50,7 @@ The project uses a pnpm workspace monorepo with three main applications under `a
 - **Client Portal**: Support tickets, quote viewing, billing, account management.
 - **Partner Portal**: Dashboard with KPIs, deal registration (list/kanban), lead management, commission tracking (with dispute workflow), document sharing, training, announcements, support cases. Automated partner tier promotion (Silver: $100k, Gold: $250k, Platinum: $500k YTD revenue).
 - **CMS Admin Panel**: Comprehensive management for blog, services, testimonials, team, FAQ, contacts, quotes, tickets, proposals, users, and reporting.
+- **Written Plan Builder**: Multi-step questionnaire wizard for partners to generate customized service plans. Plans are sent to clients via a secure, token-based review link (no login required) where clients can sign (canvas/typed signature), decline, or request a call. Full revision/versioning, PDF export, admin oversight view, 6-hour expiry reminder cron, and activity timeline.
 - **Invoicing System**: Admin creation/management, client viewing in portal.
 - **Reporting**: Admin dashboard with key business metrics (clients, tickets, quotes, proposals, revenue, invoice status breakdown).
 

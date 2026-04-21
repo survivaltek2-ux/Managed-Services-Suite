@@ -85,6 +85,44 @@ export const proposalTemplatesTable = pgTable("proposal_templates", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const writtenPlansTable = pgTable("written_plans", {
+  id: serial("id").primaryKey(),
+  partnerId: integer("partner_id"),
+  planNumber: text("plan_number").notNull().unique(),
+  version: integer("version").notNull().default(1),
+  parentPlanId: integer("parent_plan_id"),
+  clientName: text("client_name").notNull(),
+  clientEmail: text("client_email").notNull(),
+  clientTitle: text("client_title"),
+  clientCompany: text("client_company").notNull(),
+  clientPhone: text("client_phone"),
+  questionnaireAnswers: jsonb("questionnaire_answers").notNull().default("{}"),
+  planContent: jsonb("plan_content").notNull().default("{}"),
+  status: text("status").notNull().default("draft"),
+  reviewToken: text("review_token").unique(),
+  expiresAt: timestamp("expires_at"),
+  validityDays: integer("validity_days").notNull().default(30),
+  personalNote: text("personal_note"),
+  sentAt: timestamp("sent_at"),
+  viewedAt: timestamp("viewed_at"),
+  approvedAt: timestamp("approved_at"),
+  signerName: text("signer_name"),
+  signerTitle: text("signer_title"),
+  signatureImage: text("signature_image"),
+  declineReason: text("decline_reason"),
+  declineNote: text("decline_note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const planActivityEventsTable = pgTable("plan_activity_events", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").notNull().references(() => writtenPlansTable.id),
+  eventType: text("event_type").notNull(),
+  metadata: jsonb("metadata").default("{}"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertQuoteSchema = createInsertSchema(quotesTable).omit({ id: true, createdAt: true, status: true });
 export const insertProposalSchema = createInsertSchema(quoteProposalsTable).omit({ id: true, createdAt: true, updatedAt: true, version: true });
 export const insertLineItemSchema = createInsertSchema(quoteLineItemsTable).omit({ id: true });
@@ -95,3 +133,5 @@ export type Quote = typeof quotesTable.$inferSelect;
 export type QuoteProposal = typeof quoteProposalsTable.$inferSelect;
 export type QuoteLineItem = typeof quoteLineItemsTable.$inferSelect;
 export type ProposalTemplate = typeof proposalTemplatesTable.$inferSelect;
+export type WrittenPlan = typeof writtenPlansTable.$inferSelect;
+export type PlanActivityEvent = typeof planActivityEventsTable.$inferSelect;

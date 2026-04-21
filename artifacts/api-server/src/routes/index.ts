@@ -30,6 +30,7 @@ import stripeBillingRouter from "./stripe-billing.js";
 import stripeWebhooksRouter from "./stripe-webhooks.js";
 import contractsRouter from "./contracts.js";
 import esignRouter from "./esign.js";
+import writtenPlansRouter, { sendPlanExpiryReminders } from "./written-plans.js";
 
 const router: IRouter = Router();
 
@@ -64,5 +65,9 @@ router.use(stripeBillingRouter);
 router.use(stripeWebhooksRouter);
 router.use(contractsRouter);
 router.use(esignRouter);
+router.use(writtenPlansRouter);
+
+// Expiry reminder cron (runs every 6 hours)
+setInterval(() => { sendPlanExpiryReminders(); }, 6 * 60 * 60 * 1000);
 
 export default router;
