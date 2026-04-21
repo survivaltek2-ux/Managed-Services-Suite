@@ -498,8 +498,8 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
       res.status(400).json({ error: "validation_error", message: "signerName and signatureImage are required" });
       return;
     }
-    if (typeof signatureImage !== "string" || !signatureImage.startsWith("data:image/") || !signatureImage.includes(";base64,")) {
-      res.status(400).json({ error: "validation_error", message: "signatureImage must be a base64-encoded data URL" });
+    if (typeof signatureImage !== "string" || !signatureImage.startsWith("data:image/png;base64,")) {
+      res.status(400).json({ error: "validation_error", message: "signatureImage must be a PNG base64 data URL (data:image/png;base64,...)" });
       return;
     }
     const MAX_SIGNATURE_BYTES = 5 * 1024 * 1024;
@@ -541,6 +541,10 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
   try {
     const { token } = req.params;
     const { reason, note } = req.body;
+    if (!reason || typeof reason !== "string" || !reason.trim()) {
+      res.status(400).json({ error: "validation_error", message: "A decline reason is required" });
+      return;
+    }
     const [plan] = await db.select().from(writtenPlansTable)
       .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
@@ -552,7 +556,7 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
     }
     await db.update(writtenPlansTable).set({
       status: "declined",
-      declineReason: reason || "not specified",
+      declineReason: reason.trim(),
       declineNote: note || null,
       updatedAt: new Date(),
     }).where(eq(writtenPlansTable.id, plan.id));
