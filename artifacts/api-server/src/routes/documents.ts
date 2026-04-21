@@ -4,10 +4,29 @@ import { db, documentsTable, partnersTable } from "@workspace/db";
 import { eq, and, or, isNull, desc, sql } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, isMainSiteAdmin } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
+import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage.js";
 
 const router: IRouter = Router();
+const storage = new ObjectStorageService();
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (previously 10MB, App Storage removes the DB constraint)
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function saveToStorage(
+  content: string,
+  filename: string,
+  mimeType: string
+): Promise<{ storagePath: string; size: number }> {
+  const buffer = Buffer.from(content, "base64");
+  const storagePath = await storage.uploadBuffer(buffer, filename, mimeType);
+  return { storagePath, size: buffer.length };
+}
+
+async function getContentFromStorage(storagePath: string): Promise<string> {
+  const buffer = await storage.downloadBuffer(storagePath);
+  return buffer.toString("base64");
+}
 
 // ─── Partner: List accessible documents ──────────────────────────────────────
 
@@ -52,19 +71,35 @@ router.post("/partner/documents", requirePartnerAuth, async (req: PartnerRequest
     return;
   }
   try {
-    const { name, description, filename, mimeType, size, content, category, tags } = req.body;
-    if (!name || !filename || !content) {
-      res.status(400).json({ error: "validation_error", message: "name, filename, and content are required" });
+    const { name, description, filename, mimeType, size, content, storagePath: incomingPath, category, tags } = req.body;
+    if (!name || !filename) {
+      res.status(400).json({ error: "validation_error", message: "name and filename are required" });
+      return;
+    }
+    if (!content && !incomingPath) {
+      res.status(400).json({ error: "validation_error", message: "Either content (base64) or storagePath is required" });
       return;
     }
     if (size && size > MAX_FILE_SIZE) {
-      res.status(400).json({ error: "file_too_large", message: "File must be under 10MB" });
+      res.status(400).json({ error: "file_too_large", message: "File must be under 50MB" });
       return;
     }
+
+    let resolvedPath: string;
+    let resolvedSize: number = size || 0;
+
+    if (incomingPath) {
+      resolvedPath = incomingPath;
+    } else {
+      const result = await saveToStorage(content, filename, mimeType || "application/octet-stream");
+      resolvedPath = result.storagePath;
+      resolvedSize = result.size;
+    }
+
     const [doc] = await db.insert(documentsTable).values({
       name, description: description || null,
       filename, mimeType: mimeType || "application/octet-stream",
-      size: size || 0, content,
+      size: resolvedSize, content: null, storagePath: resolvedPath,
       category: category || "other",
       partnerId: req.partnerId!,
       uploadedBy: "partner",
@@ -96,7 +131,20 @@ router.get("/partner/documents/:id/download", requirePartnerAuth, async (req: Pa
       )
       .limit(1);
     if (!doc) { res.status(404).json({ error: "not_found" }); return; }
-    res.json({ content: doc.content, filename: doc.filename, mimeType: doc.mimeType });
+
+    let content: string | null = doc.content;
+    if (!content && doc.storagePath) {
+      try {
+        content = await getContentFromStorage(doc.storagePath);
+      } catch (e) {
+        if (e instanceof ObjectNotFoundError) {
+          res.status(404).json({ error: "not_found", message: "File not found in storage" });
+          return;
+        }
+        throw e;
+      }
+    }
+    res.json({ content, filename: doc.filename, mimeType: doc.mimeType });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to download document" });
@@ -148,12 +196,9 @@ router.get("/admin/documents", requireAuth, async (_req, res) => {
       .leftJoin(partnersTable, eq(documentsTable.partnerId, partnersTable.id))
       .orderBy(desc(documentsTable.createdAt));
 
-    // Attach the most-recent envelope (id + status) for each document so the
-    // documents list can show an inline status badge without a separate fetch.
     let envelopeByDocId: Record<number, { id: number; status: string }> = {};
     if (docs.length > 0) {
       const docIds = docs.map(d => d.id);
-      // Build a fully parameterized IN list — avoids sql.raw() for safety.
       const idList = sql.join(docIds.map(id => sql`${id}`), sql`, `);
       const rows = await db.execute(sql`
         SELECT DISTINCT ON (document_id) document_id, id, status
@@ -181,19 +226,35 @@ router.get("/admin/documents", requireAuth, async (_req, res) => {
 
 router.post("/admin/documents", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, filename, mimeType, size, content, category, partnerId, tags } = req.body;
-    if (!name || !filename || !content) {
-      res.status(400).json({ error: "validation_error", message: "name, filename, and content are required" });
+    const { name, description, filename, mimeType, size, content, storagePath: incomingPath, category, partnerId, tags } = req.body;
+    if (!name || !filename) {
+      res.status(400).json({ error: "validation_error", message: "name and filename are required" });
+      return;
+    }
+    if (!content && !incomingPath) {
+      res.status(400).json({ error: "validation_error", message: "Either content (base64) or storagePath is required" });
       return;
     }
     if (size && size > MAX_FILE_SIZE) {
-      res.status(400).json({ error: "file_too_large", message: "File must be under 10MB" });
+      res.status(400).json({ error: "file_too_large", message: "File must be under 50MB" });
       return;
     }
+
+    let resolvedPath: string;
+    let resolvedSize: number = size || 0;
+
+    if (incomingPath) {
+      resolvedPath = incomingPath;
+    } else {
+      const result = await saveToStorage(content, filename, mimeType || "application/octet-stream");
+      resolvedPath = result.storagePath;
+      resolvedSize = result.size;
+    }
+
     const [doc] = await db.insert(documentsTable).values({
       name, description: description || null,
       filename, mimeType: mimeType || "application/octet-stream",
-      size: size || 0, content,
+      size: resolvedSize, content: null, storagePath: resolvedPath,
       category: category || "other",
       partnerId: partnerId ? parseInt(partnerId) : null,
       uploadedBy: "admin",
@@ -213,7 +274,20 @@ router.get("/admin/documents/:id/download", requireAuth, async (req: AuthRequest
     const id = parseInt(req.params.id as string);
     const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id)).limit(1);
     if (!doc) { res.status(404).json({ error: "not_found" }); return; }
-    res.json({ content: doc.content, filename: doc.filename, mimeType: doc.mimeType });
+
+    let content: string | null = doc.content;
+    if (!content && doc.storagePath) {
+      try {
+        content = await getContentFromStorage(doc.storagePath);
+      } catch (e) {
+        if (e instanceof ObjectNotFoundError) {
+          res.status(404).json({ error: "not_found", message: "File not found in storage" });
+          return;
+        }
+        throw e;
+      }
+    }
+    res.json({ content, filename: doc.filename, mimeType: doc.mimeType });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to download document" });

@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
+import { db, documentsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -261,6 +263,26 @@ router.post(
         .toLowerCase()
         .slice(0, 60) || "client";
       const filename = `siebert-msa-${safeCompany}-${effective.toISOString().slice(0, 10)}.pdf`;
+
+      // Save to App Storage and create a documents record (non-blocking — don't fail the download if storage fails)
+      try {
+        const objStorage = new ObjectStorageService();
+        const storagePath = await objStorage.uploadBuffer(pdf, filename, "application/pdf");
+        await db.insert(documentsTable).values({
+          name: `MSA — ${companyName.trim()} (${effective.toISOString().slice(0, 10)})`,
+          description: `Generated Master Services Agreement for ${companyName.trim()}`,
+          filename,
+          mimeType: "application/pdf",
+          size: pdf.length,
+          content: null,
+          storagePath,
+          category: "agreement",
+          uploadedBy: "system",
+          tags: JSON.stringify(["msa", "generated", slug]),
+        });
+      } catch (storageErr) {
+        console.error("[contracts] Failed to save MSA to App Storage (download still proceeding):", storageErr);
+      }
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);

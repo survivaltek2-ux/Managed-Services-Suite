@@ -12,6 +12,7 @@ import {
   type EsignSigner,
 } from "../lib/esign.js";
 import { sendEsignNotification } from "../lib/email.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 
 const router: IRouter = Router();
 
@@ -115,9 +116,23 @@ router.post("/admin/esign/envelopes", requireAdmin, async (req: AuthRequest, res
       signingOrder: s.signingOrder ?? i + 1,
     }));
 
+    // Resolve document content — legacy docs store base64 in `content`;
+    // migrated docs store a path in `storagePath` with content=null.
+    let fileBase64: string;
+    if (doc.content) {
+      fileBase64 = doc.content;
+    } else if (doc.storagePath) {
+      const objStorage = new ObjectStorageService();
+      const buf = await objStorage.downloadBuffer(doc.storagePath);
+      fileBase64 = buf.toString("base64");
+    } else {
+      res.status(422).json({ error: "document_unavailable", message: "Document has no content available for signing" });
+      return;
+    }
+
     const envelopeResult = await createAndSendEnvelope({
       documentName: doc.name,
-      fileBase64: doc.content,
+      fileBase64,
       fileName: doc.filename,
       signers: esignSigners,
       subject: subject || `Please sign: ${doc.name}`,

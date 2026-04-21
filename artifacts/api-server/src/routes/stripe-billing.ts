@@ -5,7 +5,10 @@ import { requireAuth, requireAdmin } from "../middlewares/auth.js";
 import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY } from "../lib/stripe.js";
 import { sendContractEmail, sendSubscriptionPendingEmail, sendSubscriptionApprovedEmail, sendSubscriptionRejectedEmail } from "../lib/email.js";
 import { generateMSAContract } from "../lib/contract.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 import jwt from "jsonwebtoken";
+
+const objStorage = new ObjectStorageService();
 
 const router: IRouter = Router();
 
@@ -191,13 +194,16 @@ router.post("/admin/billing/subscriptions", requireAdmin, async (req: any, res) 
         });
 
         const refId = subscription.id.replace("sub_", "").slice(0, 12).toUpperCase();
+        const filename1 = `Siebert_Services_MSA_${refId}.pdf`;
+        const storagePath1 = await objStorage.uploadBuffer(pdfBuffer, filename1, "application/pdf");
         await db.insert(documentsTable).values({
           name: `MSA — ${companyName} — ${tier.name} Plan`,
           description: `Managed Services Agreement created by admin. Plan: ${tier.name} (${billingCycle}), effective ${effectiveDate.toISOString().slice(0, 10)}.`,
-          filename: `Siebert_Services_MSA_${refId}.pdf`,
+          filename: filename1,
           mimeType: "application/pdf",
           size: pdfBuffer.length,
-          content: pdfBuffer.toString("base64"),
+          content: null,
+          storagePath: storagePath1,
           category: "contract" as any,
           partnerId: partnerId ? parseInt(partnerId) : null,
           uploadedBy: "admin",
@@ -363,15 +369,18 @@ router.post("/admin/billing/subscriptions/:id/approve", requireAdmin, async (req
           contractPdf: pdfBuffer,
         });
 
-        // Store the contract in admin documents for records.
+        // Store the contract in App Storage + admin documents for records.
         const refId = sub.stripeSubscriptionId.replace("sub_", "").slice(0, 12).toUpperCase();
+        const filename2 = `Siebert_Services_MSA_${refId}.pdf`;
+        const storagePath2 = await objStorage.uploadBuffer(pdfBuffer, filename2, "application/pdf");
         await db.insert(documentsTable).values({
           name: `MSA — ${customerName} — ${sub.planName} Plan`,
           description: `MSA generated on admin approval. Plan: ${sub.planName} (${cycle}), ${seats} seats.`,
-          filename: `Siebert_Services_MSA_${refId}.pdf`,
+          filename: filename2,
           mimeType: "application/pdf",
           size: pdfBuffer.length,
-          content: pdfBuffer.toString("base64"),
+          content: null,
+          storagePath: storagePath2,
           category: "contract" as any,
           uploadedBy: "system",
           tags: JSON.stringify(["contract", "msa", "auto-generated", sub.planId]),
