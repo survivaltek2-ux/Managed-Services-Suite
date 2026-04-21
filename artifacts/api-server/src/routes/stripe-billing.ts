@@ -235,7 +235,8 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
   try {
     const stripe = getStripe();
     const tierId = req.params.tierId;
-    const { billingCycle = "monthly", email } = req.body;
+    const { billingCycle = "monthly", email, seatQuantity = 1 } = req.body;
+    const seats = Math.max(1, Math.min(500, parseInt(String(seatQuantity), 10) || 1));
 
     let tier: any = null;
     const tierIdStr = String(tierId);
@@ -302,8 +303,8 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
     const createSession = async (priceId: string) => stripe.checkout.sessions.create({
       mode: "subscription",
       ...(email ? { customer_email: email } : {}),
-      line_items: [{ price: priceId, quantity: 1 }],
-      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, type: "self_checkout" },
+      line_items: [{ price: priceId, quantity: seats }],
+      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout" },
       allow_promotion_codes: true,
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing`,

@@ -119,6 +119,11 @@ export default function Pricing() {
   const [billing, setBilling] = useState<BillingCycle>("monthly");
   const [, setLocation] = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [seatCounts, setSeatCounts] = useState<Record<string, number>>({
+    essentials: 5,
+    business: 10,
+    enterprise: 25,
+  });
 
   useEffect(() => {
     try {
@@ -146,6 +151,7 @@ export default function Pricing() {
 
   const handleTierCta = async (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
+    const seatQuantity = Math.max(1, Math.min(500, seatCounts[slug] || 1));
     window.dataLayer?.push({
       event: "pricing_cta_click",
       tier_slug: slug,
@@ -166,7 +172,7 @@ export default function Pricing() {
       const res = await fetch(`/api/checkout/${encodeURIComponent(slug)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billingCycle: billing }),
+        body: JSON.stringify({ billingCycle: billing, seatQuantity }),
       });
       const data = await res.json();
       if (data.url) {
@@ -347,6 +353,27 @@ export default function Pricing() {
                         </div>
                       );
                     })()}
+                    <label className="block mb-6">
+                      <span className="block text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                        Seats
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={500}
+                        step={1}
+                        value={seatCounts[tier.slug] ?? 1}
+                        onChange={(e) =>
+                          setSeatCounts((current) => ({
+                            ...current,
+                            [tier.slug]: Math.max(1, Math.min(500, parseInt(e.target.value || "1", 10) || 1)),
+                          }))
+                        }
+                        className="w-full rounded-xl border border-border/60 px-4 py-3 text-navy bg-white"
+                        aria-label={`${tier.name} seats`}
+                        data-testid={`seat-count-${tier.slug}`}
+                      />
+                    </label>
 
                     <ul className="space-y-2.5 flex-1 mb-7">
                       {tier.features.map((f) => (
