@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, FileText, CheckCircle, Clock, AlertTriangle, Loader2, ExternalLink, Calendar, RefreshCw } from "lucide-react";
+import { CreditCard, FileText, CheckCircle, Clock, AlertTriangle, Loader2, ExternalLink, Calendar, RefreshCw, Download, Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/Button";
 
@@ -27,6 +27,19 @@ interface Subscription {
   cancelAtPeriodEnd: boolean;
   billingCycle: string;
   amount: string | null;
+}
+
+interface StripeInvoice {
+  id: string;
+  number: string | null;
+  description: string;
+  amount: number;
+  currency: string;
+  date: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -68,6 +81,8 @@ export default function Billing() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<StripeInvoice[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const headers = getAuthHeaders();
   const fmt = (n: string | number) => Number(n).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -89,7 +104,25 @@ export default function Billing() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/partner/billing/invoices/history", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setPaymentHistory(Array.isArray(data.invoices) ? data.invoices : []);
+      }
+    } catch {
+      // silently fail — history is best-effort
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    loadHistory();
+  }, []);
 
   const payInvoice = async (invoice: Invoice) => {
     setPayingId(invoice.id);
@@ -271,6 +304,99 @@ export default function Billing() {
                                 Pay Now
                               </Button>
                             )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment History (Stripe) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Receipt className="w-4 h-4" /> Payment History
+                </CardTitle>
+                <Button size="sm" variant="ghost" onClick={loadHistory} disabled={historyLoading}>
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1 ${historyLoading ? "animate-spin" : ""}`} /> Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : paymentHistory.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Receipt className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-40" />
+                  <p className="text-sm text-muted-foreground">No payment history yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Paid invoices will appear here</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="px-5 py-3 text-left">Invoice #</th>
+                        <th className="px-5 py-3 text-left">Description</th>
+                        <th className="px-5 py-3 text-left">Date</th>
+                        <th className="px-5 py-3 text-right">Amount</th>
+                        <th className="px-5 py-3 text-right">Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentHistory.map(inv => (
+                        <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-5 py-3">
+                            <p className="font-mono text-xs text-muted-foreground">{inv.number || inv.id}</p>
+                          </td>
+                          <td className="px-5 py-3">
+                            <p className="font-medium">{inv.description}</p>
+                            {inv.periodStart && inv.periodEnd && (
+                              <p className="text-xs text-muted-foreground">
+                                {fmtDate(inv.periodStart)} – {fmtDate(inv.periodEnd)}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                              {fmtDate(inv.date)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right font-semibold">
+                            {inv.amount.toLocaleString("en-US", { style: "currency", currency: inv.currency.toUpperCase() })}
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {inv.hostedInvoiceUrl && (
+                                <a
+                                  href={inv.hostedInvoiceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" /> View
+                                </a>
+                              )}
+                              {inv.invoicePdf && (
+                                <a
+                                  href={inv.invoicePdf}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                >
+                                  <Button size="sm" variant="outline">
+                                    <Download className="w-3.5 h-3.5 mr-1" /> Download
+                                  </Button>
+                                </a>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

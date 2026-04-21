@@ -382,22 +382,29 @@ router.post("/admin/commissions/:id/payout", requireAdmin, async (req: any, res)
   }
 });
 
+async function resolvePartnerJwt(req: any, res: Response): Promise<{ partnerId: number } | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) { res.status(401).json({ error: "unauthorized" }); return null; }
+  const token = authHeader.replace("Bearer ", "");
+  const jwt = await import("jsonwebtoken");
+  const secret = process.env.JWT_SECRET || "siebert-partner-secret-2024";
+  let payload: any;
+  try {
+    payload = jwt.default.verify(token, secret);
+  } catch {
+    const altSecret = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
+    try { payload = jwt.default.verify(token, altSecret); } catch { res.status(401).json({ error: "unauthorized" }); return null; }
+  }
+  const partnerId = payload.partnerId || payload.userId;
+  if (!partnerId) { res.status(401).json({ error: "unauthorized" }); return null; }
+  return { partnerId };
+}
+
 router.get("/partner/billing/invoices", async (req: any, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) { res.status(401).json({ error: "unauthorized" }); return; }
-    const token = authHeader.replace("Bearer ", "");
-    const jwt = await import("jsonwebtoken");
-    const secret = process.env.JWT_SECRET || "siebert-partner-secret-2024";
-    let payload: any;
-    try {
-      payload = jwt.default.verify(token, secret);
-    } catch {
-      const altSecret = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
-      try { payload = jwt.default.verify(token, altSecret); } catch { res.status(401).json({ error: "unauthorized" }); return; }
-    }
-    const partnerId = payload.partnerId || payload.userId;
-    if (!partnerId) { res.status(401).json({ error: "unauthorized" }); return; }
+    const auth = await resolvePartnerJwt(req, res);
+    if (!auth) return;
+    const { partnerId } = auth;
 
     const invoices = await db.select().from(invoicesTable)
       .where(eq(invoicesTable.partnerId, partnerId))
@@ -412,6 +419,47 @@ router.get("/partner/billing/invoices", async (req: any, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.get("/partner/billing/invoices/history", async (req: any, res) => {
+  if (!isStripeConfigured()) { res.json({ invoices: [] }); return; }
+  try {
+    const auth = await resolvePartnerJwt(req, res);
+    if (!auth) return;
+    const { partnerId } = auth;
+
+    const [partner] = await db.select({ stripeCustomerId: partnersTable.stripeCustomerId })
+      .from(partnersTable)
+      .where(eq(partnersTable.id, partnerId));
+
+    const stripeCustomerId = partner?.stripeCustomerId;
+    if (!stripeCustomerId) { res.json({ invoices: [] }); return; }
+
+    const stripe = getStripe();
+    const allInvoices: any[] = await stripe.invoices.list({
+      customer: stripeCustomerId,
+      status: "paid",
+      limit: 100,
+    }).autoPagingToArray({ limit: 1000 });
+
+    const history = allInvoices.map((inv: any) => ({
+      id: inv.id,
+      number: inv.number,
+      description: inv.description || inv.lines?.data?.[0]?.description || "Invoice",
+      amount: inv.amount_paid / 100,
+      currency: inv.currency,
+      date: new Date(inv.created * 1000).toISOString(),
+      periodStart: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
+      periodEnd: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
+      hostedInvoiceUrl: inv.hosted_invoice_url || null,
+      invoicePdf: inv.invoice_pdf || null,
+    }));
+
+    res.json({ invoices: history });
+  } catch (err: any) {
+    console.error("[Stripe] Invoice history error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
   }
 });
 
