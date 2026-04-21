@@ -120,9 +120,9 @@ export default function Pricing() {
   const [, setLocation] = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [seatCounts, setSeatCounts] = useState<Record<string, number>>({
-    essentials: 5,
-    business: 10,
-    enterprise: 25,
+    essentials: 3,
+    business: 3,
+    enterprise: 3,
   });
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function Pricing() {
 
   const handleTierCta = async (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
-    const seatQuantity = Math.max(1, Math.min(500, seatCounts[slug] || 1));
+    const seatQuantity = Math.max(3, Math.min(500, seatCounts[slug] || 3));
     window.dataLayer?.push({
       event: "pricing_cta_click",
       tier_slug: slug,
@@ -359,14 +359,14 @@ export default function Pricing() {
                       </span>
                       <input
                         type="number"
-                        min={1}
+                        min={3}
                         max={500}
                         step={1}
-                        value={seatCounts[tier.slug] ?? 1}
+                        value={seatCounts[tier.slug] ?? 3}
                         onChange={(e) =>
                           setSeatCounts((current) => ({
                             ...current,
-                            [tier.slug]: Math.max(1, Math.min(500, parseInt(e.target.value || "1", 10) || 1)),
+                            [tier.slug]: Math.max(3, Math.min(500, parseInt(e.target.value || "3", 10) || 3)),
                           }))
                         }
                         className="w-full rounded-xl border border-border/60 px-4 py-3 text-navy bg-white"
