@@ -94,12 +94,11 @@ export default function AdminPartnerstack() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const base = `${import.meta.env.BASE_URL}api`;
       const [s, p, e, l] = await Promise.all([
-        fetch(`${base}/admin/partnerstack/status`, { headers: authHeaders() }).then(r => r.json()),
-        fetch(`${base}/admin/partnerstack/partners`, { headers: authHeaders() }).then(r => r.json()),
-        fetch(`${base}/admin/partnerstack/webhook-events`, { headers: authHeaders() }).then(r => r.json()),
-        fetch(`${base}/admin/partnerstack/sync-log`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`/api/admin/partnerstack/status`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`/api/admin/partnerstack/partners`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`/api/admin/partnerstack/webhook-events`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`/api/admin/partnerstack/sync-log`, { headers: authHeaders() }).then(r => r.json()),
       ]);
       setStatus(s);
       setPartners(p.partners || []);
@@ -119,7 +118,7 @@ export default function AdminPartnerstack() {
   async function runSync() {
     setSyncing(true);
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/partnerstack/sync`, {
+      const res = await fetch(`/api/admin/partnerstack/sync`, {
         method: "POST",
         headers: authHeaders(),
       });
