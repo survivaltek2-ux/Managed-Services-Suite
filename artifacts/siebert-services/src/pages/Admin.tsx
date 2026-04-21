@@ -469,22 +469,54 @@ export default function Admin() {
               ]} columns={["name", "startingPrice", "mostPopular", "active", "stripe"]}
               columnLabels={{ stripe: "Stripe" }}
               customCells={{
-                stripe: (item) => item.stripeProductId
-                  ? (
-                    <a
-                      href={`https://dashboard.stripe.com/products/${encodeURIComponent(item.stripeProductId)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={item.stripeProductId}
-                      className="inline-flex items-center gap-1"
-                    >
-                      <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer text-white gap-1">
-                        <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm3.43 11.57c-.18.1-.42.05-.52-.13L8 6.93l-2.91 4.51c-.1.18-.34.23-.52.13-.18-.1-.23-.34-.13-.52L7.5 6l-2.5-.5c-.2-.04-.33-.23-.29-.43.04-.2.23-.33.43-.29L8 5.3l2.86-.52c.2-.04.39.09.43.29.04.2-.09.39-.29.43L8.5 6l3.06 5.05c.1.18.05.42-.13.52z"/></svg>
-                        Linked
-                      </Badge>
-                    </a>
-                  )
-                  : <Badge variant="secondary" className="text-muted-foreground">Unlinked</Badge>
+                stripe: (item) => {
+                  const hasProduct = !!item.stripeProductId;
+                  const hasMonthly = !!item.stripeMonthlyPriceId;
+                  const hasAnnual = !!item.stripeAnnualPriceId;
+                  const allSet = hasProduct && hasMonthly && hasAnnual;
+                  const pricesIncomplete = hasProduct && (!hasMonthly || !hasAnnual);
+                  return (
+                    <div className="flex flex-col gap-1">
+                      {hasProduct ? (
+                        <a
+                          href={`https://dashboard.stripe.com/products/${encodeURIComponent(item.stripeProductId)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={item.stripeProductId}
+                          className="inline-flex items-center gap-1"
+                        >
+                          <Badge variant="default" className={`cursor-pointer text-white gap-1 ${pricesIncomplete ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-600 hover:bg-emerald-700"}`}>
+                            {pricesIncomplete
+                              ? <AlertCircle className="w-3 h-3" />
+                              : <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm3.43 11.57c-.18.1-.42.05-.52-.13L8 6.93l-2.91 4.51c-.1.18-.34.23-.52.13-.18-.1-.23-.34-.13-.52L7.5 6l-2.5-.5c-.2-.04-.33-.23-.29-.43.04-.2.23-.33.43-.29L8 5.3l2.86-.52c.2-.04.39.09.43.29.04.2-.09.39-.29.43L8.5 6l3.06 5.05c.1.18.05.42-.13.52z"/></svg>
+                            }
+                            {allSet ? "Linked" : "Prices missing"}
+                          </Badge>
+                        </a>
+                      ) : (
+                        <Badge variant="secondary" className="text-muted-foreground">Unlinked</Badge>
+                      )}
+                      {hasProduct && (
+                        <div className="flex gap-1.5 text-[10px] font-medium">
+                          <span
+                            title={hasMonthly ? `Monthly: ${item.stripeMonthlyPriceId}` : "Monthly price not linked"}
+                            className={`inline-flex items-center gap-0.5 ${hasMonthly ? "text-emerald-700" : "text-amber-600"}`}
+                          >
+                            {hasMonthly ? <Check className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            Mo
+                          </span>
+                          <span
+                            title={hasAnnual ? `Annual: ${item.stripeAnnualPriceId}` : "Annual price not linked"}
+                            className={`inline-flex items-center gap-0.5 ${hasAnnual ? "text-emerald-700" : "text-amber-600"}`}
+                          >
+                            {hasAnnual ? <Check className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            Yr
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
               }}
               />}
               {activeTab === "industries" && <CrudTab items={data.industries || []} refresh={() => fetchData("industries")} headers={headers} entity="industries" fields={[
