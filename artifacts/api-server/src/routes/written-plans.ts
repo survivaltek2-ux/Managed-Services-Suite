@@ -517,6 +517,30 @@ router.get("/partner/plans/:id/pdf", requirePartnerAuth, async (req: PartnerRequ
 
 // ─── Public Routes (token-based, no auth) ────────────────────────────────────
 
+// Strip internal/sensitive fields before sending plan data to unauthenticated clients
+function toPublicPlan(plan: typeof writtenPlansTable.$inferSelect, includeSignature: boolean) {
+  return {
+    id: plan.id,
+    planNumber: plan.planNumber,
+    version: plan.version,
+    clientName: plan.clientName,
+    clientEmail: plan.clientEmail,
+    clientCompany: plan.clientCompany,
+    clientTitle: plan.clientTitle,
+    planContent: plan.planContent,
+    status: plan.status,
+    expiresAt: plan.expiresAt,
+    personalNote: plan.personalNote,
+    approvedAt: plan.approvedAt,
+    signerName: plan.signerName,
+    signerTitle: plan.signerTitle,
+    signatureImage: includeSignature ? plan.signatureImage : null,
+    declineReason: plan.declineReason,
+    declineNote: plan.declineNote,
+    createdAt: plan.createdAt,
+  };
+}
+
 router.get("/public/plan-review/:token", async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
@@ -524,7 +548,7 @@ router.get("/public/plan-review/:token", async (req: Request, res: Response) => 
       .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
     if (plan.expiresAt && plan.expiresAt < new Date() && plan.status !== "approved") {
-      res.json({ plan: { ...plan, signatureImage: null }, expired: true });
+      res.json({ plan: toPublicPlan(plan, false), expired: true });
       return;
     }
     let responsePlan = plan;
@@ -534,7 +558,7 @@ router.get("/public/plan-review/:token", async (req: Request, res: Response) => 
       await logEvent(plan.id, "viewed");
       responsePlan = updatedPlan;
     }
-    res.json({ plan: { ...responsePlan, signatureImage: responsePlan.status === "approved" ? responsePlan.signatureImage : null }, expired: false });
+    res.json({ plan: toPublicPlan(responsePlan, responsePlan.status === "approved"), expired: false });
   } catch (err) {
     console.error("[WrittenPlans] public get error:", err);
     res.status(500).json({ error: "server_error" });
@@ -595,7 +619,7 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
       sendPlanApprovedEmail(updated, partnerEmail).catch(e => console.error("[Email] plan approved error:", e))
     );
 
-    res.json({ success: true, plan: updated });
+    res.json({ success: true, plan: toPublicPlan(updated, true) });
   } catch (err) {
     console.error("[WrittenPlans] sign error:", err);
     res.status(500).json({ error: "server_error" });
