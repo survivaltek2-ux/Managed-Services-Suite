@@ -3,7 +3,7 @@ import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck, Plus, KeyRound, Copy, Check, Loader2, UserX, ClockIcon } from "lucide-react";
+import { ShieldCheck, Plus, KeyRound, Copy, Check, Loader2, UserX, ClockIcon, Mail, AlertTriangle } from "lucide-react";
 
 interface AdminUser {
   id: number;
@@ -19,6 +19,7 @@ interface TempPasswordModal {
   name: string;
   tempPassword: string;
   copied: boolean;
+  emailSent: boolean | null;
 }
 
 interface ApiError {
@@ -51,7 +52,7 @@ export default function AdminUsers() {
   const headers = getAuthHeaders();
 
   const [resetingId, setResetingId] = useState<number | null>(null);
-  const [tempModal, setTempModal] = useState<TempPasswordModal>({ open: false, name: "", tempPassword: "", copied: false });
+  const [tempModal, setTempModal] = useState<TempPasswordModal>({ open: false, name: "", tempPassword: "", copied: false, emailSent: null });
   const [addModal, setAddModal] = useState<AddAdminModal>({ open: false, name: "", email: "", submitting: false });
 
   const { data: admins = [], isLoading } = useQuery<AdminUser[]>({
@@ -74,7 +75,7 @@ export default function AdminUsers() {
       if (res.ok) {
         const data = await res.json();
         queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-        setTempModal({ open: true, name: admin.name, tempPassword: data.tempPassword, copied: false });
+        setTempModal({ open: true, name: admin.name, tempPassword: data.tempPassword, copied: false, emailSent: data.emailSent ?? null });
       } else {
         const err = await res.json().catch(() => ({}));
         toast({ title: (err as ApiError).message || "Failed to reset password", variant: "destructive" });
@@ -99,7 +100,7 @@ export default function AdminUsers() {
         const data = await res.json();
         queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
         setAddModal({ open: false, name: "", email: "", submitting: false });
-        setTempModal({ open: true, name: data.user.name, tempPassword: data.tempPassword, copied: false });
+        setTempModal({ open: true, name: data.user.name, tempPassword: data.tempPassword, copied: false, emailSent: data.emailSent ?? null });
       } else {
         const err = await res.json().catch(() => ({}));
         toast({ title: (err as ApiError).message || "Failed to create admin", variant: "destructive" });
@@ -238,13 +239,25 @@ export default function AdminUsers() {
                   )}
                 </button>
               </div>
+              {tempModal.emailSent === true && (
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded p-3 text-xs text-emerald-800">
+                  <Mail className="w-3.5 h-3.5 shrink-0" />
+                  Credentials emailed to {tempModal.name}. They will receive login instructions shortly.
+                </div>
+              )}
+              {tempModal.emailSent === false && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-3 text-xs text-red-800">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>Email delivery failed — please share this password manually. Check the SMTP settings if the problem persists.</span>
+                </div>
+              )}
               <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
                 This password will not be shown again. Copy it before closing this window.
               </div>
             </div>
             <div className="px-5 pb-5 flex justify-end">
               <button
-                onClick={() => setTempModal({ open: false, name: "", tempPassword: "", copied: false })}
+                onClick={() => setTempModal({ open: false, name: "", tempPassword: "", copied: false, emailSent: null })}
                 className="sf-btn sf-btn-primary"
               >
                 Done

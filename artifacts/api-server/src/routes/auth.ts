@@ -423,6 +423,12 @@ router.post("/admin/users", requireAdmin, async (req: AuthRequest, res: Response
       mustChangePassword: true,
     }).returning();
 
+    const loginUrl = `${getAppBaseUrl()}/admin`;
+    const emailSent = await sendAdminWelcomeEmail(user.email, user.name, tempPassword, loginUrl).catch(err => {
+      console.error("[Email] Admin welcome email error:", err);
+      return false;
+    });
+
     res.status(201).json({
       user: {
         id: user.id,
@@ -433,12 +439,8 @@ router.post("/admin/users", requireAdmin, async (req: AuthRequest, res: Response
         createdAt: user.createdAt,
       },
       tempPassword,
+      emailSent,
     });
-
-    const loginUrl = `${getAppBaseUrl()}/admin`;
-    sendAdminWelcomeEmail(user.email, user.name, tempPassword, loginUrl).catch(err =>
-      console.error("[Email] Admin welcome email error:", err)
-    );
   } catch (err) {
     console.error("Create admin user error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to create admin user" });
@@ -470,12 +472,13 @@ router.post("/admin/users/:id/reset-password", requireAdmin, async (req: AuthReq
       .set({ password: hashedPassword, mustChangePassword: true })
       .where(eq(usersTable.id, targetId));
 
-    res.json({ tempPassword });
-
     const loginUrl = `${getAppBaseUrl()}/admin`;
-    sendAdminPasswordResetNotification(target.email, target.name, tempPassword, loginUrl).catch(err =>
-      console.error("[Email] Admin password reset notification error:", err)
-    );
+    const emailSent = await sendAdminPasswordResetNotification(target.email, target.name, tempPassword, loginUrl).catch(err => {
+      console.error("[Email] Admin password reset notification error:", err);
+      return false;
+    });
+
+    res.json({ tempPassword, emailSent });
   } catch (err) {
     console.error("Reset admin password error:", err);
     res.status(500).json({ error: "server_error", message: "Failed to reset password" });
