@@ -228,6 +228,11 @@ router.post("/partner/plans/draft", requirePartnerAuth, async (req: PartnerReque
     const planNumber = generatePlanNumber();
     let effectivePartnerId: number | null = req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId ?? null;
     if (req.partnerId === MAIN_SITE_ADMIN_SENTINEL && onBehalfOfPartnerId && typeof onBehalfOfPartnerId === "number") {
+      const [partnerExists] = await db.select({ id: partnersTable.id }).from(partnersTable).where(eq(partnersTable.id, onBehalfOfPartnerId)).limit(1);
+      if (!partnerExists) {
+        res.status(400).json({ error: "invalid_partner", message: "onBehalfOfPartnerId does not refer to an existing partner" });
+        return;
+      }
       effectivePartnerId = onBehalfOfPartnerId;
     }
     const [plan] = await db.insert(writtenPlansTable).values({
@@ -266,6 +271,11 @@ router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, re
     // Admin can create on behalf of a specific partner
     let effectivePartnerId: number | null = req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId ?? null;
     if (req.partnerId === MAIN_SITE_ADMIN_SENTINEL && onBehalfOfPartnerId && typeof onBehalfOfPartnerId === "number") {
+      const [partnerExists] = await db.select({ id: partnersTable.id }).from(partnersTable).where(eq(partnersTable.id, onBehalfOfPartnerId)).limit(1);
+      if (!partnerExists) {
+        res.status(400).json({ error: "invalid_partner", message: "onBehalfOfPartnerId does not refer to an existing partner" });
+        return;
+      }
       effectivePartnerId = onBehalfOfPartnerId;
     }
     const [plan] = await db.insert(writtenPlansTable).values({
@@ -482,12 +492,14 @@ router.get("/public/plan-review/:token", async (req: Request, res: Response) => 
       res.json({ plan: { ...plan, signatureImage: null }, expired: true });
       return;
     }
+    let responsePlan = plan;
     if (plan.status === "sent") {
-      await db.update(writtenPlansTable).set({ status: "viewed", viewedAt: new Date(), updatedAt: new Date() })
-        .where(eq(writtenPlansTable.id, plan.id));
+      const [updatedPlan] = await db.update(writtenPlansTable).set({ status: "viewed", viewedAt: new Date(), updatedAt: new Date() })
+        .where(eq(writtenPlansTable.id, plan.id)).returning();
       await logEvent(plan.id, "viewed");
+      responsePlan = updatedPlan;
     }
-    res.json({ plan: { ...plan, signatureImage: plan.status === "approved" ? plan.signatureImage : null }, expired: false });
+    res.json({ plan: { ...responsePlan, signatureImage: responsePlan.status === "approved" ? responsePlan.signatureImage : null }, expired: false });
   } catch (err) {
     console.error("[WrittenPlans] public get error:", err);
     res.status(500).json({ error: "server_error" });
