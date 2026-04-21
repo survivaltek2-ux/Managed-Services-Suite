@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db, writtenPlansTable, planActivityEventsTable } from "@workspace/db";
-import { eq, desc, and, or, isNull, lt } from "drizzle-orm";
+import { eq, desc, and, lt, gt, inArray } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import {
   sendPlanReadyEmail,
@@ -13,6 +13,18 @@ import { generatePlanPdf } from "../lib/planPdf.js";
 import crypto from "crypto";
 
 const router = Router();
+
+// ─── Typed JSON shapes ────────────────────────────────────────────────────────
+
+interface RecommendedService { service: string; description: string; }
+interface PlanContentShape {
+  executiveSummary: string;
+  currentEnvironment: string;
+  keyFindings: string[];
+  recommendedServices: RecommendedService[];
+  nextSteps: string[];
+}
+type QuestionnaireAnswers = Record<string, string | string[]>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -77,16 +89,25 @@ const PAIN_POINT_MAP: Record<string, { service: string; description: string }> =
   },
 };
 
-function generatePlanContent(answers: Record<string, any>): Record<string, any> {
-  const company = answers.clientCompany || answers.companyName || "your company";
-  const headcount = answers.headcount || "your team";
-  const locations = answers.locations || "your location(s)";
-  const painPoints: string[] = Array.isArray(answers.painPoints) ? answers.painPoints : [];
-  const complianceNeeds: string[] = Array.isArray(answers.complianceNeeds) ? answers.complianceNeeds : [];
-  const currentSetup = answers.currentItSetup || "current infrastructure";
-  const priorities: string[] = Array.isArray(answers.priorities) ? answers.priorities : [];
-  const budget = answers.budgetRange || null;
-  const timeline = answers.preferredTimeline || null;
+function strVal(v: string | string[] | undefined): string {
+  if (!v) return "";
+  return Array.isArray(v) ? v[0] ?? "" : v;
+}
+function arrVal(v: string | string[] | undefined): string[] {
+  if (!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
+  const company = strVal(answers.clientCompany) || strVal(answers.companyName) || "your company";
+  const headcount = strVal(answers.headcount) || "your team";
+  const locations = strVal(answers.locations) || "your location(s)";
+  const painPoints = arrVal(answers.painPoints);
+  const complianceNeeds = arrVal(answers.complianceNeeds);
+  const currentSetup = strVal(answers.currentItSetup) || "current infrastructure";
+  const priorities = arrVal(answers.priorities);
+  const budget = strVal(answers.budgetRange) || null;
+  const timeline = strVal(answers.preferredTimeline) || null;
 
   // Map pain points to recommended services
   const recommendedServices: { service: string; description: string }[] = [];
@@ -185,15 +206,20 @@ router.get("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest,
 
 router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, validityDays } = req.body;
+    const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, validityDays, onBehalfOfPartnerId } = req.body;
     if (!clientName || !clientEmail || !clientCompany) {
       res.status(400).json({ error: "validation_error", message: "clientName, clientEmail, and clientCompany are required" });
       return;
     }
-    const planContent = generatePlanContent({ ...questionnaireAnswers, clientCompany, clientName });
+    const planContent = generatePlanContent({ ...(questionnaireAnswers as QuestionnaireAnswers), clientCompany, clientName });
     const planNumber = generatePlanNumber();
+    // Admin can create on behalf of a specific partner
+    let effectivePartnerId: number | null = req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId ?? null;
+    if (req.partnerId === MAIN_SITE_ADMIN_SENTINEL && onBehalfOfPartnerId && typeof onBehalfOfPartnerId === "number") {
+      effectivePartnerId = onBehalfOfPartnerId;
+    }
     const [plan] = await db.insert(writtenPlansTable).values({
-      partnerId: req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId,
+      partnerId: effectivePartnerId,
       planNumber,
       clientName, clientEmail,
       clientTitle: clientTitle || null,
@@ -249,7 +275,7 @@ router.put("/partner/plans/:id/regenerate", requirePartnerAuth, async (req: Part
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
       res.status(403).json({ error: "forbidden" }); return;
     }
-    const answers = (existing.questionnaireAnswers as Record<string, any>) || {};
+    const answers = (existing.questionnaireAnswers as QuestionnaireAnswers) ?? {};
     const planContent = generatePlanContent({ ...answers, clientCompany: existing.clientCompany, clientName: existing.clientName });
     const [plan] = await db.update(writtenPlansTable).set({ planContent, updatedAt: new Date() })
       .where(eq(writtenPlansTable.id, id)).returning();
@@ -290,7 +316,7 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     const baseUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partner-portal";
     const reviewUrl = `${baseUrl}/plan-review/${token}`;
 
-    const content = plan.planContent as any;
+    const content = plan.planContent as PlanContentShape | null;
     sendPlanReadyEmail({
       clientName: plan.clientName,
       clientEmail: finalEmail,
@@ -331,8 +357,8 @@ router.post("/partner/plans/:id/revise", requirePartnerAuth, async (req: Partner
       clientTitle: existing.clientTitle,
       clientCompany: existing.clientCompany,
       clientPhone: existing.clientPhone,
-      questionnaireAnswers: existing.questionnaireAnswers as any,
-      planContent: existing.planContent as any,
+      questionnaireAnswers: existing.questionnaireAnswers as QuestionnaireAnswers,
+      planContent: existing.planContent as PlanContentShape,
       validityDays: existing.validityDays,
       personalNote: existing.personalNote,
     }).returning();
@@ -506,13 +532,16 @@ router.get("/public/plan-review/:token/pdf", async (req: Request, res: Response)
 
 export async function sendPlanExpiryReminders() {
   try {
+    const now = new Date();
     const threeDaysOut = new Date(Date.now() + 3 * 86400000);
     const oneDayAgo = new Date(Date.now() - 86400000);
+    // Include sent AND viewed; exclude already expired plans
     const plans = await db.select().from(writtenPlansTable)
       .where(
         and(
-          eq(writtenPlansTable.status, "sent"),
-          lt(writtenPlansTable.expiresAt, threeDaysOut)
+          inArray(writtenPlansTable.status, ["sent", "viewed"]),
+          lt(writtenPlansTable.expiresAt, threeDaysOut),
+          gt(writtenPlansTable.expiresAt, now)
         )
       );
     for (const plan of plans) {

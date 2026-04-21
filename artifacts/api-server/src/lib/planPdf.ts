@@ -19,7 +19,14 @@ function formatDate(d: Date | string | null | undefined): string {
 export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   const doc = new PDFDocument({ size: "LETTER", margins: { top: 60, bottom: 60, left: 60, right: 60 } });
 
-  const content = (plan.planContent as any) || {};
+  interface PlanContent {
+    executiveSummary?: string;
+    currentEnvironment?: string;
+    keyFindings?: string[];
+    recommendedServices?: { service: string; description: string }[];
+    nextSteps?: string[];
+  }
+  const content = (plan.planContent as PlanContent | null) ?? {};
   const NAVY = "#032d60";
   const BLUE = "#0176d3";
   const GRAY = "#64748b";

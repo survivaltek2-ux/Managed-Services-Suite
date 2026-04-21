@@ -274,10 +274,11 @@ function PlanDocument({ content, editable, onChange }: {
 
 // ─── Plan Wizard ──────────────────────────────────────────────────────────────
 
-function PlanWizard({ initial, onComplete, onCancel }: {
+export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId }: {
   initial?: { answers: WizardAnswers; planId?: number };
   onComplete: (plan: WrittenPlan) => void;
   onCancel: () => void;
+  onBehalfOfPartnerId?: number;
 }) {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -312,6 +313,7 @@ function PlanWizard({ initial, onComplete, onCancel }: {
           clientPhone: answers.clientPhone,
           questionnaireAnswers: answers,
           validityDays,
+          ...(onBehalfOfPartnerId ? { onBehalfOfPartnerId } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed");
