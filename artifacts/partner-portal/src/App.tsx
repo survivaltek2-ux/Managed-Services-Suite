@@ -38,6 +38,7 @@ import Vivint from "./pages/Vivint";
 import Billing from "./pages/Billing";
 import AdminBilling from "./pages/AdminBilling";
 import ResetPassword from "./pages/ResetPassword";
+import PendingApproval from "./pages/PendingApproval";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/pending" component={PendingApproval} />
       
       {/* Protected Portal Routes */}
       <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>

@@ -216,7 +216,8 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
         }).catch(err => console.error("[SSO] Partner registration notification error:", err));
 
         console.log(`[SSO] Created pending partner account for ${email} via SSO self-registration`);
-        res.redirect(`/partners/login?sso_error=pending_approval`);
+        const pendingParams = new URLSearchParams({ company: companyName, email });
+        res.redirect(`/partners/pending?${pendingParams}`);
         return;
       }
 
@@ -228,7 +229,8 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
       }
 
       if (partner.status === "pending") {
-        res.redirect(`/partners/login?sso_error=pending_approval`);
+        const pendingParams = new URLSearchParams({ company: partner.companyName, email: partner.email });
+        res.redirect(`/partners/pending?${pendingParams}`);
         return;
       }
       if (partner.status === "rejected") {

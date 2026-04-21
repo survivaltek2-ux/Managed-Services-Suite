@@ -57,6 +57,11 @@ export default function Login() {
     }
 
     if (ssoError) {
+      if (ssoError === "pending_approval") {
+        window.history.replaceState({}, "", window.location.pathname);
+        window.location.href = `${import.meta.env.BASE_URL}pending`;
+        return;
+      }
       const message = SSO_ERROR_MESSAGES[ssoError] ?? "Sign-in failed. Please try again.";
       setError(message);
       setMode("password");
