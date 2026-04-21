@@ -256,28 +256,30 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
 
     const base = getBaseUrl(req);
 
-    let priceId: string | null = billingCycle === "annual"
-      ? (tier.stripeAnnualPriceId || null)
-      : (tier.stripeMonthlyPriceId || null);
+    const resolvePriceId = async (retrying = false): Promise<string> => {
+      const freshTier = retrying
+        ? (await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, tier.id)))[0]
+        : tier;
 
-    let lineItem: any;
+      const cachedPriceId: string | null = billingCycle === "annual"
+        ? (freshTier.stripeAnnualPriceId || null)
+        : (freshTier.stripeMonthlyPriceId || null);
 
-    if (priceId) {
-      lineItem = { price: priceId, quantity: 1 };
-    } else {
+      if (cachedPriceId) return cachedPriceId;
+
       const priceAmount = billingCycle === "annual"
-        ? Math.round(parseFloat(tier.annualPrice || tier.startingPrice) * 100)
-        : Math.round(parseFloat(tier.startingPrice) * 100);
+        ? Math.round(parseFloat(freshTier.annualPrice || freshTier.startingPrice) * 100)
+        : Math.round(parseFloat(freshTier.startingPrice) * 100);
 
-      let productId: string | null = tier.stripeProductId || null;
+      let productId: string | null = freshTier.stripeProductId || null;
       if (!productId) {
         const product = await stripe.products.create({
-          name: `${tier.name} Plan`,
-          description: tier.tagline || undefined,
-          metadata: { tierId: String(tier.id), planSlug: tier.slug },
+          name: `${freshTier.name} Plan`,
+          description: freshTier.tagline || undefined,
+          metadata: { tierId: String(freshTier.id), planSlug: freshTier.slug },
         });
         productId = product.id;
-        await db.update(pricingTiersTable).set({ stripeProductId: productId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, tier.id));
+        await db.update(pricingTiersTable).set({ stripeProductId: productId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, freshTier.id));
       }
 
       const price = await stripe.prices.create({
@@ -285,30 +287,45 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
         currency: "usd",
         unit_amount: priceAmount,
         recurring: { interval: billingCycle === "annual" ? "year" : "month" },
-        metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle },
+        metadata: { tierId: String(freshTier.id), planSlug: freshTier.slug, billingCycle },
       });
-      priceId = price.id;
 
       if (billingCycle === "annual") {
-        await db.update(pricingTiersTable).set({ stripeAnnualPriceId: priceId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, tier.id));
+        await db.update(pricingTiersTable).set({ stripeAnnualPriceId: price.id, updatedAt: new Date() }).where(eq(pricingTiersTable.id, freshTier.id));
       } else {
-        await db.update(pricingTiersTable).set({ stripeMonthlyPriceId: priceId, updatedAt: new Date() }).where(eq(pricingTiersTable.id, tier.id));
+        await db.update(pricingTiersTable).set({ stripeMonthlyPriceId: price.id, updatedAt: new Date() }).where(eq(pricingTiersTable.id, freshTier.id));
       }
 
-      lineItem = { price: priceId, quantity: 1 };
-    }
+      return price.id;
+    };
 
-    const session = await stripe.checkout.sessions.create({
+    const createSession = async (priceId: string) => stripe.checkout.sessions.create({
       mode: "subscription",
       ...(email ? { customer_email: email } : {}),
-      line_items: [lineItem],
+      line_items: [{ price: priceId, quantity: 1 }],
       metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, type: "self_checkout" },
       allow_promotion_codes: true,
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing`,
     });
 
-    res.json({ url: session.url, sessionId: session.id });
+    try {
+      const priceId = await resolvePriceId();
+      const session = await createSession(priceId);
+      res.json({ url: session.url, sessionId: session.id });
+    } catch (stripeErr: any) {
+      if (stripeErr?.code === "resource_missing") {
+        console.warn("[Stripe] Cached IDs are stale (test-mode?), clearing and retrying for tier:", tier.slug);
+        await db.update(pricingTiersTable)
+          .set({ stripeProductId: null, stripeMonthlyPriceId: null, stripeAnnualPriceId: null, updatedAt: new Date() })
+          .where(eq(pricingTiersTable.id, tier.id));
+        const freshPriceId = await resolvePriceId(true);
+        const session = await createSession(freshPriceId);
+        res.json({ url: session.url, sessionId: session.id });
+      } else {
+        throw stripeErr;
+      }
+    }
   } catch (err: any) {
     console.error("[Stripe] Self-checkout error:", err);
     res.status(500).json({ error: "stripe_error", message: err.message });
