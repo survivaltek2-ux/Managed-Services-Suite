@@ -1126,20 +1126,20 @@ router.put("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthReq
     }
     const [partner] = await db.update(partnersTable).set(updates).where(eq(partnersTable.id, id)).returning();
     if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
-    res.json(sanitizePartner(partner));
     const justApproved = status === "approved" && existing && existing.status !== "approved";
+    let approvalTempPassword: string | undefined;
+    if (justApproved && partner.ssoProvider) {
+      approvalTempPassword = crypto.randomBytes(6).toString("hex");
+      const hashed = await bcrypt.hash(approvalTempPassword, 10);
+      await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, partner.id));
+    }
+    res.json(sanitizePartner(partner));
     if (justApproved) {
-      let tempPassword: string | undefined;
-      if (partner.ssoProvider) {
-        tempPassword = crypto.randomBytes(6).toString("hex");
-        const hashed = await bcrypt.hash(tempPassword, 10);
-        await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, partner.id));
-      }
       sendPartnerApprovalNotification({
         companyName: partner.companyName,
         contactName: partner.contactName,
         email: partner.email,
-      }, tempPassword).catch(err => console.error("[Email] Partner approval notification error:", err));
+      }, approvalTempPassword).catch(err => console.error("[Email] Partner approval notification error:", err));
       autoInitStripeConnect({
         id: partner.id,
         email: partner.email,
@@ -1304,19 +1304,19 @@ router.put("/admin/partners/:id/approve", requireAuth, requireAdmin, async (req:
     const [partner] = await db.update(partnersTable).set({
       status: "approved", approvedAt: new Date(), updatedAt: new Date(),
     }).where(eq(partnersTable.id, id)).returning();
+    let approvalTempPassword: string | undefined;
+    if (partner && !wasAlreadyApproved && partner.ssoProvider) {
+      approvalTempPassword = crypto.randomBytes(6).toString("hex");
+      const hashed = await bcrypt.hash(approvalTempPassword, 10);
+      await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, partner.id));
+    }
     res.json(sanitizePartner(partner));
     if (partner && !wasAlreadyApproved) {
-      let tempPassword: string | undefined;
-      if (partner.ssoProvider) {
-        tempPassword = crypto.randomBytes(6).toString("hex");
-        const hashed = await bcrypt.hash(tempPassword, 10);
-        await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, partner.id));
-      }
       sendPartnerApprovalNotification({
         companyName: partner.companyName,
         contactName: partner.contactName,
         email: partner.email,
-      }, tempPassword).catch(err => console.error("[Email] Partner approval notification error:", err));
+      }, approvalTempPassword).catch(err => console.error("[Email] Partner approval notification error:", err));
       autoInitStripeConnect({
         id: partner.id,
         email: partner.email,
