@@ -514,6 +514,14 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
       res.status(400).json({ error: "validation_error", message: "signerName and signatureImage are required" });
       return;
     }
+    if (typeof signerName !== "string" || signerName.trim().length > 200) {
+      res.status(400).json({ error: "validation_error", message: "signerName must be a string of 200 characters or fewer" });
+      return;
+    }
+    if (signerTitle !== undefined && signerTitle !== null && (typeof signerTitle !== "string" || signerTitle.length > 200)) {
+      res.status(400).json({ error: "validation_error", message: "signerTitle must be a string of 200 characters or fewer" });
+      return;
+    }
     if (typeof signatureImage !== "string" || !signatureImage.startsWith("data:image/png;base64,")) {
       res.status(400).json({ error: "validation_error", message: "signatureImage must be a PNG base64 data URL (data:image/png;base64,...)" });
       return;
@@ -559,6 +567,14 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
     const { reason, note } = req.body;
     if (!reason || typeof reason !== "string" || !reason.trim()) {
       res.status(400).json({ error: "validation_error", message: "A decline reason is required" });
+      return;
+    }
+    if (reason.trim().length > 500) {
+      res.status(400).json({ error: "validation_error", message: "Decline reason must be 500 characters or fewer" });
+      return;
+    }
+    if (note !== undefined && note !== null && (typeof note !== "string" || note.length > 2000)) {
+      res.status(400).json({ error: "validation_error", message: "Decline note must be 2000 characters or fewer" });
       return;
     }
     const [plan] = await db.select().from(writtenPlansTable)

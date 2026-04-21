@@ -37,11 +37,11 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   doc.rect(0, 0, doc.page.width, 80).fill(NAVY);
   doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(20)
     .text("Siebert Services", 60, 24);
-  doc.font("Helvetica").fontSize(10).fillColor("rgba(255,255,255,0.7)")
+  doc.font("Helvetica").fontSize(10).fillColor("#b3c7e0")
     .text("IT Assessment & Written Plan", 60, 48);
   doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(10)
     .text(plan.planNumber, doc.page.width - 160, 30, { width: 100, align: "right" });
-  doc.font("Helvetica").fontSize(9).fillColor("rgba(255,255,255,0.7)")
+  doc.font("Helvetica").fontSize(9).fillColor("#b3c7e0")
     .text(`Version ${plan.version}`, doc.page.width - 160, 46, { width: 100, align: "right" });
 
   doc.moveDown(4);
