@@ -693,17 +693,16 @@ const REMINDER_ADVISORY_LOCK_ID = 202604211; // stable integer for pg advisory l
 
 export async function sendPlanExpiryReminders() {
   try {
-    // Acquire a PostgreSQL advisory lock so only one instance runs reminders at a time
-    const lockResult = await db.execute<{ acquired: boolean }>(
-      sql`SELECT pg_try_advisory_lock(${REMINDER_ADVISORY_LOCK_ID}) AS acquired`
-    );
-    const lockRow = lockResult.rows?.[0];
-    if (!lockRow?.acquired) return;
-    try {
+    // Use a transaction-level advisory lock so acquire and unlock stay on the same
+    // connection — automatically released on commit/rollback, no manual unlock needed
+    await db.transaction(async (tx) => {
+      const lockResult = await tx.execute<{ acquired: boolean }>(
+        sql`SELECT pg_try_advisory_xact_lock(${REMINDER_ADVISORY_LOCK_ID}) AS acquired`
+      );
+      const lockRow = lockResult.rows?.[0];
+      if (!lockRow?.acquired) return;
       await runReminderBatch();
-    } finally {
-      await db.execute(sql`SELECT pg_advisory_unlock(${REMINDER_ADVISORY_LOCK_ID})`);
-    }
+    });
   } catch (err) {
     console.error("[WrittenPlans] reminder cron error:", err);
   }
