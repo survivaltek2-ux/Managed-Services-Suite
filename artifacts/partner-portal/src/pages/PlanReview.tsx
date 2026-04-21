@@ -295,6 +295,29 @@ export default function PlanReview() {
     </div>
   );
 
+  if (plan.status === "declined") return (
+    <div className="min-h-screen bg-gradient-to-br from-[#032d60] to-[#0176d3] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+        <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+        <h1 className="text-xl font-bold mb-2">Plan Declined</h1>
+        <p className="text-gray-500 text-sm mb-2">You have already declined this IT Assessment Plan.</p>
+        {plan.declineReason && <p className="text-gray-400 text-xs">Reason: {plan.declineReason}</p>}
+        <p className="text-gray-500 text-sm mt-4">Your Siebert Services representative will be in touch to discuss next steps or offer a revised plan.</p>
+      </div>
+    </div>
+  );
+
+  if (plan.status === "call_requested") return (
+    <div className="min-h-screen bg-gradient-to-br from-[#032d60] to-[#0176d3] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+        <Phone className="w-12 h-12 text-orange-400 mx-auto mb-4" />
+        <h1 className="text-xl font-bold mb-2">Call Requested</h1>
+        <p className="text-gray-500 text-sm mb-4">You have requested a consultation call. Your Siebert Services representative will reach out to schedule a time with you.</p>
+        <p className="text-gray-400 text-xs">You can still sign or decline the plan after your call — contact your representative to reopen this plan.</p>
+      </div>
+    </div>
+  );
+
   // ─── Main Review Page ──────────────────────────────────────────────────────
 
   return (

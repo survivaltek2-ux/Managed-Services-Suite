@@ -321,6 +321,38 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
     onCancel();
   }
 
+  async function advanceWithServerDraft() {
+    try {
+      const body = {
+        clientName: answers.clientName,
+        clientEmail: answers.clientEmail,
+        clientTitle: answers.clientTitle,
+        clientCompany: answers.clientCompany,
+        clientPhone: answers.clientPhone,
+        questionnaireAnswers: answers,
+        ...(onBehalfOfPartnerId ? { onBehalfOfPartnerId } : {}),
+      };
+      if (planId) {
+        await fetch(`${BASE}/${planId}`, {
+          method: "PUT",
+          headers: authHeader(),
+          body: JSON.stringify(body),
+        });
+      } else {
+        const res = await fetch(`${BASE}/draft`, {
+          method: "POST",
+          headers: authHeader(),
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const d = await res.json();
+          if (d.plan?.id) { setPlanId(d.plan.id); }
+        }
+      }
+    } catch { /* silent — localStorage backup exists */ }
+    setStep(s => s + 1);
+  }
+
   async function generatePlan() {
     setGenerating(true);
     try {
@@ -609,7 +641,8 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           </div>
           <div className="flex gap-2">
             {step < 4 && (
-              <Button onClick={() => step === 3 ? generatePlan() : setStep(s => s + 1)}
+              <Button
+                onClick={() => step === 3 ? generatePlan() : advanceWithServerDraft()}
                 disabled={!canProceed[step] || generating}
                 className="bg-[#032d60] hover:bg-[#0176d3] text-white gap-1.5">
                 {step === 3 ? (generating ? <><Loader className="w-4 h-4 animate-spin" /> Generating…</> : "Generate Plan →") : "Next →"}

@@ -218,6 +218,36 @@ router.get("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest,
   }
 });
 
+router.post("/partner/plans/draft", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  try {
+    const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, onBehalfOfPartnerId } = req.body;
+    if (!clientName || !clientEmail || !clientCompany) {
+      res.status(400).json({ error: "validation_error", message: "clientName, clientEmail, and clientCompany are required" });
+      return;
+    }
+    const planNumber = generatePlanNumber();
+    let effectivePartnerId: number | null = req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId ?? null;
+    if (req.partnerId === MAIN_SITE_ADMIN_SENTINEL && onBehalfOfPartnerId && typeof onBehalfOfPartnerId === "number") {
+      effectivePartnerId = onBehalfOfPartnerId;
+    }
+    const [plan] = await db.insert(writtenPlansTable).values({
+      partnerId: effectivePartnerId,
+      planNumber,
+      clientName, clientEmail,
+      clientTitle: clientTitle || null,
+      clientCompany, clientPhone: clientPhone || null,
+      questionnaireAnswers: questionnaireAnswers || {},
+      planContent: {},
+      validityDays: 30,
+    }).returning();
+    await logEvent(plan.id, "created", { planNumber, draft: true });
+    res.status(201).json({ plan });
+  } catch (err) {
+    console.error("[WrittenPlans] draft create error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
 router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
     const { clientName, clientEmail, clientTitle, clientCompany, clientPhone, questionnaireAnswers, validityDays, onBehalfOfPartnerId } = req.body;
@@ -313,6 +343,10 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     if (!existing) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
       res.status(403).json({ error: "forbidden" }); return;
+    }
+    if (["approved", "declined"].includes(existing.status)) {
+      res.status(400).json({ error: "cannot_send_terminal", message: "Cannot resend a plan that has been approved or declined. Create a revision instead." });
+      return;
     }
     const { personalNote, validityDays, clientEmail } = req.body;
     const token = generateReviewToken();
