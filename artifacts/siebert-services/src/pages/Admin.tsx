@@ -20,7 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import AdminLeads from "./AdminLeads";
 
-type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats" | "pricingTiers" | "industries";
+type TabType = "dashboard" | "settings" | "services" | "testimonials" | "team" | "faq" | "blog" | "calendar" | "users" | "activity" | "tsdIntegrations" | "reporting" | "inquiries" | "invoices" | "leads" | "leadMagnets" | "caseStudies" | "certifications" | "companyStats" | "pricingTiers" | "industries" | "import";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, section: "Overview" },
@@ -42,6 +42,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; section?: strin
   { id: "settings", label: "Site Settings", icon: <Settings size={18} /> },
   { id: "tsdIntegrations", label: "TSD Integrations", icon: <RefreshCw size={18} />, section: "Integrations" },
   { id: "users", label: "Users", icon: <Users size={18} />, section: "System" },
+  { id: "import", label: "Bulk Import", icon: <Package size={18} /> },
   { id: "reporting", label: "Reporting", icon: <BarChart2 size={18} /> },
   { id: "activity", label: "Activity Log", icon: <Activity size={18} /> },
 ];
@@ -560,6 +561,7 @@ export default function Admin() {
               {activeTab === "leadMagnets" && <LeadMagnetsTab submissions={data.leadMagnets || []} headers={headers} refresh={() => fetchData("leadMagnets")} toast={toast} />}
               {activeTab === "tsdIntegrations" && <TsdIntegrationsTab configs={data.tsdConfigs || []} logs={data.tsdLogs || []} products={data.tsdProducts || []} headers={headers} refresh={() => fetchData("tsdIntegrations")} toast={toast} />}
               {activeTab === "users" && <UsersTab users={data.users || []} refresh={() => fetchData("users")} headers={headers} currentUserId={user?.id} />}
+              {activeTab === "import" && <ImportTab headers={headers} />}
               {activeTab === "activity" && <ActivityTab activities={data.activity || []} />}
               {activeTab === "reporting" && <ReportingTab data={data.reporting} />}
             </div>
@@ -874,6 +876,213 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
           </div>
         </CardContent>
       </Card>
+
+      <SsoDomainRulesCard headers={headers} />
+    </div>
+  );
+}
+
+function SsoDomainRulesCard({ headers }: { headers: () => any }) {
+  const { toast } = useToast();
+  const [rules, setRules] = useState<Array<{ domain: string; role: "client" | "admin" }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/sso-domain-rules", { headers: headers() })
+      .then(r => r.json())
+      .then(d => { setRules(d.rules || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const addRule = () => setRules(prev => [...prev, { domain: "", role: "client" }]);
+  const removeRule = (i: number) => setRules(prev => prev.filter((_, idx) => idx !== i));
+  const updateRule = (i: number, field: "domain" | "role", value: string) =>
+    setRules(prev => prev.map((r, idx) => {
+      if (idx !== i) return r;
+      if (field === "role") return { ...r, role: value as "client" | "admin" };
+      return { ...r, domain: value };
+    }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/sso-domain-rules", {
+        method: "PUT", headers: headers(), body: JSON.stringify({ rules }),
+      });
+      if (res.ok) toast({ title: "SSO domain rules saved" });
+      else toast({ title: "Failed to save SSO domain rules", variant: "destructive" });
+    } catch { toast({ title: "Error saving SSO domain rules", variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2"><Settings className="w-4 h-4" /> SSO Domain Role Mapping</CardTitle>
+        <p className="text-xs text-muted-foreground">Automatically assign roles to users who sign in via Microsoft SSO based on their email domain. For example, map <code>acme.com</code> to <code>admin</code> to grant all acme.com SSO users admin access.</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading rules...</div>
+        ) : (
+          <>
+            {rules.length === 0 && (
+              <p className="text-sm text-muted-foreground italic">No domain rules configured. All SSO users will be assigned the default <strong>user</strong> role.</p>
+            )}
+            <div className="space-y-2">
+              {rules.map((rule, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    placeholder="example.com"
+                    value={rule.domain}
+                    onChange={e => updateRule(i, "domain", e.target.value)}
+                    className="flex-1 text-sm h-8"
+                  />
+                  <select
+                    value={rule.role}
+                    onChange={e => updateRule(i, "role", e.target.value)}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="client">client</option>
+                    <option value="admin">admin</option>
+                  </select>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRule(i)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <Button variant="outline" size="sm" onClick={addRule}><Plus className="w-3.5 h-3.5 mr-1.5" />Add Rule</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}Save Rules
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ImportTab({ headers }: { headers: () => any }) {
+  const { toast } = useToast();
+  const [mode, setMode] = useState<"users" | "partners">("users");
+  const [csvText, setCsvText] = useState("");
+  const [importing, setImporting] = useState(false);
+  type ImportRowResult = { row: number; status: "created" | "skipped" | "error"; email?: string; message?: string };
+  const [results, setResults] = useState<null | { summary: { total: number; created: number; skipped: number; errors: number }; results: ImportRowResult[] }>(null);
+
+  const exampleUsers = "name,email,company,phone,role\nJane Smith,jane@acme.com,Acme Corp,555-0100,client\nBob Admin,bob@acme.com,Acme Corp,,admin";
+  const examplePartners = "contactName,companyName,email,businessType,specializations,phone,website,tier\nJohn Doe,Alpha IT,john@alphait.com,msp,Microsoft 365|Azure,555-0200,https://alphait.com,silver";
+
+  const handleImport = async () => {
+    if (!csvText.trim()) { toast({ title: "Please paste CSV data first", variant: "destructive" }); return; }
+    setImporting(true);
+    setResults(null);
+    try {
+      const res = await fetch(`/api/admin/import/${mode}`, {
+        method: "POST", headers: headers(), body: JSON.stringify({ csv: csvText }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResults(data);
+        toast({ title: `Import complete: ${data.summary.created} created, ${data.summary.skipped} skipped, ${data.summary.errors} errors` });
+      } else {
+        toast({ title: data.message || "Import failed", variant: "destructive" });
+      }
+    } catch { toast({ title: "Import request failed", variant: "destructive" }); }
+    finally { setImporting(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Package className="w-4 h-4" /> Bulk CSV Import</CardTitle>
+          <p className="text-xs text-muted-foreground">Import multiple users or partner accounts at once by pasting CSV data. Welcome emails with temporary passwords are sent automatically.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button variant={mode === "users" ? "default" : "outline"} size="sm" onClick={() => { setMode("users"); setCsvText(""); setResults(null); }}>
+              <Users className="w-3.5 h-3.5 mr-1.5" />Import Users
+            </Button>
+            <Button variant={mode === "partners" ? "default" : "outline"} size="sm" onClick={() => { setMode("partners"); setCsvText(""); setResults(null); }}>
+              <Briefcase className="w-3.5 h-3.5 mr-1.5" />Import Partners
+            </Button>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Required columns for {mode === "users" ? "users" : "partners"}:</Label>
+            <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-2 py-1">
+              {mode === "users" ? "name, email, company  (optional: phone, role)" : "contactName, companyName, email, businessType, specializations  (optional: phone, website, tier)"}
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">CSV Data</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={() => setCsvText(mode === "users" ? exampleUsers : examplePartners)}>
+                Load example
+              </Button>
+            </div>
+            <Textarea
+              value={csvText}
+              onChange={e => setCsvText(e.target.value)}
+              placeholder={`Paste CSV here...\n${mode === "users" ? exampleUsers : examplePartners}`}
+              className="min-h-[160px] font-mono text-xs"
+            />
+          </div>
+
+          <Button onClick={handleImport} disabled={importing || !csvText.trim()}>
+            {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />}
+            Import {mode === "users" ? "Users" : "Partners"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {results && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Import Results</CardTitle>
+            <div className="flex gap-3 text-xs">
+              <span className="text-green-600 font-semibold">{results.summary.created} created</span>
+              <span className="text-yellow-600 font-semibold">{results.summary.skipped} skipped</span>
+              <span className="text-red-600 font-semibold">{results.summary.errors} errors</span>
+              <span className="text-muted-foreground">{results.summary.total} total rows</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Row</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Status</th>
+                    <th className="px-3 py-2 text-left">Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.results.map((r, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="px-3 py-1.5 text-muted-foreground">{r.row}</td>
+                      <td className="px-3 py-1.5 font-mono">{r.email || "—"}</td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant={r.status === "created" ? "default" : r.status === "skipped" ? "secondary" : "destructive"} className="text-xs">
+                          {r.status}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-1.5 text-muted-foreground">{r.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

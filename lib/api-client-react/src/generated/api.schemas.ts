@@ -172,6 +172,7 @@ export interface User {
   company: string;
   phone?: string;
   role: UserRole;
+  mustChangePassword?: boolean;
   createdAt: string;
 }
 

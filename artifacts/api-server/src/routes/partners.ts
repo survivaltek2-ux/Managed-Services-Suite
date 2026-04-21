@@ -2,11 +2,11 @@ import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
+import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable, siteSettingsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum, asc, isNull, inArray, gt } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
-import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder, sendPasswordResetEmail } from "../lib/email.js";
+import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder, sendPasswordResetEmail, sendPartnerStripeOnboardingEmail, sendPartnerWelcomeFromImport } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 import { inviteGuestUser } from "../lib/microsoft-graph.js";
@@ -63,6 +63,52 @@ async function promotePartnerByRevenue(partnerId: number) {
     }
   } catch (err) {
     console.error("Error promoting partner:", err);
+  }
+}
+
+async function autoInitStripeConnect(partner: { id: number; email: string; companyName: string; contactName: string; stripeConnectAccountId: string | null }, req: { get: (h: string) => string | undefined; protocol: string }) {
+  if (!isStripeConfigured()) {
+    console.log(`[Stripe Auto-Connect] Stripe not configured — skipping for partner #${partner.id}`);
+    return;
+  }
+  if (partner.stripeConnectAccountId) {
+    console.log(`[Stripe Auto-Connect] Partner #${partner.id} already has Stripe account ${partner.stripeConnectAccountId}`);
+    return;
+  }
+  try {
+    const stripe = getStripe();
+    const account = await stripe.accounts.create({
+      type: "express",
+      email: partner.email,
+      metadata: { partnerId: String(partner.id), companyName: partner.companyName },
+    });
+    await db.update(partnersTable).set({ stripeConnectAccountId: account.id, updatedAt: new Date() })
+      .where(eq(partnersTable.id, partner.id));
+    console.log(`[Stripe Auto-Connect] Created Express account ${account.id} for partner #${partner.id}`);
+
+    const portalBase = process.env.PARTNER_PORTAL_URL
+      ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+      : (() => {
+          const host = req.get("host") || "";
+          const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+          return `${proto}://${host}/partners`;
+        })();
+
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `${portalBase}/profile?stripe_connect_refresh=1`,
+      return_url: `${portalBase}/profile?stripe_connect_return=1`,
+      type: "account_onboarding",
+    });
+
+    await sendPartnerStripeOnboardingEmail({
+      companyName: partner.companyName,
+      contactName: partner.contactName,
+      email: partner.email,
+    }, accountLink.url).catch(err => console.error("[Stripe Auto-Connect] Email error:", err));
+    console.log(`[Stripe Auto-Connect] Onboarding email sent to ${partner.email}`);
+  } catch (err) {
+    console.error(`[Stripe Auto-Connect] Failed for partner #${partner.id}:`, err);
   }
 }
 
@@ -1069,12 +1115,20 @@ router.put("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthReq
     const [partner] = await db.update(partnersTable).set(updates).where(eq(partnersTable.id, id)).returning();
     if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
     res.json(sanitizePartner(partner));
-    if (status === "approved" && existing && existing.status !== "approved") {
+    const justApproved = status === "approved" && existing && existing.status !== "approved";
+    if (justApproved) {
       sendPartnerApprovalNotification({
         companyName: partner.companyName,
         contactName: partner.contactName,
         email: partner.email,
       }).catch(err => console.error("[Email] Partner approval notification error:", err));
+      autoInitStripeConnect({
+        id: partner.id,
+        email: partner.email,
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        stripeConnectAccountId: partner.stripeConnectAccountId,
+      }, req).catch(err => console.error("[Stripe Auto-Connect] Error:", err));
     }
     if (tier !== undefined && existing && existing.tier !== tier) {
       sendPartnerTierChangeNotification({
@@ -1227,7 +1281,7 @@ router.post("/admin/partners/:id/send-stripe-reminder", requireAuth, requireAdmi
 router.put("/admin/partners/:id/approve", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const [existing] = await db.select({ status: partnersTable.status }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
+    const [existing] = await db.select({ status: partnersTable.status, stripeConnectAccountId: partnersTable.stripeConnectAccountId }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
     const wasAlreadyApproved = existing?.status === "approved";
     const [partner] = await db.update(partnersTable).set({
       status: "approved", approvedAt: new Date(), updatedAt: new Date(),
@@ -1239,6 +1293,13 @@ router.put("/admin/partners/:id/approve", requireAuth, requireAdmin, async (req:
         contactName: partner.contactName,
         email: partner.email,
       }).catch(err => console.error("[Email] Partner approval notification error:", err));
+      autoInitStripeConnect({
+        id: partner.id,
+        email: partner.email,
+        companyName: partner.companyName,
+        contactName: partner.contactName,
+        stripeConnectAccountId: existing?.stripeConnectAccountId ?? null,
+      }, req).catch(err => console.error("[Stripe Auto-Connect] Error:", err));
     }
   } catch (err) {
     console.error(err);
@@ -1765,6 +1826,207 @@ router.post("/training-requests", requirePartnerAuth, async (req: PartnerRequest
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to submit training request" });
+  }
+});
+
+interface ImportRowResult {
+  row: number;
+  status: "created" | "skipped" | "error";
+  email?: string;
+  message?: string;
+}
+
+function parseCsv(text: string): Array<Record<string, string>> {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = splitCsvLine(lines[0]).map(h => h.trim().toLowerCase());
+  const rows: Array<Record<string, string>> = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = splitCsvLine(lines[i]);
+    const row: Record<string, string> = {};
+    headers.forEach((h, idx) => { row[h] = (vals[idx] ?? "").trim(); });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function splitCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === "," && !inQuotes) {
+      result.push(cur); cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+router.post("/admin/import/users", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { csv } = req.body;
+    if (!csv || typeof csv !== "string") {
+      res.status(400).json({ error: "validation_error", message: "csv field is required" });
+      return;
+    }
+    const rows = parseCsv(csv);
+    if (rows.length === 0) {
+      res.status(400).json({ error: "validation_error", message: "No data rows found in CSV" });
+      return;
+    }
+    const results: ImportRowResult[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const email = (row["email"] || "").toLowerCase().trim();
+      const name = (row["name"] || row["full name"] || row["fullname"] || "").trim();
+      const company = (row["company"] || row["company name"] || row["companyname"] || "").trim();
+      if (!email || !name || !company) {
+        results.push({ row: i + 2, status: "error", email: email || undefined, message: "Missing required fields: name, email, company" });
+        continue;
+      }
+      try {
+        const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
+        if (existing.length > 0) {
+          results.push({ row: i + 2, status: "skipped", email, message: "Account already exists" });
+          continue;
+        }
+        const phone = (row["phone"] || row["phone number"] || "").trim() || null;
+        const roleRaw = (row["role"] || "").toLowerCase().trim();
+        const role: "client" | "admin" = roleRaw === "admin" ? "admin" : "client";
+        const tempPassword = crypto.randomBytes(8).toString("base64url").slice(0, 12);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        await db.insert(usersTable).values({ name, email, password: hashedPassword, company, phone, role, mustChangePassword: true });
+        const { sendClientWelcomeFromImport } = await import("../lib/email.js");
+        sendClientWelcomeFromImport({ name, email, company, temporaryPassword: tempPassword })
+          .catch(err => console.error("[CSV Import] Welcome email error:", err));
+        results.push({ row: i + 2, status: "created", email, message: "Account created, welcome email sent" });
+      } catch (rowErr: unknown) {
+        const errMsg = rowErr instanceof Error ? rowErr.message : "Unknown error";
+        results.push({ row: i + 2, status: "error", email: email || undefined, message: errMsg });
+      }
+    }
+    const created = results.filter(r => r.status === "created").length;
+    const skipped = results.filter(r => r.status === "skipped").length;
+    const errors = results.filter(r => r.status === "error").length;
+    res.json({ summary: { total: rows.length, created, skipped, errors }, results });
+  } catch (err) {
+    console.error("[CSV Import Users] Error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to import users" });
+  }
+});
+
+router.post("/admin/import/partners", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { csv } = req.body;
+    if (!csv || typeof csv !== "string") {
+      res.status(400).json({ error: "validation_error", message: "csv field is required" });
+      return;
+    }
+    const rows = parseCsv(csv);
+    if (rows.length === 0) {
+      res.status(400).json({ error: "validation_error", message: "No data rows found in CSV" });
+      return;
+    }
+    const results: ImportRowResult[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const email = (row["email"] || "").toLowerCase().trim();
+      const companyName = (row["companyname"] || row["company name"] || row["company"] || "").trim();
+      const contactName = (row["contactname"] || row["contact name"] || row["name"] || "").trim();
+      const businessType = (row["businesstype"] || row["business type"] || row["type"] || "").trim();
+      const specializationsRaw = (row["specializations"] || row["specialization"] || "").trim();
+      const missing: string[] = [];
+      if (!email) missing.push("email");
+      if (!companyName) missing.push("companyName");
+      if (!contactName) missing.push("contactName");
+      if (!businessType) missing.push("businessType");
+      if (!specializationsRaw) missing.push("specializations");
+      if (missing.length > 0) {
+        results.push({ row: i + 2, status: "error", email: email || undefined, message: `Missing required fields: ${missing.join(", ")}` });
+        continue;
+      }
+      try {
+        const existing = await db.select({ id: partnersTable.id }).from(partnersTable).where(eq(partnersTable.email, email)).limit(1);
+        if (existing.length > 0) {
+          results.push({ row: i + 2, status: "skipped", email, message: "Partner account already exists" });
+          continue;
+        }
+        const phone = (row["phone"] || "").trim() || null;
+        const website = (row["website"] || "").trim() || null;
+        const specializations = JSON.stringify(specializationsRaw.split("|").map((s: string) => s.trim()).filter(Boolean));
+        const tierRaw = (row["tier"] || "registered").toLowerCase().trim();
+        const tier = ["registered", "silver", "gold", "platinum"].includes(tierRaw) ? tierRaw : "registered";
+        const tempPassword = crypto.randomBytes(8).toString("base64url").slice(0, 12);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        await db.insert(partnersTable).values({
+          companyName, contactName, email, password: hashedPassword, phone, website,
+          businessType, specializations, tier, status: "approved",
+        });
+        sendPartnerWelcomeFromImport({ companyName, contactName, email, temporaryPassword: tempPassword })
+          .catch(err => console.error("[CSV Import Partners] Welcome email error:", err));
+        results.push({ row: i + 2, status: "created", email, message: `Partner account created (tier: ${tier}), welcome email sent` });
+      } catch (rowErr: unknown) {
+        const errMsg = rowErr instanceof Error ? rowErr.message : "Unknown error";
+        results.push({ row: i + 2, status: "error", email: email || undefined, message: errMsg });
+      }
+    }
+    const created = results.filter(r => r.status === "created").length;
+    const skipped = results.filter(r => r.status === "skipped").length;
+    const errors = results.filter(r => r.status === "error").length;
+    res.json({ summary: { total: rows.length, created, skipped, errors }, results });
+  } catch (err) {
+    console.error("[CSV Import Partners] Error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to import partners" });
+  }
+});
+
+router.get("/admin/sso-domain-rules", requireAuth, requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const [row] = await db.select({ value: siteSettingsTable.value }).from(siteSettingsTable).where(eq(siteSettingsTable.key, "sso_domain_rules")).limit(1);
+    const rules = row?.value ? JSON.parse(row.value) : [];
+    res.json({ rules });
+  } catch (err) {
+    console.error("[SSO Domain Rules] GET error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to get SSO domain rules" });
+  }
+});
+
+router.put("/admin/sso-domain-rules", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { rules } = req.body;
+    if (!Array.isArray(rules)) {
+      res.status(400).json({ error: "validation_error", message: "rules must be an array" });
+      return;
+    }
+    type SsoDomainRule = { domain: string; role: "client" | "admin" };
+    const validated: SsoDomainRule[] = (rules as unknown[])
+      .filter((r): r is { domain: string; role: "client" | "admin" } =>
+        typeof r === "object" && r !== null &&
+        typeof (r as Record<string, unknown>)["domain"] === "string" &&
+        ((r as Record<string, unknown>)["role"] === "client" || (r as Record<string, unknown>)["role"] === "admin")
+      )
+      .map(r => ({
+        domain: r.domain === "*" ? "*" : r.domain.toLowerCase().trim(),
+        role: r.role,
+      }));
+    const value = JSON.stringify(validated);
+    const existing = await db.select({ id: siteSettingsTable.id }).from(siteSettingsTable).where(eq(siteSettingsTable.key, "sso_domain_rules")).limit(1);
+    if (existing.length > 0) {
+      await db.update(siteSettingsTable).set({ value, updatedAt: new Date() }).where(eq(siteSettingsTable.key, "sso_domain_rules"));
+    } else {
+      await db.insert(siteSettingsTable).values({ key: "sso_domain_rules", value });
+    }
+    res.json({ rules: validated });
+  } catch (err) {
+    console.error("[SSO Domain Rules] PUT error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to save SSO domain rules" });
   }
 });
 

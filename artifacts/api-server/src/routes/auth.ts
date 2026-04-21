@@ -111,6 +111,7 @@ router.post("/auth/login", async (req, res) => {
         company: user.company,
         phone: user.phone,
         role: user.role,
+        mustChangePassword: user.mustChangePassword ?? false,
         createdAt: user.createdAt,
       }
     });
@@ -134,6 +135,7 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res: Response) => {
       company: user.company,
       phone: user.phone,
       role: user.role,
+      mustChangePassword: user.mustChangePassword ?? false,
       createdAt: user.createdAt,
     });
   } catch (err) {
@@ -179,7 +181,7 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res: 
       return;
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await db.update(usersTable).set({ password: hashedPassword }).where(eq(usersTable.id, req.userId!));
+    await db.update(usersTable).set({ password: hashedPassword, mustChangePassword: false }).where(eq(usersTable.id, req.userId!));
     res.json({ success: true, message: "Password changed successfully" });
   } catch (err) {
     console.error("Change password error:", err);

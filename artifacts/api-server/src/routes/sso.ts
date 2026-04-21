@@ -1,8 +1,10 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { db, usersTable, partnersTable } from "@workspace/db";
+import crypto from "crypto";
+import { db, usersTable, partnersTable, siteSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { sendPartnerSsoRegistrationNotification } from "../lib/email.js";
 
 const router = Router();
 
@@ -37,6 +39,11 @@ interface MicrosoftProfile {
   companyName?: string;
 }
 
+interface SsoDomainRule {
+  domain: string;
+  role: "client" | "admin";
+}
+
 function decodeIdTokenClaims(idToken: string): MicrosoftIdTokenClaims {
   try {
     const payload = idToken.split(".")[1];
@@ -44,6 +51,29 @@ function decodeIdTokenClaims(idToken: string): MicrosoftIdTokenClaims {
   } catch {
     return {};
   }
+}
+
+async function getSsoDomainRules(): Promise<SsoDomainRule[]> {
+  try {
+    const [row] = await db
+      .select({ value: siteSettingsTable.value })
+      .from(siteSettingsTable)
+      .where(eq(siteSettingsTable.key, "sso_domain_rules"))
+      .limit(1);
+    if (!row?.value) return [];
+    return JSON.parse(row.value) as SsoDomainRule[];
+  } catch {
+    return [];
+  }
+}
+
+function getRoleForEmail(email: string, rules: SsoDomainRule[]): "client" | "admin" | null {
+  const domain = email.split("@")[1]?.toLowerCase();
+  if (!domain) return null;
+  const exactMatch = rules.find(r => r.domain.toLowerCase() === domain);
+  if (exactMatch) return exactMatch.role;
+  const wildcardMatch = rules.find(r => r.domain === "*");
+  return wildcardMatch ? wildcardMatch.role : null;
 }
 
 router.get("/auth/sso/microsoft", (req, res) => {
@@ -135,6 +165,8 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
       return;
     }
 
+    const domainRules = await getSsoDomainRules();
+
     if (type === "partner") {
       const [partner] = await db
         .select()
@@ -149,28 +181,61 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
           .where(eq(usersTable.email, email))
           .limit(1);
 
-        if (!adminUser || adminUser.role !== "admin") {
-          res.redirect(`/partners/login?sso_error=no_account`);
+        if (adminUser && adminUser.role === "admin") {
+          if (!adminUser.ssoId) {
+            await db
+              .update(usersTable)
+              .set({ ssoProvider: "microsoft", ssoId })
+              .where(eq(usersTable.id, adminUser.id));
+          }
+          const token = jwt.sign({ userId: adminUser.id, role: adminUser.role }, JWT_SECRET, { expiresIn: "7d" });
+          res.redirect(`/partners/login?sso_token=${token}`);
           return;
         }
 
-        if (!adminUser.ssoId) {
-          await db
-            .update(usersTable)
-            .set({ ssoProvider: "microsoft", ssoId })
-            .where(eq(usersTable.id, adminUser.id));
-        }
+        const companyName = profile.companyName || email.split("@")[1]?.split(".")[0] || "Unknown Company";
+        const [newPartner] = await db.insert(partnersTable).values({
+          companyName,
+          contactName: name,
+          email,
+          password: await bcrypt.hash(ssoId + crypto.randomUUID(), 10),
+          phone: null,
+          website: null,
+          businessType: "other",
+          specializations: "[]",
+          status: "pending",
+          tier: "registered",
+          ssoProvider: "microsoft",
+          ssoId,
+        }).returning();
 
-        const token = jwt.sign({ userId: adminUser.id, role: adminUser.role }, JWT_SECRET, { expiresIn: "7d" });
-        res.redirect(`/partners/login?sso_token=${token}`);
+        sendPartnerSsoRegistrationNotification({
+          companyName,
+          contactName: name,
+          email,
+        }).catch(err => console.error("[SSO] Partner registration notification error:", err));
+
+        console.log(`[SSO] Created pending partner account for ${email} via SSO self-registration`);
+        res.redirect(`/partners/login?sso_error=pending_approval`);
         return;
       }
+
       if (!partner.ssoId) {
         await db
           .update(partnersTable)
           .set({ ssoProvider: "microsoft", ssoId })
           .where(eq(partnersTable.id, partner.id));
       }
+
+      if (partner.status === "pending") {
+        res.redirect(`/partners/login?sso_error=pending_approval`);
+        return;
+      }
+      if (partner.status === "rejected") {
+        res.redirect(`/partners/login?sso_error=account_rejected`);
+        return;
+      }
+
       const token = jwt.sign({ partnerId: partner.id }, JWT_SECRET, { expiresIn: "7d" });
       res.redirect(`/partners/login?sso_token=${token}`);
     } else {
@@ -181,6 +246,7 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
         .limit(1);
 
       if (!user) {
+        const domainRole = getRoleForEmail(email, domainRules);
         const randomPw = await bcrypt.hash(ssoId + crypto.randomUUID(), 10);
         const [newUser] = await db
           .insert(usersTable)
@@ -191,14 +257,24 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
             company: profile.companyName || "Microsoft SSO User",
             ssoProvider: "microsoft",
             ssoId,
+            role: domainRole ?? "client",
           })
           .returning();
         user = newUser;
-      } else if (!user.ssoId) {
-        await db
-          .update(usersTable)
-          .set({ ssoProvider: "microsoft", ssoId })
-          .where(eq(usersTable.id, user.id));
+        console.log(`[SSO] Created new client account for ${email} with role=${user.role}`);
+      } else {
+        if (!user.ssoId) {
+          const domainRole = getRoleForEmail(email, domainRules);
+          await db
+            .update(usersTable)
+            .set({
+              ssoProvider: "microsoft",
+              ssoId,
+              ...(domainRole && user.role !== domainRole ? { role: domainRole } : {}),
+            })
+            .where(eq(usersTable.id, user.id));
+          user = { ...user, ssoId, ssoProvider: "microsoft", role: domainRole ?? user.role };
+        }
       }
 
       const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {

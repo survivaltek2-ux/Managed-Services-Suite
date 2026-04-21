@@ -1484,3 +1484,211 @@ export async function sendPaymentReceiptEmail(invoice: {
     html
   );
 }
+
+export async function sendClientWelcomeFromQuote(user: {
+  name: string;
+  email: string;
+  company: string;
+  temporaryPassword: string;
+}) {
+  const cfg = await loadEmailConfig();
+  const portalUrl = process.env.CLIENT_PORTAL_URL || "https://siebertrservices.com";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Welcome to Siebert Services — Your Account Is Ready</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(user.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Thank you for submitting your quote request! We've automatically created a client portal account for you so you can track your quote, view proposals, and manage your services — all in one place.</p>
+        <div style="background: #f4f6f9; border: 1px solid #d8dde6; border-radius: 4px; padding: 16px 20px; margin: 0 0 20px;">
+          <p style="font-size: 13px; font-weight: 700; color: #032d60; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.05em;">Your Login Credentials</p>
+          <table style="font-size: 14px; border-collapse: collapse;">
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0; width: 90px;">Email:</td><td style="font-weight: 600;">${esc(user.email)}</td></tr>
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0;">Password:</td><td style="font-weight: 600;">${esc(user.temporaryPassword)}</td></tr>
+          </table>
+        </div>
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin: 0 0 20px;">
+          <p style="font-size: 13px; color: #856404; margin: 0;"><strong>Security reminder:</strong> This is a temporary password. You will be prompted to change it when you first log in.</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(portalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700;">Log In to Client Portal</a>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 4px;">Questions? Reach us at:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:support@siebertrservices.com" style="color: #0176d3;">support@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Team</p>
+      </div>
+    </div>
+  `;
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Client Account Auto-Provisioned from Quote</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">A new client account was automatically created from a quote submission.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Name</td><td style="padding: 10px 12px; font-weight: 600;">${esc(user.name)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Email</td><td style="padding: 10px 12px;"><a href="mailto:${esc(user.email)}" style="color: #0176d3;">${esc(user.email)}</a></td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Company</td><td style="padding: 10px 12px;">${esc(user.company)}</td></tr>
+        </table>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">The client has been emailed their temporary credentials.</p>
+      </div>
+    </div>
+  `;
+
+  await Promise.all([
+    sendEmail(cfg.notificationEmail, `New Client Account: ${esc(user.name)} — ${esc(user.company)}`, adminHtml),
+    sendEmail(user.email, "Welcome to Siebert Services — Your Account Is Ready", html),
+  ]);
+}
+
+export async function sendClientWelcomeFromImport(user: {
+  name: string;
+  email: string;
+  company: string;
+  temporaryPassword: string;
+}) {
+  const cfg = await loadEmailConfig();
+  const portalUrl = process.env.CLIENT_PORTAL_URL || "https://siebertrservices.com";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Welcome to Siebert Services — Your Account Is Ready</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(user.name)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Your Siebert Services client portal account has been created. Use the credentials below to log in, manage your services, view proposals, and access invoices — all in one place.</p>
+        <div style="background: #f4f6f9; border: 1px solid #d8dde6; border-radius: 4px; padding: 16px 20px; margin: 0 0 20px;">
+          <p style="font-size: 13px; font-weight: 700; color: #032d60; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.05em;">Your Login Credentials</p>
+          <table style="font-size: 14px; border-collapse: collapse;">
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0; width: 90px;">Email:</td><td style="font-weight: 600;">${esc(user.email)}</td></tr>
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0;">Password:</td><td style="font-weight: 600;">${esc(user.temporaryPassword)}</td></tr>
+          </table>
+        </div>
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin: 0 0 20px;">
+          <p style="font-size: 13px; color: #856404; margin: 0;"><strong>Security reminder:</strong> This is a temporary password. You will be prompted to change it when you first log in.</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(portalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700;">Log In to Client Portal</a>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 4px;">Questions? Reach us at:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:support@siebertrservices.com" style="color: #0176d3;">support@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Team</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(user.email, "Welcome to Siebert Services — Your Account Is Ready", html);
+}
+
+export async function sendPartnerSsoRegistrationNotification(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}) {
+  const cfg = await loadEmailConfig();
+  const adminPortalUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">New Partner SSO Self-Registration</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">A new partner has self-registered via Microsoft SSO and is pending approval.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9f9f9; border-radius: 4px;">
+          <tr><td style="padding: 10px 12px; color: #706e6b; width: 140px;">Company</td><td style="padding: 10px 12px; font-weight: 600;">${esc(partner.companyName)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Contact</td><td style="padding: 10px 12px;">${esc(partner.contactName)}</td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Email</td><td style="padding: 10px 12px;"><a href="mailto:${esc(partner.email)}" style="color: #0176d3;">${esc(partner.email)}</a></td></tr>
+          <tr><td style="padding: 10px 12px; color: #706e6b;">Source</td><td style="padding: 10px 12px;">Microsoft SSO</td></tr>
+        </table>
+        <p style="font-size: 14px; margin: 16px 0 0;">Please log in to the admin panel to review and approve or reject this application.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">This is an automated notification from the Siebert Services Partner Portal.</p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(cfg.notificationEmail, `New Partner SSO Registration (Pending): ${esc(partner.companyName)}`, html);
+}
+
+export async function sendPartnerWelcomeFromImport(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+  temporaryPassword: string;
+}) {
+  const portalUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #2e844a); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Welcome to the Siebert Services Partner Network</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Your partner account for <strong>${esc(partner.companyName)}</strong> has been created. Use the credentials below to access the Partner Portal.</p>
+        <div style="background: #f4f6f9; border: 1px solid #d8dde6; border-radius: 4px; padding: 16px 20px; margin: 0 0 20px;">
+          <p style="font-size: 13px; font-weight: 700; color: #032d60; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.05em;">Your Login Credentials</p>
+          <table style="font-size: 14px; border-collapse: collapse;">
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0; width: 90px;">Email:</td><td style="font-weight: 600;">${esc(partner.email)}</td></tr>
+            <tr><td style="color: #706e6b; padding: 4px 12px 4px 0;">Password:</td><td style="font-weight: 600;">${esc(partner.temporaryPassword)}</td></tr>
+          </table>
+        </div>
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin: 0 0 20px;">
+          <p style="font-size: 13px; color: #856404; margin: 0;"><strong>Security reminder:</strong> This is a temporary password. Please change it after your first login.</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(portalUrl)}" style="display: inline-block; background: #2e844a; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700;">Access Partner Portal</a>
+        </div>
+        <p style="font-size: 14px; margin: 0 0 4px;">Questions? Contact our partner team:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:partners@siebertrservices.com" style="color: #0176d3;">partners@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Partner Team</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(partner.email, "Welcome to Siebert Services Partner Network — Your Account Is Ready", html);
+}
+
+export async function sendPartnerStripeOnboardingEmail(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}, onboardingUrl: string) {
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #2e844a); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Set Up Your Payout Account</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">Great news — your partner account for <strong>${esc(partner.companyName)}</strong> has been approved! To receive commission payouts, please complete your Stripe Connect setup by clicking the button below.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(onboardingUrl)}" style="display: inline-block; background: #635bff; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">Set Up Payouts</a>
+        </div>
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">This link is single-use and will expire soon. If it has expired, log in to the Partner Portal and connect Stripe from your Profile page.</p>
+        <p style="font-size: 14px; margin: 16px 0 4px;">Questions? Contact us:</p>
+        <ul style="font-size: 14px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+          <li>Email: <a href="mailto:partners@siebertrservices.com" style="color: #0176d3;">partners@siebertrservices.com</a></li>
+        </ul>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">— Siebert Services Partner Team</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(partner.email, "Action Required: Set Up Your Commission Payout Account", html);
+}

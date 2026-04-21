@@ -3,7 +3,13 @@ import { Response } from "express";
 import { db, quotesTable, quoteProposalsTable, quoteLineItemsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/auth.js";
-import { sendQuoteRequestNotification, sendProposalToClient, sendProposalResponseNotification } from "../lib/email.js";
+import { sendQuoteRequestNotification, sendProposalToClient, sendProposalResponseNotification, sendClientWelcomeFromQuote } from "../lib/email.js";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+
+function generateTemporaryPassword(): string {
+  return crypto.randomBytes(8).toString("base64url").slice(0, 12);
+}
 
 const router: IRouter = Router();
 
@@ -25,11 +31,12 @@ function generateProposalNumber(): string {
 
 router.post("/quotes", async (req, res) => {
   try {
-    const { name, email, phone, company, companySize, services, budget, timeline, details, requestedTier } = req.body;
-    if (!name || !email || !company || !services || !Array.isArray(services) || services.length === 0) {
+    const { name, email: rawEmail, phone, company, companySize, services, budget, timeline, details, requestedTier } = req.body;
+    if (!name || !rawEmail || !company || !services || !Array.isArray(services) || services.length === 0) {
       res.status(400).json({ error: "validation_error", message: "name, email, company, and services are required" });
       return;
     }
+    const email = rawEmail.trim().toLowerCase();
 
     const tierSlug = typeof requestedTier === "string" && requestedTier.trim()
       ? requestedTier.trim().toLowerCase().slice(0, 64)
@@ -51,6 +58,28 @@ router.post("/quotes", async (req, res) => {
       services: quote.services, budget, timeline, details,
       requestedTier: tierSlug ?? undefined,
     }).catch(err => console.error("[Email] Quote notification error:", err));
+
+    (async () => {
+      try {
+        const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
+        if (existing.length === 0) {
+          const tempPassword = generateTemporaryPassword();
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
+          await db.insert(usersTable).values({
+            name,
+            email,
+            password: hashedPassword,
+            company,
+            phone: phone || null,
+            mustChangePassword: true,
+          });
+          await sendClientWelcomeFromQuote({ name, email, company, temporaryPassword: tempPassword });
+          console.log(`[Quote Provisioning] Created client account for ${email}`);
+        }
+      } catch (provisionErr) {
+        console.error("[Quote Provisioning] Failed to provision client account:", provisionErr);
+      }
+    })();
 
     res.status(201).json({ ...quote, services: JSON.parse(quote.services) });
   } catch (err) {

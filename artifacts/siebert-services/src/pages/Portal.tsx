@@ -135,6 +135,12 @@ export default function Portal() {
   }, [login]);
 
   useEffect(() => {
+    if (isAuthenticated && user?.mustChangePassword) {
+      setShowChangePassword(true);
+    }
+  }, [isAuthenticated, user?.mustChangePassword]);
+
+  useEffect(() => {
     if (isAuthenticated && token && activeTab === "quotes" && myQuotes === null) {
       fetchMyQuotes();
     }
@@ -259,6 +265,7 @@ export default function Portal() {
         toast({ title: "Password changed successfully" });
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
         setShowChangePassword(false);
+        if (user) login(token!, { ...user, mustChangePassword: false });
       } else {
         const data = await res.json();
         toast({ title: data.message || "Failed to change password", variant: "destructive" });
@@ -948,11 +955,18 @@ export default function Portal() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <Lock className="w-4 h-4" /> Change Password
                 </CardTitle>
-                <button onClick={() => setShowChangePassword(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="w-4 h-4" />
-                </button>
+                {!user?.mustChangePassword && (
+                  <button onClick={() => setShowChangePassword(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </CardHeader>
               <CardContent className="pt-5">
+                {user?.mustChangePassword && (
+                  <div className="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-800">
+                    A temporary password was set for your account. Please set a new password before continuing.
+                  </div>
+                )}
                 <form onSubmit={handleChangePassword} className="space-y-4">
                   <div>
                     <Label className="text-xs font-semibold">Current Password</Label>
@@ -988,17 +1002,19 @@ export default function Portal() {
                     />
                   </div>
                   <div className="flex gap-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowChangePassword(false);
-                        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                      }}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
+                    {!user?.mustChangePassword && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowChangePassword(false);
+                          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    )}
                     <Button
                       type="submit"
                       disabled={passwordChanging}

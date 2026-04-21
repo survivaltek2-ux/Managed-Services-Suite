@@ -27,6 +27,8 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
   wrong_tenant: "Your Microsoft account belongs to an unauthorized organization. Please sign in with your company account.",
   server_error: "An error occurred during sign-in. Please try again.",
   no_email: "Could not retrieve your email. Please try again.",
+  pending_approval: "Your partner account application has been received and is pending review. You'll be notified once approved.",
+  account_rejected: "Your partner account application was not approved. Please contact us for more information.",
 };
 
 export default function Login() {
