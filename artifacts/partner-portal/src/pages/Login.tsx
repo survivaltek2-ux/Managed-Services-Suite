@@ -19,6 +19,7 @@ function MicrosoftIcon() {
 
 
 const SSO_ERROR_MESSAGES: Record<string, string> = {
+  sso_not_configured: "Microsoft sign-in is not available right now. Please use email/password instead.",
   access_denied: "Sign-in was cancelled. Please try again.",
   token_failed: "Could not complete sign-in. Please try again.",
   profile_failed: "Could not retrieve your profile. Please try again.",

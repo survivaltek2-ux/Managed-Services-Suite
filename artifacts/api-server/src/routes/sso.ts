@@ -47,11 +47,12 @@ function decodeIdTokenClaims(idToken: string): MicrosoftIdTokenClaims {
 }
 
 router.get("/auth/sso/microsoft", (req, res) => {
+  const type = req.query.type === "partner" ? "partner" : "client";
   if (!CLIENT_ID || !REDIRECT_URI) {
-    res.status(503).json({ error: "sso_not_configured", message: "Microsoft SSO is not configured." });
+    const loginPath = type === "partner" ? "/partners/login" : "/portal";
+    res.redirect(`${loginPath}?sso_error=sso_not_configured`);
     return;
   }
-  const type = req.query.type === "partner" ? "partner" : "client";
   const state = Buffer.from(JSON.stringify({ type })).toString("base64url");
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
