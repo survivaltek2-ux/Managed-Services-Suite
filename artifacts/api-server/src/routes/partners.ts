@@ -1046,11 +1046,21 @@ router.post("/admin/partners/:id/send-stripe-reminder", requireAuth, requireAdmi
       contactName: partnersTable.contactName,
       email: partnersTable.email,
       stripeConnectAccountId: partnersTable.stripeConnectAccountId,
+      lastStripeReminderSentAt: partnersTable.lastStripeReminderSentAt,
     }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
     if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
     if (partner.stripeConnectAccountId) {
       res.status(400).json({ error: "already_connected", message: "This partner already has a Stripe account connected" });
       return;
+    }
+    if (partner.lastStripeReminderSentAt) {
+      const msSinceLast = Date.now() - new Date(partner.lastStripeReminderSentAt).getTime();
+      const cooldownMs = 24 * 60 * 60 * 1000;
+      if (msSinceLast < cooldownMs) {
+        const hoursLeft = Math.ceil((cooldownMs - msSinceLast) / 3600000);
+        res.status(429).json({ error: "cooldown_active", message: `A reminder was sent recently. Please wait ${hoursLeft}h before sending another.` });
+        return;
+      }
     }
     const sent = await sendStripeConnectReminder({
       companyName: partner.companyName,
