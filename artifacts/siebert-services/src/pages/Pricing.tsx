@@ -655,7 +655,7 @@ export default function Pricing() {
                     </span>
                   </a>
                   <p className="text-xs text-white/50 mt-1.5">
-                    Review the contract template our clients sign — no email required.
+                    Review the exact agreement our clients sign — no email required.
                   </p>
                 </div>
               </div>
