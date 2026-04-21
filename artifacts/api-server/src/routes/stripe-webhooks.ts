@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, invoicesTable, subscriptionsTable, partnerCommissionsTable, documentsTable, pricingTiersTable, partnersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { STRIPE_WEBHOOK_SECRET, isStripeConfigured, getStripe } from "../lib/stripe.js";
-import { sendPaymentReceiptEmail, sendContractEmail } from "../lib/email.js";
+import { sendPaymentReceiptEmail, sendContractEmail, sendSubscriptionApprovedEmail } from "../lib/email.js";
 import { generateMSAContract } from "../lib/contract.js";
 
 const router: IRouter = Router();
@@ -66,6 +66,87 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
             updatedAt: new Date(),
           }).where(eq(invoicesTable.id, parseInt(invoiceId)));
           console.log(`[Stripe Webhook] Invoice #${invoiceId} marked paid`);
+        }
+
+        if (type === "auto_checkout") {
+          // Auto-activate plans (e.g. Consumer) use subscription mode — Stripe creates
+          // the subscription immediately. No admin approval needed.
+          const stripeSubId: string = session.subscription || "";
+          const { tierId, planSlug, billingCycle, seats: seatsStr } = session.metadata || {};
+          const customerEmail: string = session.customer_details?.email || session.customer_email || "";
+          const customerName: string = session.customer_details?.name || "Valued Customer";
+          const seats: number = parseInt(seatsStr || "1", 10) || 1;
+          const stripeCustomerId: string = session.customer || "";
+
+          let tierRecord: any = null;
+          if (tierId) {
+            const [t] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, parseInt(tierId)));
+            tierRecord = t;
+          }
+          if (!tierRecord && planSlug) {
+            const rows = await db.select().from(pricingTiersTable);
+            tierRecord = rows.find((r: any) => r.slug === planSlug) || null;
+          }
+          const resolvedPlanName: string = tierRecord?.name || (planSlug ? planSlug.charAt(0).toUpperCase() + planSlug.slice(1) : "Consumer");
+
+          // Retrieve the live Stripe subscription to get period dates and amount.
+          let subAmount = 0;
+          let currentPeriodStart: Date | undefined;
+          let currentPeriodEnd: Date | undefined;
+          let stripePriceId = "";
+          try {
+            const stripe = getStripe();
+            const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+            subAmount = (stripeSub.items.data[0]?.price?.unit_amount || 0) / 100;
+            currentPeriodStart = new Date((stripeSub as any).current_period_start * 1000);
+            currentPeriodEnd = new Date((stripeSub as any).current_period_end * 1000);
+            stripePriceId = stripeSub.items.data[0]?.price?.id || "";
+          } catch (subErr) {
+            console.error("[Stripe Webhook] auto_checkout: failed to retrieve subscription:", subErr);
+          }
+
+          const existing = await db.select().from(subscriptionsTable)
+            .where(eq(subscriptionsTable.stripeSubscriptionId, stripeSubId));
+
+          if (existing.length === 0 && stripeSubId) {
+            await db.insert(subscriptionsTable).values({
+              stripeSubscriptionId: stripeSubId,
+              stripeCustomerId,
+              stripePriceId,
+              planId: planSlug || "consumer",
+              planName: resolvedPlanName,
+              status: "active" as any,
+              billingCycle: billingCycle || "monthly",
+              amount: String(subAmount / seats),
+              approvalStatus: "approved",
+              customerEmail,
+              customerName,
+              seats,
+              autoActivated: true,
+              customerType: "consumer",
+              currentPeriodStart,
+              currentPeriodEnd,
+            });
+            console.log(`[Stripe Webhook] Auto-activated Consumer subscription ${stripeSubId} for ${customerEmail}`);
+          }
+
+          // Send confirmation email immediately — no admin approval needed.
+          try {
+            if (customerEmail) {
+              await sendSubscriptionApprovedEmail({
+                customerName,
+                customerEmail,
+                planName: resolvedPlanName,
+                billingCycle: (billingCycle || "monthly") as "monthly" | "annual",
+                seats,
+                amount: subAmount / Math.max(seats, 1),
+              });
+            }
+          } catch (emailErr) {
+            console.error("[Stripe Webhook] auto_checkout confirmation email failed (non-fatal):", emailErr);
+          }
+
+          break;
         }
 
         if (type === "self_checkout") {

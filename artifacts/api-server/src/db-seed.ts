@@ -1,4 +1,4 @@
-import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable, industriesTable } from "@workspace/db";
+import { db, marketplaceVendorsTable, marketplaceProductsTable, testimonialsTable, caseStudiesTable, certificationsTable, companyStatsTable, pricingTiersTable, industriesTable, servicesTable } from "@workspace/db";
 import { count, eq } from "drizzle-orm";
 import { INDUSTRIES_SEED } from "./data/industries-seed.js";
 
@@ -116,6 +116,28 @@ async function seedTrustContent(): Promise<void> {
     if (pCount === 0) {
       await db.insert(pricingTiersTable).values([
         {
+          slug: "consumer", name: "Consumer",
+          tagline: "Essential remote IT support for individuals and very small home-office setups.",
+          startingPrice: "49", annualPrice: "42", priceUnit: "per user / month", pricePrefix: "Starting at",
+          mostPopular: false, sortOrder: -1,
+          ctaLabel: "Get Started", ctaLink: "/quote",
+          autoActivate: true,
+          features: JSON.stringify([
+            "Business-hours help desk (M–F 8–5)",
+            "Remote monitoring & patching",
+            "Endpoint antivirus",
+            "Microsoft 365 administration",
+            "Email & phone support",
+          ]),
+          excludedFeatures: JSON.stringify([
+            "24/7 after-hours support",
+            "Endpoint Detection & Response (EDR)",
+            "vCIO strategic planning",
+            "On-site dispatch included (New York only)",
+            "Quarterly business reviews",
+          ]),
+        },
+        {
           slug: "essentials", name: "Essentials",
           tagline: "Core managed IT for small teams that need reliable coverage.",
           startingPrice: "89", priceUnit: "per user / month", pricePrefix: "Starting at",
@@ -178,7 +200,72 @@ async function seedTrustContent(): Promise<void> {
           excludedFeatures: JSON.stringify([]),
         },
       ]);
-      console.log("[seed] Inserted 3 pricing tiers");
+      console.log("[seed] Inserted 4 pricing tiers");
+    }
+
+    // Consumer services
+    const [{ consumerSvcCount }] = await db.select({ consumerSvcCount: count() }).from(servicesTable)
+      .where(eq(servicesTable.category, "consumer"));
+    if (consumerSvcCount === 0) {
+      await db.insert(servicesTable).values([
+        {
+          title: "Personal Device Support",
+          description: "Remote help desk support for home computers, laptops, tablets, and smartphones. Get expert help fast without leaving the house.",
+          icon: "Laptop",
+          category: "consumer",
+          features: JSON.stringify([
+            "Remote troubleshooting for PCs, Macs & laptops",
+            "Slow computer tune-ups & cleanup",
+            "Printer & peripheral setup",
+            "Software installation & updates",
+            "Browser & email troubleshooting",
+          ]),
+          sortOrder: 100,
+        },
+        {
+          title: "Home Office Security",
+          description: "Keep your home devices safe from viruses, malware, and online threats. Includes antivirus setup, password manager guidance, and safe browsing tips.",
+          icon: "ShieldCheck",
+          category: "consumer",
+          features: JSON.stringify([
+            "Antivirus & malware protection",
+            "Password manager setup",
+            "Phishing & scam awareness",
+            "Safe Wi-Fi & router hardening",
+            "Suspicious activity removal",
+          ]),
+          sortOrder: 101,
+        },
+        {
+          title: "Personal Cloud & Backup",
+          description: "Never lose a photo or document again. We set up and manage cloud backup for your personal files across OneDrive, Google Drive, or iCloud.",
+          icon: "Cloud",
+          category: "consumer",
+          features: JSON.stringify([
+            "OneDrive, Google Drive & iCloud setup",
+            "Automatic photo & document backup",
+            "Cloud storage organization",
+            "File recovery assistance",
+            "Cross-device sync",
+          ]),
+          sortOrder: 102,
+        },
+        {
+          title: "Microsoft 365 Personal Setup",
+          description: "Get the most out of your Microsoft 365 subscription. We handle setup, migration of old emails, and ongoing support for Outlook, Word, Excel, and Teams.",
+          icon: "Mail",
+          category: "consumer",
+          features: JSON.stringify([
+            "Microsoft 365 account setup & activation",
+            "Outlook email migration & configuration",
+            "OneDrive & Teams setup",
+            "App installation on all devices",
+            "Ongoing M365 support",
+          ]),
+          sortOrder: 103,
+        },
+      ]);
+      console.log("[seed] Inserted 4 consumer services");
     }
   } catch (err) {
     console.error("[seed] Trust content seeding failed (non-fatal):", err);

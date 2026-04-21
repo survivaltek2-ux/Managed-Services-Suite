@@ -375,7 +375,14 @@ export default function AdminBilling() {
                             <tr key={sub.id} className="border-b last:border-0 hover:bg-muted/30">
                               <td className="px-4 py-2.5">
                                 <p className="font-medium capitalize">{sub.planName}</p>
-                                <p className="text-xs text-muted-foreground capitalize">{sub.billingCycle}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <p className="text-xs text-muted-foreground capitalize">{sub.billingCycle}</p>
+                                  {sub.autoActivated && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-100 text-sky-700 border border-sky-200">
+                                      Auto-activated
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-4 py-2.5"><CustomerTypeBadge type={sub.customerType} /></td>
                               <td className="px-4 py-2.5"><StatusBadge status={sub.status} /></td>

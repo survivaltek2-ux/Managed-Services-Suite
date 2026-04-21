@@ -1,9 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText, Download, Building2, User } from "lucide-react";
+import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText, Download, Building2, Laptop, ShieldCheck, Cloud, Mail, Wifi, HardDrive, User } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
+
+interface CmsService {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  category: string;
+  features: string[];
+}
+
+const CONSUMER_SERVICE_ICONS: Record<string, React.ElementType> = {
+  Laptop,
+  ShieldCheck,
+  Cloud,
+  Mail,
+  Wifi,
+  HardDrive,
+  User,
+};
 
 interface PricingTier {
   id: number;
@@ -22,9 +41,32 @@ interface PricingTier {
   ctaLink: string;
   sortOrder: number;
   active: boolean;
+  autoActivate?: boolean;
 }
 
 const FALLBACK_TIERS: PricingTier[] = [
+  {
+    id: -4, slug: "consumer", name: "Consumer",
+    tagline: "Essential remote IT support for individuals and very small home-office setups.",
+    startingPrice: "49", annualPrice: "42", annualPriceLabel: "42", priceUnit: "per user / month", pricePrefix: "Starting at",
+    mostPopular: false, sortOrder: -1, active: true, autoActivate: true,
+    ctaLabel: "Get Started", ctaLink: "/quote",
+    features: [
+      "Personal Device Support (PCs, Macs & laptops)",
+      "Home Office Security & antivirus",
+      "Personal Cloud & Backup (OneDrive, Google Drive)",
+      "Microsoft 365 Personal setup & support",
+      "Remote monitoring & automatic software updates",
+      "Email & phone support (M–F 8–5)",
+    ],
+    excludedFeatures: [
+      "24/7 after-hours support",
+      "Endpoint Detection & Response (EDR)",
+      "vCIO strategic planning",
+      "On-site dispatch",
+      "Quarterly business reviews",
+    ],
+  },
   {
     id: -1, slug: "essentials", name: "Essentials",
     tagline: "Core managed IT for small teams that need reliable coverage.",
@@ -90,14 +132,14 @@ const FALLBACK_TIERS: PricingTier[] = [
 ];
 
 const ALL_FEATURES = [
-  { key: "Business-hours help desk (M–F 8–5)", in: ["essentials", "business", "enterprise"] },
+  { key: "Business-hours help desk (M–F 8–5)", in: ["consumer", "essentials", "business", "enterprise"] },
   { key: "Extended-hours help desk (7am–8pm)", in: ["business", "enterprise"] },
   { key: "24/7/365 help desk + emergency line", in: ["enterprise"] },
-  { key: "Remote monitoring & patching", in: ["essentials", "business", "enterprise"] },
-  { key: "Endpoint antivirus", in: ["essentials", "business", "enterprise"] },
+  { key: "Remote monitoring & patching", in: ["consumer", "essentials", "business", "enterprise"] },
+  { key: "Endpoint antivirus", in: ["consumer", "essentials", "business", "enterprise"] },
   { key: "Endpoint Detection & Response (EDR)", in: ["business", "enterprise"] },
   { key: "Managed SOC monitoring", in: ["enterprise"] },
-  { key: "Microsoft 365 administration", in: ["essentials", "business", "enterprise"] },
+  { key: "Microsoft 365 administration", in: ["consumer", "essentials", "business", "enterprise"] },
   { key: "MFA / Conditional Access rollout", in: ["business", "enterprise"] },
   { key: "Backup & disaster-recovery monitoring", in: ["business", "enterprise"] },
   { key: "Immutable backup + tested restores", in: ["enterprise"] },
@@ -117,12 +159,14 @@ const BILLING_STORAGE_KEY = "pricing_billing_cycle";
 export default function Pricing() {
   const [tiers, setTiers] = useState<PricingTier[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [consumerServices, setConsumerServices] = useState<CmsService[]>([]);
   const [openMobileTier, setOpenMobileTier] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingCycle>("monthly");
   const [customerType, setCustomerType] = useState<CustomerType>("business");
   const [, setLocation] = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [seatCounts, setSeatCounts] = useState<Record<string, number>>({
+    consumer: 1,
     essentials: 3,
     business: 3,
     enterprise: 3,
@@ -165,7 +209,10 @@ export default function Pricing() {
 
   const handleTierCta = async (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
-    const seatQuantity = Math.max(3, Math.min(500, seatCounts[slug] || 3));
+    const isConsumer = slug === "consumer";
+    const seatQuantity = isConsumer
+      ? 1
+      : Math.max(3, Math.min(500, seatCounts[slug] || 3));
     window.dataLayer?.push({
       event: "pricing_cta_click",
       tier_slug: slug,
@@ -210,10 +257,19 @@ export default function Pricing() {
   };
 
   useEffect(() => {
-    fetch("/api/cms/pricing-tiers")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: PricingTier[]) => {
-        setTiers(data && data.length > 0 ? data : FALLBACK_TIERS);
+    Promise.all([
+      fetch("/api/cms/pricing-tiers").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/cms/services").then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([tiersData, servicesData]: [PricingTier[], any[]]) => {
+        setTiers(tiersData && tiersData.length > 0 ? tiersData : FALLBACK_TIERS);
+        const consumer = (servicesData || []).filter((s: any) => s.category === "consumer");
+        setConsumerServices(
+          consumer.map((s: any) => ({
+            ...s,
+            features: Array.isArray(s.features) ? s.features : JSON.parse(s.features || "[]"),
+          }))
+        );
         setLoaded(true);
       })
       .catch(() => {
@@ -416,6 +472,21 @@ export default function Pricing() {
                         </div>
                       );
                     })()}
+                    {tier.slug === "consumer" ? (
+                      <div className="mb-6">
+                        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-navy-light">
+                          <div className="flex items-center justify-between gap-4">
+                            <span>Flat per-user plan — 1 user</span>
+                            <span className="font-semibold text-navy">
+                              {formatTotal(getUnitPrice(tier))}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            per user / month · for individuals &amp; home offices
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
                     <label className="block mb-6">
                       <span className="block text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
                         Seats ({seatCounts[tier.slug] ?? 3})
@@ -464,6 +535,7 @@ export default function Pricing() {
                         </div>
                       </div>
                     </label>
+                    )}
 
                     <ul className="space-y-2.5 flex-1 mb-7">
                       {tier.features.map((f) => (
@@ -507,6 +579,64 @@ export default function Pricing() {
           </div>
         </div>
       </section>
+
+      {/* CONSUMER SERVICES SPOTLIGHT */}
+      {consumerServices.length > 0 && sorted.some((t) => t.slug === "consumer") && (
+        <section className="py-16 lg:py-20 bg-gradient-to-b from-sky-50/60 to-white border-b border-border/60">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-100 border border-sky-200 text-sky-700 font-bold text-xs uppercase tracking-wider mb-4">
+                <User className="w-3.5 h-3.5" /> Built for home &amp; personal use
+              </div>
+              <h2 className="text-2xl md:text-3xl font-display font-bold text-navy mb-3">
+                What the Consumer plan covers
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                The Consumer plan includes four core services designed for individuals and home offices — no business jargon, no enterprise overhead.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {consumerServices.map((svc, idx) => {
+                const Icon = CONSUMER_SERVICE_ICONS[svc.icon] || Laptop;
+                return (
+                  <motion.div
+                    key={svc.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: idx * 0.07 }}
+                  >
+                    <Card className="h-full border border-sky-100 hover:border-sky-200 hover:shadow-md transition-all bg-white">
+                      <CardContent className="p-5 flex flex-col gap-3 h-full">
+                        <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center shrink-0">
+                          <Icon className="w-5 h-5 text-sky-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-navy text-sm leading-snug mb-1">{svc.title}</h3>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{svc.description}</p>
+                        </div>
+                        <ul className="mt-auto space-y-1.5 pt-2 border-t border-border/40">
+                          {svc.features.slice(0, 3).map((f) => (
+                            <li key={f} className="flex items-start gap-1.5 text-xs text-navy-light">
+                              <Check className="w-3.5 h-3.5 text-sky-500 mt-0.5 shrink-0" />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                          {svc.features.length > 3 && (
+                            <li className="text-xs text-muted-foreground pl-5">+{svc.features.length - 3} more</li>
+                          )}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+            <p className="text-center text-xs text-muted-foreground mt-6">
+              All services are delivered remotely. On-site dispatch is not included in the Consumer plan.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* COMPARISON TABLE (desktop) / ACCORDION (mobile) */}
       <section className="py-20 bg-gray-50/60 border-y border-border/60">

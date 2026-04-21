@@ -575,32 +575,50 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
     const totalAmountCents = unitAmountCents * seats;
     const periodLabel = billingCycle === "annual" ? "Year" : "Month";
 
-    const createSession = async (priceId: string) => stripe.checkout.sessions.create({
-      // payment mode lets us pre-authorize the charge with capture_method: "manual".
+    const createSession = async (priceId: string) => {
+      // Auto-activate plans (e.g. Consumer) skip the approval workflow and create a real
+      // Stripe subscription immediately in subscription mode.
+      if (tier.autoActivate) {
+        return stripe.checkout.sessions.create({
+          mode: "subscription",
+          ...(email ? { customer_email: email } : {}),
+          line_items: [{ price: priceId, quantity: seats }],
+          subscription_data: {
+            metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "auto_checkout", customerType: safeCustomerType },
+          },
+          metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "auto_checkout", priceId, customerType: safeCustomerType },
+          success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${base}/pricing`,
+        });
+      }
+
+      // Standard plans use payment mode with a manual-capture pre-auth.
       // The admin captures on approval; cancels on rejection (no charge).
       // setup_future_usage saves the card so we can create the recurring subscription on approval.
-      mode: "payment",
-      ...(email ? { customer_email: email } : {}),
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          unit_amount: totalAmountCents,
-          product_data: {
-            name: `${tier.name} Plan — First ${periodLabel} (${seats} seat${seats !== 1 ? "s" : ""})`,
+      return stripe.checkout.sessions.create({
+        mode: "payment",
+        ...(email ? { customer_email: email } : {}),
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: totalAmountCents,
+            product_data: {
+              name: `${tier.name} Plan — First ${periodLabel} (${seats} seat${seats !== 1 ? "s" : ""})`,
+            },
           },
+          quantity: 1,
+        }],
+        payment_intent_data: {
+          capture_method: "manual",
+          setup_future_usage: "off_session",
+          // Store identifiers so the webhook and approval flow can create the subscription.
+          metadata: { type: "self_checkout", tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), priceId, customerType: safeCustomerType },
         },
-        quantity: 1,
-      }],
-      payment_intent_data: {
-        capture_method: "manual",
-        setup_future_usage: "off_session",
-        // Store identifiers so the webhook and approval flow can create the subscription.
-        metadata: { type: "self_checkout", tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), priceId, customerType: safeCustomerType },
-      },
-      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout", priceId, customerType: safeCustomerType },
-      success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/pricing`,
-    });
+        metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout", priceId, customerType: safeCustomerType },
+        success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${base}/pricing`,
+      });
+    };
 
     try {
       const priceId = await resolvePriceId();

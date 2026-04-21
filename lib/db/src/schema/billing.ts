@@ -29,6 +29,8 @@ export const subscriptionsTable = pgTable("subscriptions", {
   seats: integer("seats"),
   // Customer classification
   customerType: text("customer_type").default("business"),
+  // Auto-activation flag: true when the plan bypassed the admin approval workflow
+  autoActivated: boolean("auto_activated").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

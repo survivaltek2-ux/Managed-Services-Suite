@@ -153,6 +153,7 @@ export const pricingTiersTable = pgTable("pricing_tiers", {
   stripeProductId: text("stripe_product_id"),
   stripeMonthlyPriceId: text("stripe_monthly_price_id"),
   stripeAnnualPriceId: text("stripe_annual_price_id"),
+  autoActivate: boolean("auto_activate").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
