@@ -449,10 +449,30 @@ router.get("/billing/portal", async (req: Request, res: Response) => {
   try {
     const stripe = getStripe();
     const { session_id } = req.query as { session_id?: string };
-    if (!session_id) { res.status(400).json({ error: "session_id_required" }); return; }
-    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (!session_id || typeof session_id !== "string" || !session_id.startsWith("cs_")) {
+      res.status(400).json({ error: "invalid_request", message: "A valid checkout session ID is required." });
+      return;
+    }
+    let session: any;
+    try {
+      session = await stripe.checkout.sessions.retrieve(session_id);
+    } catch {
+      res.status(404).json({ error: "session_not_found", message: "Session not found or has expired." });
+      return;
+    }
+    if (session.mode !== "subscription" || session.metadata?.type !== "auto_checkout") {
+      res.status(403).json({ error: "forbidden", message: "Billing portal access is not available for this session." });
+      return;
+    }
+    if (session.payment_status !== "paid" && session.status !== "complete") {
+      res.status(403).json({ error: "forbidden", message: "Payment has not completed for this session." });
+      return;
+    }
     const customerId = typeof session.customer === "string" ? session.customer : (session.customer as any)?.id;
-    if (!customerId) { res.status(404).json({ error: "no_customer", message: "No Stripe customer found for this session." }); return; }
+    if (!customerId) {
+      res.status(404).json({ error: "no_customer", message: "No billing account found for this session." });
+      return;
+    }
     const base = getBaseUrl(req);
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
@@ -461,7 +481,7 @@ router.get("/billing/portal", async (req: Request, res: Response) => {
     res.json({ url: portalSession.url });
   } catch (err: any) {
     console.error("[Stripe] Consumer billing portal error:", err);
-    res.status(500).json({ error: "stripe_error", message: err.message });
+    res.status(500).json({ error: "server_error", message: "Unable to open the billing portal. Please try again." });
   }
 });
 
@@ -481,7 +501,7 @@ router.get("/admin/billing/subscriptions/:id/portal", requireAdmin, async (req: 
     res.json({ url: portalSession.url });
   } catch (err: any) {
     console.error("[Stripe] Admin billing portal error:", err);
-    res.status(500).json({ error: "stripe_error", message: err.message });
+    res.status(500).json({ error: "server_error", message: "Unable to open the billing portal. Please try again." });
   }
 });
 
