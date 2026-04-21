@@ -606,6 +606,14 @@ router.get("/public/plan-review/:token/pdf", async (req: Request, res: Response)
     const [plan] = await db.select().from(writtenPlansTable)
       .where(eq(writtenPlansTable.reviewToken, token)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
+    if (plan.status === "declined") {
+      res.status(403).json({ error: "plan_declined", message: "PDF is unavailable for declined plans." });
+      return;
+    }
+    if (plan.expiresAt && plan.expiresAt < new Date() && plan.status !== "approved") {
+      res.status(410).json({ error: "expired", message: "This plan has expired." });
+      return;
+    }
     const pdfBuffer = await generatePlanPdf(plan);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="plan-${plan.planNumber}.pdf"`);

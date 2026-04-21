@@ -229,7 +229,11 @@ function PlanDocument({ content, editable, onChange }: {
           {(content.keyFindings || []).map((f, i) => (
             <li key={i} className="flex gap-2 items-start">
               <span className="text-[#0176d3] mt-0.5">▪</span>
-              <span className="text-gray-700">{f}</span>
+              <EditableText value={f} onSave={v => {
+                const updated = [...(content.keyFindings || [])];
+                updated[i] = v;
+                updateSection("keyFindings", updated);
+              }} />
             </li>
           ))}
         </ul>
@@ -239,8 +243,18 @@ function PlanDocument({ content, editable, onChange }: {
         <div className="space-y-3">
           {(content.recommendedServices || []).map((s, i) => (
             <div key={i} className="p-3 rounded bg-[#f0f7ff] border border-[#0176d3]/20">
-              <p className="font-semibold text-[#032d60]">{s.service}</p>
-              <p className="text-gray-600 text-xs mt-1">{s.description}</p>
+              <EditableText value={s.service} onSave={v => {
+                const updated = [...(content.recommendedServices || [])];
+                updated[i] = { ...updated[i], service: v };
+                updateSection("recommendedServices", updated);
+              }} />
+              <div className="mt-1">
+                <EditableText value={s.description} multiline onSave={v => {
+                  const updated = [...(content.recommendedServices || [])];
+                  updated[i] = { ...updated[i], description: v };
+                  updateSection("recommendedServices", updated);
+                }} />
+              </div>
             </div>
           ))}
         </div>
@@ -251,7 +265,11 @@ function PlanDocument({ content, editable, onChange }: {
           {(content.nextSteps || []).map((step, i) => (
             <li key={i} className="flex gap-2 items-start">
               <span className="text-[#0176d3] font-bold shrink-0 w-5">{i + 1}.</span>
-              <span className="text-gray-700">{step}</span>
+              <EditableText value={step} onSave={v => {
+                const updated = [...(content.nextSteps || [])];
+                updated[i] = v;
+                updateSection("nextSteps", updated);
+              }} />
             </li>
           ))}
         </ol>
