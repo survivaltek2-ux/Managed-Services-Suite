@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
 import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
-import { eq, and, desc, sql, count, sum, asc, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, asc, isNull, inArray } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder } from "../lib/email.js";
@@ -1039,9 +1039,14 @@ router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: Auth
 
 router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { ids } = req.body as { ids?: number[] };
-    if (!Array.isArray(ids) || ids.length === 0) {
+    const rawIds = (req.body as { ids?: unknown[] }).ids;
+    if (!Array.isArray(rawIds) || rawIds.length === 0) {
       res.status(400).json({ error: "bad_request", message: "Provide a non-empty array of partner IDs to send reminders to." });
+      return;
+    }
+    const validIds = rawIds.map(Number).filter(n => Number.isInteger(n) && n > 0);
+    if (validIds.length === 0) {
+      res.status(400).json({ error: "bad_request", message: "No valid partner IDs provided." });
       return;
     }
 
@@ -1056,7 +1061,7 @@ router.post("/admin/partners/send-stripe-reminder-bulk", requireAuth, requireAdm
       lastStripeReminderSentAt: partnersTable.lastStripeReminderSentAt,
     }).from(partnersTable).where(
       and(
-        sql`${partnersTable.id} = ANY(${sql.raw(`ARRAY[${ids.map(Number).join(",")}]::int[]`)})`,
+        inArray(partnersTable.id, validIds),
         isNull(partnersTable.stripeConnectAccountId)
       )
     );
