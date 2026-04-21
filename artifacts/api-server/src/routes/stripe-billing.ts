@@ -1,8 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, invoicesTable, subscriptionsTable, partnersTable, usersTable, pricingTiersTable, partnerCommissionsTable } from "@workspace/db";
+import { db, invoicesTable, subscriptionsTable, partnersTable, usersTable, pricingTiersTable, partnerCommissionsTable, documentsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth.js";
 import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY } from "../lib/stripe.js";
+import { sendContractEmail } from "../lib/email.js";
+import { generateMSAContract } from "../lib/contract.js";
 
 const router: IRouter = Router();
 
@@ -152,6 +154,61 @@ router.post("/admin/billing/subscriptions", requireAdmin, async (req: any, res) 
       billingCycle,
       amount: String(priceAmount / 100),
     }).returning();
+
+    // Generate and send MSA contract (non-blocking — errors don't fail the subscription creation)
+    (async () => {
+      try {
+        const effectiveDate = new Date(((subscription as any).current_period_start as number) * 1000);
+        const seats = 1; // Admin-created subscriptions are per-entity, not seat-counted; default to 1
+        const cycle = billingCycle as "monthly" | "annual";
+        const companyName = name;
+
+        const pdfBuffer = await generateMSAContract({
+          customerName: name,
+          customerEmail: email,
+          companyName,
+          planName: tier.name,
+          planSlug: tier.slug,
+          billingCycle: cycle,
+          pricePerUser: priceAmount / 100,
+          seats,
+          subscriptionId: subscription.id,
+          effectiveDate,
+        });
+
+        await sendContractEmail({
+          customerName: name,
+          customerEmail: email,
+          companyName,
+          planName: tier.name,
+          billingCycle: cycle,
+          pricePerUser: priceAmount / 100,
+          seats,
+          subscriptionId: subscription.id,
+          effectiveDate,
+          contractPdf: pdfBuffer,
+        });
+
+        const refId = subscription.id.replace("sub_", "").slice(0, 12).toUpperCase();
+        await db.insert(documentsTable).values({
+          name: `MSA — ${companyName} — ${tier.name} Plan`,
+          description: `Managed Services Agreement created by admin. Plan: ${tier.name} (${billingCycle}), effective ${effectiveDate.toISOString().slice(0, 10)}.`,
+          filename: `Siebert_Services_MSA_${refId}.pdf`,
+          mimeType: "application/pdf",
+          size: pdfBuffer.length,
+          content: pdfBuffer.toString("base64"),
+          category: "contract" as any,
+          partnerId: partnerId ? parseInt(partnerId) : null,
+          uploadedBy: "admin",
+          tags: JSON.stringify(["contract", "msa", "admin-created", tier.slug]),
+          active: true,
+        });
+
+        console.log(`[Admin Billing] Contract generated and sent to ${email} for subscription ${subscription.id}`);
+      } catch (contractErr) {
+        console.error("[Admin Billing] Contract generation failed (non-fatal):", contractErr);
+      }
+    })();
 
     res.status(201).json({ subscription: saved, stripeSubscription: subscription });
   } catch (err: any) {

@@ -1781,3 +1781,107 @@ export async function sendPartnerStripeOnboardingEmail(partner: {
 
   return sendEmail(partner.email, "Action Required: Set Up Your Commission Payout Account", html);
 }
+
+export async function sendContractEmail(params: {
+  customerName: string;
+  customerEmail: string;
+  companyName: string;
+  planName: string;
+  billingCycle: string;
+  pricePerUser: number;
+  seats: number;
+  subscriptionId: string;
+  effectiveDate: Date;
+  contractPdf: Buffer;
+}) {
+  const {
+    customerName, customerEmail, companyName, planName,
+    billingCycle, pricePerUser, seats, subscriptionId,
+    effectiveDate, contractPdf,
+  } = params;
+
+  const cfg = await loadEmailConfig();
+  const billingLabel = billingCycle === "annual" ? "Annual" : "Monthly";
+  const intervalLabel = billingCycle === "annual" ? "year" : "month";
+  const total = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(pricePerUser * seats);
+  const dateStr = effectiveDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const refId = subscriptionId.replace("sub_", "").slice(0, 12).toUpperCase();
+  const filename = `Siebert_Services_MSA_${refId}.pdf`;
+
+  const customerHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #032d60; padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Your Managed Services Agreement</h1>
+        <p style="color: #7ec8e3; margin: 6px 0 0; font-size: 13px;">Siebert Services LLC</p>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 28px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 15px; margin: 0 0 16px;">Hi ${esc(customerName)},</p>
+        <p style="font-size: 14px; color: #333; margin: 0 0 20px;">
+          Thank you for subscribing to Siebert Services! Your Managed Services Agreement is attached to this email as a PDF. Please keep it for your records.
+        </p>
+
+        <div style="background: #f5f7fa; border-left: 4px solid #0176d3; padding: 16px 20px; border-radius: 0 4px 4px 0; margin: 0 0 24px;">
+          <p style="margin: 0 0 8px; font-size: 13px; color: #555; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Agreement Summary</p>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr><td style="padding: 4px 0; color: #777; width: 45%;">Agreement Reference</td><td style="color: #222; font-weight: 600;">MSA-${esc(refId)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Company</td><td style="color: #222; font-weight: 600;">${esc(companyName || customerName)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Service Plan</td><td style="color: #222; font-weight: 600;">${esc(planName)} Plan</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Billing Cycle</td><td style="color: #222; font-weight: 600;">${esc(billingLabel)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Seats (Users)</td><td style="color: #222; font-weight: 600;">${seats}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Total Charge</td><td style="color: #222; font-weight: 600;">${esc(total)} / ${esc(intervalLabel)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Effective Date</td><td style="color: #222; font-weight: 600;">${esc(dateStr)}</td></tr>
+          </table>
+        </div>
+
+        <p style="font-size: 13px; color: #555; margin: 0 0 8px;">
+          Your PDF contract is attached. By completing your subscription payment, you have agreed to the terms outlined in the Managed Services Agreement.
+        </p>
+        <p style="font-size: 13px; color: #555; margin: 0 0 24px;">
+          Our team will reach out shortly to schedule your onboarding kickoff call and get your services activated within 5–10 business days.
+        </p>
+
+        <p style="font-size: 13px; color: #777; margin: 0 0 4px;">Questions? We're here to help:</p>
+        <ul style="font-size: 13px; color: #555; margin: 6px 0 20px; padding-left: 20px;">
+          <li>Email: <a href="mailto:support@siebertrservices.com" style="color: #0176d3;">support@siebertrservices.com</a></li>
+          <li>Phone: <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a></li>
+        </ul>
+
+        <p style="font-size: 13px; color: #999; margin: 0;">— The Siebert Services Team</p>
+      </div>
+    </div>
+  `;
+
+  const adminHtml = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1a472a; padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 17px;">New Subscription — MSA Generated</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">A new subscription has been activated and a Managed Services Agreement has been generated and emailed to the customer.</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
+          <tr><td style="padding: 5px 0; color: #777; width: 40%;">Customer</td><td style="color: #222; font-weight: 600;">${esc(customerName)} &lt;${esc(customerEmail)}&gt;</td></tr>
+          <tr><td style="padding: 5px 0; color: #777;">Company</td><td style="color: #222;">${esc(companyName || customerName)}</td></tr>
+          <tr><td style="padding: 5px 0; color: #777;">Plan</td><td style="color: #222;">${esc(planName)} — ${esc(billingLabel)}</td></tr>
+          <tr><td style="padding: 5px 0; color: #777;">Seats</td><td style="color: #222;">${seats}</td></tr>
+          <tr><td style="padding: 5px 0; color: #777;">Total</td><td style="color: #222;">${esc(total)} / ${esc(intervalLabel)}</td></tr>
+          <tr><td style="padding: 5px 0; color: #777;">Subscription ID</td><td style="color: #222; font-family: monospace; font-size: 12px;">${esc(subscriptionId)}</td></tr>
+          <tr><td style="padding: 5px 0; color: #777;">Effective Date</td><td style="color: #222;">${esc(dateStr)}</td></tr>
+        </table>
+        <p style="font-size: 12px; color: #999; margin: 0;">The signed MSA PDF is attached for your records.</p>
+      </div>
+    </div>
+  `;
+
+  const attachment: EmailAttachment = {
+    filename,
+    content: contractPdf,
+    contentType: "application/pdf",
+  };
+
+  const [customerSent, adminSent] = await Promise.allSettled([
+    sendEmail(customerEmail, `Your Managed Services Agreement — ${planName} Plan`, customerHtml, [attachment]),
+    sendEmail(cfg.notificationEmail, `[New Subscription] MSA — ${companyName || customerName} (${planName})`, adminHtml, [attachment]),
+  ]);
+
+  console.log(`[Contract] Customer email: ${(customerSent as PromiseFulfilledResult<boolean>).value ? "sent" : "failed"}, Admin email: ${(adminSent as PromiseFulfilledResult<boolean>).value ? "sent" : "failed"}`);
+}
