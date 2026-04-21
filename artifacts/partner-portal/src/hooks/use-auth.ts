@@ -1,6 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 
+export class PartnerStatusError extends Error {
+  readonly code: string;
+  readonly companyName: string;
+  readonly partnerEmail: string;
+  constructor(code: string, message: string, companyName: string, partnerEmail: string) {
+    super(message);
+    this.name = "PartnerStatusError";
+    this.code = code;
+    this.companyName = companyName;
+    this.partnerEmail = partnerEmail;
+  }
+}
+
 export function getAuthHeaders() {
   const token = localStorage.getItem("partner_token");
   return {
@@ -104,8 +117,11 @@ export function useAuth() {
         }
       }
 
-      const err = await res.json().catch(() => ({ message: "Login failed" }));
-      throw new Error((err as { message: string }).message || "Login failed");
+      const err = await res.json().catch(() => ({})) as { message?: string; error?: string; companyName?: string; email?: string };
+      if (err.error === "pending_approval" || err.error === "account_rejected" || err.error === "account_suspended") {
+        throw new PartnerStatusError(err.error, err.message ?? "Account access restricted.", err.companyName ?? "", err.email ?? "");
+      }
+      throw new Error(err.message || "Login failed");
     },
     onSuccess: (data) => {
       if (data.token) {

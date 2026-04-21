@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, PartnerStatusError } from "@/hooks/use-auth";
 import { Building2, ArrowRight, Mail, KeyRound, AlertCircle } from "lucide-react";
 
 function MicrosoftIcon() {
@@ -74,8 +74,13 @@ export default function Login() {
     setError("");
     try {
       await login({ email: email.trim().toLowerCase(), password });
-    } catch (err: any) {
-      setError(err.message || "Failed to login. Check credentials.");
+    } catch (err) {
+      if (err instanceof PartnerStatusError && err.code === "pending_approval") {
+        const params = new URLSearchParams({ company: err.companyName, email: err.partnerEmail });
+        window.location.href = `${import.meta.env.BASE_URL}pending?${params}`;
+        return;
+      }
+      setError((err as Error).message || "Failed to login. Check credentials.");
     }
   };
 

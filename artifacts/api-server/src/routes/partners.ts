@@ -180,6 +180,18 @@ router.post("/partner/auth/login", async (req, res) => {
       res.status(401).json({ error: "unauthorized", message: "Invalid credentials" });
       return;
     }
+    if (partner.status === "pending") {
+      res.status(403).json({ error: "pending_approval", message: "Your account is pending approval.", companyName: partner.companyName, email: partner.email });
+      return;
+    }
+    if (partner.status === "rejected") {
+      res.status(403).json({ error: "account_rejected", message: "Your partner account application was not approved. Please contact us for more information." });
+      return;
+    }
+    if (partner.status === "suspended") {
+      res.status(403).json({ error: "account_suspended", message: "Your account has been suspended. Please contact support." });
+      return;
+    }
     const token = generatePartnerToken(partner.id, partner.isAdmin);
     res.json({ token, partner: sanitizePartner(partner) });
   } catch (err) {
