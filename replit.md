@@ -130,3 +130,14 @@ Implementation:
 - Admin: new "Lead Magnets" tab in Admin.tsx with filtering, payload viewer, delete
 
 PDF strategy: printable HTML pages with browser save-as-PDF (no PDF lib dependency).
+
+## MSA Contract Template
+
+A complete Master Services Agreement (MSA) PDF template for sales use is stored in `attached_assets/contracts/`:
+- `siebert-msa-template.pdf` — the ready-to-use PDF (download this for sales use)
+- `scripts/generate-msa-pdf.cjs` — **canonical source** — pdfkit script that generates the PDF (requires `npm install pdfkit`)
+- `siebert-msa-template.md` — human-readable Markdown reference; does NOT automatically stay in sync with the generator script
+
+To regenerate the PDF after editing the generator script: `cd /tmp/pdf-gen && npm install pdfkit && node /path/to/workspace/scripts/generate-msa-pdf.cjs`
+
+The template covers: MSA body (§1–20), Signature Page, Schedule A (Services/Tiers), Schedule B (SLA), Schedule C (Fees), Schedule D (Customer Responsibilities), Schedule E (Data Protection), and 7 Optional Addenda. Governing law: New York. Venue: Orange County, NY. Pricing mirrors the published Essentials/Business/Enterprise tiers ($89/$76, $149/$127, $229/$195 per user/month/annual). All placeholders use `[BRACKETED]` syntax for easy find-and-replace.

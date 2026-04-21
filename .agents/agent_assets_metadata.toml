@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "kfFXQF6DIagJGKuDfkVTU"
+uri = "file://attached_assets/contracts/siebert-msa-template.pdf"
+type = "pdf"
+title = "Siebert Services — MSA Template (PDF)"
