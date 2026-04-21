@@ -528,10 +528,12 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       if (cachedPriceId) return cachedPriceId;
 
       const freshAnnualRaw = parseFloat(freshTier.annualPrice ?? "0");
-      const freshEffectiveAnnual = freshAnnualRaw > 0 ? freshTier.annualPrice : freshTier.startingPrice;
+      // annualPrice is the per-user per-month equivalent when billed annually (e.g. $76/mo).
+      // For a yearly Stripe recurring price we need the annual total: $76 × 12 = $912/seat/year.
+      const freshEffectiveAnnualMonthly = freshAnnualRaw > 0 ? freshAnnualRaw : parseFloat(freshTier.startingPrice);
       const priceAmount = billingCycle === "annual"
-        ? Math.round(parseFloat(freshEffectiveAnnual) * 100)
-        : Math.round(parseFloat(freshTier.startingPrice) * 100);
+        ? Math.round(freshEffectiveAnnualMonthly * 12 * 100)   // annual total per seat
+        : Math.round(parseFloat(freshTier.startingPrice) * 100); // monthly per seat
 
       let productId: string | null = freshTier.stripeProductId || null;
       if (!productId) {
@@ -562,11 +564,12 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
     };
 
     // Calculate total for first period (unit price × seats).
-    const annualRaw = parseFloat(tier.annualPrice ?? "0");
-    const effectiveAnnual = annualRaw > 0 ? tier.annualPrice : tier.startingPrice;
+    // annualPrice is the per-user per-month equivalent, so multiply by 12 for the annual total.
+    const annualMonthlyRate = parseFloat(tier.annualPrice ?? "0");
+    const effectiveAnnualMonthlyRate = annualMonthlyRate > 0 ? annualMonthlyRate : parseFloat(tier.startingPrice);
     const unitAmountCents = billingCycle === "annual"
-      ? Math.round(parseFloat(effectiveAnnual) * 100)
-      : Math.round(parseFloat(tier.startingPrice) * 100);
+      ? Math.round(effectiveAnnualMonthlyRate * 12 * 100)      // $76/mo × 12 = $912/seat/year
+      : Math.round(parseFloat(tier.startingPrice) * 100);       // $89/seat/month
     const totalAmountCents = unitAmountCents * seats;
     const periodLabel = billingCycle === "annual" ? "Year" : "Month";
 
