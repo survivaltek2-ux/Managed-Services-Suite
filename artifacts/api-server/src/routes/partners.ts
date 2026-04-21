@@ -1129,11 +1129,17 @@ router.put("/admin/partners/:id", requireAuth, requireAdmin, async (req: AuthReq
     res.json(sanitizePartner(partner));
     const justApproved = status === "approved" && existing && existing.status !== "approved";
     if (justApproved) {
+      let tempPassword: string | undefined;
+      if (partner.ssoProvider) {
+        tempPassword = crypto.randomBytes(6).toString("hex");
+        const hashed = await bcrypt.hash(tempPassword, 10);
+        await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, partner.id));
+      }
       sendPartnerApprovalNotification({
         companyName: partner.companyName,
         contactName: partner.contactName,
         email: partner.email,
-      }).catch(err => console.error("[Email] Partner approval notification error:", err));
+      }, tempPassword).catch(err => console.error("[Email] Partner approval notification error:", err));
       autoInitStripeConnect({
         id: partner.id,
         email: partner.email,
@@ -1300,11 +1306,17 @@ router.put("/admin/partners/:id/approve", requireAuth, requireAdmin, async (req:
     }).where(eq(partnersTable.id, id)).returning();
     res.json(sanitizePartner(partner));
     if (partner && !wasAlreadyApproved) {
+      let tempPassword: string | undefined;
+      if (partner.ssoProvider) {
+        tempPassword = crypto.randomBytes(6).toString("hex");
+        const hashed = await bcrypt.hash(tempPassword, 10);
+        await db.update(partnersTable).set({ password: hashed, updatedAt: new Date() }).where(eq(partnersTable.id, partner.id));
+      }
       sendPartnerApprovalNotification({
         companyName: partner.companyName,
         contactName: partner.contactName,
         email: partner.email,
-      }).catch(err => console.error("[Email] Partner approval notification error:", err));
+      }, tempPassword).catch(err => console.error("[Email] Partner approval notification error:", err));
       autoInitStripeConnect({
         id: partner.id,
         email: partner.email,

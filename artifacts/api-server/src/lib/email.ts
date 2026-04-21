@@ -633,8 +633,16 @@ export async function sendPartnerApprovalNotification(partner: {
   companyName: string;
   contactName: string;
   email: string;
-}) {
+}, tempPassword?: string) {
   const portalUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners";
+
+  const tempPasswordSection = tempPassword ? `
+        <div style="background: #f0f7ff; border: 1px solid #cce5ff; border-radius: 4px; padding: 16px 20px; margin: 20px 0;">
+          <p style="font-size: 13px; font-weight: 700; color: #032d60; margin: 0 0 6px;">Temporary Password</p>
+          <p style="font-size: 13px; color: #444; margin: 0 0 10px;">Since you registered via Microsoft SSO, we've set a temporary password so you can also sign in with your email:</p>
+          <div style="background: #fff; border: 1px solid #b3d4f5; border-radius: 4px; padding: 10px 14px; font-family: monospace; font-size: 16px; font-weight: 700; color: #032d60; letter-spacing: 1px; text-align: center;">${esc(tempPassword)}</div>
+          <p style="font-size: 12px; color: #888; margin: 10px 0 0;">You can change this password after signing in under your profile settings.</p>
+        </div>` : "";
 
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -644,6 +652,7 @@ export async function sendPartnerApprovalNotification(partner: {
       <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
         <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
         <p style="font-size: 14px; margin: 0 0 16px;">Great news! Your partner account for <strong>${esc(partner.companyName)}</strong> has been approved. You can now log in to the Partner Portal to access all available resources, register deals, track commissions, and more.</p>
+        ${tempPasswordSection}
         <div style="text-align: center; margin: 24px 0;">
           <a href="${esc(portalUrl)}" style="display: inline-block; background: #0176d3; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 4px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">Log In to Partner Portal</a>
         </div>
