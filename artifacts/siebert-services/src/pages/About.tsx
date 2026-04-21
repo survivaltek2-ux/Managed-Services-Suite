@@ -155,7 +155,7 @@ export default function About() {
                 <p>
                   We're proud to still be independently owned. Whether you're down the road
                   or across the country, when something breaks we respond fast — remote support
-                  everywhere, and on-site for clients in Orange County and nearby counties.
+                  everywhere, and on-site for clients in New York.
                 </p>
               </div>
             </motion.div>
@@ -292,8 +292,7 @@ export default function About() {
             </h2>
             <p className="text-lg text-white/70">
               Headquartered in Washingtonville, NY, we provide remote support to businesses
-              across North America, and on-site dispatch to clients in Orange County and
-              surrounding counties. Wherever you are, our engineers are available 24/7.
+              across North America, and on-site dispatch to clients in New York. Wherever you are, our engineers are available 24/7.
             </p>
           </div>
 

@@ -427,7 +427,7 @@ export function ServicePageTemplate({ content, caseStudies = [] }: Props) {
             </Link>
           </div>
           <p className="text-sm text-white/50 mt-6">
-            Remote support across North America · On-site in Orange County &amp; surrounding areas · 24/7 available
+            Remote support across North America · On-site dispatch in New York only · 24/7 available
           </p>
         </div>
       </section>

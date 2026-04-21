@@ -133,7 +133,7 @@ async function seedTrustContent(): Promise<void> {
             "24/7 after-hours support",
             "Endpoint Detection & Response (EDR)",
             "vCIO strategic planning",
-            "On-site dispatch included",
+            "On-site dispatch included (New York only)",
           ]),
         },
         {
@@ -150,7 +150,7 @@ async function seedTrustContent(): Promise<void> {
             "Multi-factor authentication rollout",
             "Backup & disaster-recovery monitoring",
             "Quarterly business reviews (vCIO)",
-            "On-site dispatch (4 hrs / month)",
+            "On-site dispatch (4 hrs / month, New York only)",
           ]),
           excludedFeatures: JSON.stringify([
             "24/7 after-hours support",
@@ -172,7 +172,7 @@ async function seedTrustContent(): Promise<void> {
             "Immutable backup + tested restores",
             "Compliance program (HIPAA, SOC 2, CMMC)",
             "Named vCIO + monthly strategy meetings",
-            "Unlimited on-site dispatch",
+            "Unlimited on-site dispatch (New York only)",
             "Dedicated account team",
           ]),
           excludedFeatures: JSON.stringify([]),

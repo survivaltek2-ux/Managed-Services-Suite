@@ -42,7 +42,7 @@ const FALLBACK_TIERS: PricingTier[] = [
       "24/7 after-hours support",
       "Endpoint Detection & Response (EDR)",
       "vCIO strategic planning",
-      "On-site dispatch included",
+      "On-site dispatch included (New York only)",
     ],
   },
   {
@@ -59,7 +59,7 @@ const FALLBACK_TIERS: PricingTier[] = [
       "Multi-factor authentication rollout",
       "Backup & disaster-recovery monitoring",
       "Quarterly business reviews (vCIO)",
-      "On-site dispatch (4 hrs / month)",
+      "On-site dispatch (4 hrs / month, New York only)",
     ],
     excludedFeatures: [
       "24/7 after-hours support",
@@ -81,7 +81,7 @@ const FALLBACK_TIERS: PricingTier[] = [
       "Immutable backup + tested restores",
       "Compliance program (HIPAA, SOC 2, CMMC)",
       "Named vCIO + monthly strategy meetings",
-      "Unlimited on-site dispatch",
+      "Unlimited on-site dispatch (New York only)",
       "Dedicated account team",
     ],
     excludedFeatures: [],
@@ -104,8 +104,8 @@ const ALL_FEATURES = [
   { key: "Quarterly health check", in: ["essentials"] },
   { key: "Quarterly business reviews (vCIO)", in: ["business", "enterprise"] },
   { key: "Named vCIO + monthly strategy", in: ["enterprise"] },
-  { key: "On-site dispatch (4 hrs / month)", in: ["business"] },
-  { key: "Unlimited on-site dispatch", in: ["enterprise"] },
+  { key: "On-site dispatch (4 hrs / month, New York only)", in: ["business"] },
+  { key: "Unlimited on-site dispatch (New York only)", in: ["enterprise"] },
   { key: "Dedicated account team", in: ["enterprise"] },
 ];
 

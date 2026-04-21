@@ -35,7 +35,7 @@ const techPartners = [
 const allPartnerLinks = [...connectivityPartners, ...techPartners];
 
 const serviceLinks = [
-  { name: "Managed IT Support", href: "/services/managed-it", description: "Help desk, monitoring, on-site dispatch" },
+  { name: "Managed IT Support", href: "/services/managed-it", description: "Help desk, monitoring, on-site dispatch (NY)" },
   { name: "Cybersecurity", href: "/services/cybersecurity", description: "EDR, SOC, vCISO, awareness training" },
   { name: "Cloud & Microsoft 365", href: "/services/cloud", description: "M365, Azure, Google Workspace, AWS" },
   { name: "Backup & Disaster Recovery", href: "/services/backup-disaster-recovery", description: "Immutable backups, tested restores" },

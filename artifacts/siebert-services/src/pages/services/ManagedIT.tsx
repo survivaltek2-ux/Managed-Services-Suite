@@ -16,7 +16,7 @@ const content: ServicePageContent = {
   heroTitle: "Managed IT Support & Help Desk",
   heroSubtitle: "Predictable per-seat IT — co-managed or fully outsourced.",
   heroDescription:
-    "A fully staffed help desk, proactive monitoring, patching, and on-site dispatch — bundled into one monthly per-seat price. Whether you have no internal IT or a small team that needs backup, we plug in cleanly.",
+    "A fully staffed help desk, proactive monitoring, patching, and on-site dispatch (New York only) — bundled into one monthly per-seat price. Whether you have no internal IT or a small team that needs backup, we plug in cleanly.",
   heroIcon: Headphones,
   heroStats: [
     { value: "<15 min", label: "Avg. ticket response" },
@@ -110,7 +110,7 @@ const content: ServicePageContent = {
     {
       question: "What's actually included in the per-seat price?",
       answer:
-        "Unlimited remote help desk, 24/7 monitoring, automated patch management, endpoint AV/EDR, asset inventory, documentation, and a quarterly business review. On-site dispatch is included for clients within our standard service area; travel is pre-quoted for sites outside it.",
+        "Unlimited remote help desk, 24/7 monitoring, automated patch management, endpoint AV/EDR, asset inventory, documentation, and a quarterly business review. On-site dispatch is included for clients in New York; travel is pre-quoted for sites outside it.",
     },
     {
       question: "Can you co-manage with our internal IT person or team?",
@@ -146,7 +146,7 @@ const content: ServicePageContent = {
     { label: "Pricing", href: "/quote" },
   ],
   schemaDescription:
-    "Fully managed and co-managed IT support for SMBs across North America. 24/7 help desk, proactive monitoring, patching, and on-site dispatch (Orange County, NY area) on a predictable per-seat plan.",
+    "Fully managed and co-managed IT support for SMBs across North America. 24/7 help desk, proactive monitoring, patching, and on-site dispatch (New York only) on a predictable per-seat plan.",
 };
 
 export default function ManagedIT() {

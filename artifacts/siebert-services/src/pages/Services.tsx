@@ -33,7 +33,7 @@ const coreServices: ServiceTile[] = [
     icon: <Headphones className="w-8 h-8" />,
     title: "Managed IT Support / Help Desk",
     description:
-      "Fully managed or co-managed IT — 24/7 help desk, proactive monitoring, automated patching, and on-site dispatch. One predictable per-seat price.",
+      "Fully managed or co-managed IT — 24/7 help desk, proactive monitoring, automated patching, and on-site dispatch (New York only). One predictable per-seat price.",
     href: "/services/managed-it",
     ctaLabel: "Explore managed IT",
     highlight: true,

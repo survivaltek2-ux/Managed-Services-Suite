@@ -102,7 +102,7 @@ export default function Home() {
               <p className="text-lg text-white/80 leading-relaxed mb-7 max-w-2xl">
                 One trusted partner for your helpdesk, cloud, cybersecurity, phones, and
                 connectivity — with a 15-minute response SLA, remote support across North
-                America, and on-site dispatch for Orange County and surrounding areas.
+                America, and on-site dispatch in New York.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
