@@ -485,4 +485,59 @@ router.post("/admin/users/:id/reset-password", requireAdmin, async (req: AuthReq
   }
 });
 
+router.get("/admin/microsoft/test", requireAdmin, async (_req: AuthRequest, res: Response) => {
+  const tenantId = process.env.MICROSOFT_TENANT_ID || "";
+  const clientId = process.env.MICROSOFT_CLIENT_ID || "";
+  const clientSecret = process.env.MICROSOFT_CLIENT_SECRET || "";
+
+  if (!tenantId || !clientId || !clientSecret) {
+    res.json({ ok: false, error: "missing_credentials", message: "One or more Microsoft credentials are not set (MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)." });
+    return;
+  }
+  if (tenantId === "common") {
+    res.json({ ok: false, error: "invalid_tenant", message: "MICROSOFT_TENANT_ID must be a specific tenant ID, not 'common'." });
+    return;
+  }
+
+  try {
+    const body = new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: "https://graph.microsoft.com/.default",
+    });
+    const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (!tokenRes.ok) {
+      const err = await tokenRes.text();
+      res.json({ ok: false, error: "token_failed", message: err });
+      return;
+    }
+    const { access_token, expires_in } = await tokenRes.json() as { access_token: string; expires_in: number };
+
+    const inviteCheckRes = await fetch("https://graph.microsoft.com/v1.0/users?$filter=userType eq 'Guest'&$top=1&$select=id,displayName,mail", {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    if (!inviteCheckRes.ok) {
+      const err = await inviteCheckRes.json() as { error?: { code?: string; message?: string } };
+      const code = err?.error?.code || "unknown";
+      const missing = code === "Authorization_RequestDenied"
+        ? "Token acquired but User.Read.All or User.Invite.All permission may not be granted. Visit Azure AD app registrations and grant admin consent."
+        : err?.error?.message || "Unknown Graph error";
+      res.json({ ok: false, tokenAcquired: true, error: code, message: missing });
+      return;
+    }
+
+    const data = await inviteCheckRes.json() as { value: { id: string; displayName: string; mail: string }[] };
+    res.json({ ok: true, tokenAcquired: true, tokenExpiresIn: expires_in, guestCount: data.value.length, message: "Microsoft Graph credentials are working correctly. Guest invitations are enabled." });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.json({ ok: false, error: "exception", message: msg });
+  }
+});
+
 export default router;
