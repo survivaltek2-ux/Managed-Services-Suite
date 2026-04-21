@@ -623,9 +623,10 @@ const REMINDER_ADVISORY_LOCK_ID = 202604211; // stable integer for pg advisory l
 export async function sendPlanExpiryReminders() {
   try {
     // Acquire a PostgreSQL advisory lock so only one instance runs reminders at a time
-    const [lockRow] = await db.execute<{ acquired: boolean }>(
+    const lockResult = await db.execute<{ acquired: boolean }>(
       sql`SELECT pg_try_advisory_lock(${REMINDER_ADVISORY_LOCK_ID}) AS acquired`
     );
+    const lockRow = lockResult.rows?.[0];
     if (!lockRow?.acquired) return;
     try {
       await runReminderBatch();

@@ -956,7 +956,12 @@ export default function WrittenPlans() {
   async function handleDelete(planId: number) {
     if (!confirm("Delete this plan? This cannot be undone.")) return;
     try {
-      await fetch(`${BASE}/${planId}`, { method: "DELETE", headers: authHeader() });
+      const res = await fetch(`${BASE}/${planId}`, { method: "DELETE", headers: authHeader() });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.message || "Failed to delete", variant: "destructive" });
+        return;
+      }
       toast({ title: "Plan deleted" });
       load();
     } catch { toast({ title: "Failed to delete", variant: "destructive" }); }
