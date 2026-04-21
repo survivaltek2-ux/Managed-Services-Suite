@@ -83,13 +83,13 @@ export interface EmailAttachment {
 
 async function sendEmail(to: string, subject: string, html: string, attachments?: EmailAttachment[]): Promise<boolean> {
   const cfg = await loadEmailConfig();
-  const smtpUser = process.env.MICROSOFT_SMTP_USER;
-  const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
 
   console.log(`[Email] Starting email send to ${to}`);
 
   if (!smtpUser || !smtpPass) {
-    console.error(`[Email] Microsoft 365 SMTP credentials not configured (MICROSOFT_SMTP_USER / MICROSOFT_SMTP_PASSWORD)`);
+    console.error(`[Email] Microsoft 365 SMTP credentials not configured (SMTP_USER / SMTP_PASS)`);
     return false;
   }
 
@@ -125,11 +125,11 @@ async function sendEmail(to: string, subject: string, html: string, attachments?
 }
 
 export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const smtpUser = process.env.MICROSOFT_SMTP_USER;
-  const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
 
   if (!smtpUser || !smtpPass) {
-    return { ok: false, provider: "microsoft365", error: "Microsoft 365 SMTP credentials not configured" };
+    return { ok: false, provider: "microsoft365", error: "Microsoft 365 SMTP credentials not configured (SMTP_USER / SMTP_PASS)" };
   }
 
   try {
@@ -154,8 +154,8 @@ export async function getSmtpSettings(): Promise<{
   activeProvider: "microsoft365" | "none";
 }> {
   const cfg = await loadEmailConfig();
-  const smtpUser = process.env.MICROSOFT_SMTP_USER;
-  const smtpPass = process.env.MICROSOFT_SMTP_PASSWORD;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
   const activeProvider = smtpUser && smtpPass ? "microsoft365" : "none";
 
   return {
