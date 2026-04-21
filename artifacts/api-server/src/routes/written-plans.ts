@@ -98,6 +98,17 @@ function arrVal(v: string | string[] | undefined): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
+function parseId(raw: unknown): number | null {
+  const n = parseInt(raw as string, 10);
+  return Number.isNaN(n) || n <= 0 ? null : n;
+}
+
+function resolveValidityDays(value: unknown, fallback = 30): number {
+  const n = typeof value === "number" ? value : parseInt(value as string, 10);
+  if (Number.isNaN(n) || n < 1 || n > 365) return fallback;
+  return n;
+}
+
 function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
   const company = strVal(answers.clientCompany) || strVal(answers.companyName) || "your company";
   const headcount = strVal(answers.headcount) || "your team";
@@ -190,7 +201,8 @@ router.get("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, res
 
 router.get("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [plan] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && plan.partnerId !== req.partnerId) {
@@ -286,7 +298,7 @@ router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, re
       clientCompany, clientPhone: clientPhone || null,
       questionnaireAnswers: questionnaireAnswers || {},
       planContent,
-      validityDays: validityDays || 30,
+      validityDays: resolveValidityDays(validityDays),
     }).returning();
     await logEvent(plan.id, "created", { planNumber });
     res.status(201).json({ plan });
@@ -298,7 +310,8 @@ router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, re
 
 router.put("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
@@ -316,7 +329,7 @@ router.put("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest,
       clientPhone: clientPhone ?? existing.clientPhone,
       questionnaireAnswers: questionnaireAnswers ?? existing.questionnaireAnswers,
       planContent: planContent ?? existing.planContent,
-      validityDays: validityDays ?? existing.validityDays,
+      validityDays: validityDays != null ? resolveValidityDays(validityDays, existing.validityDays) : existing.validityDays,
       personalNote: personalNote ?? existing.personalNote,
       updatedAt: new Date(),
     }).where(eq(writtenPlansTable.id, id)).returning();
@@ -329,7 +342,8 @@ router.put("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest,
 
 router.put("/partner/plans/:id/regenerate", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
@@ -348,7 +362,8 @@ router.put("/partner/plans/:id/regenerate", requirePartnerAuth, async (req: Part
 
 router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
@@ -365,7 +380,7 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     }
     const { personalNote, validityDays, clientEmail } = req.body;
     const token = generateReviewToken();
-    const vdays = validityDays || existing.validityDays || 30;
+    const vdays = resolveValidityDays(validityDays, existing.validityDays || 30);
     const expiresAt = new Date(Date.now() + vdays * 86400000);
     const finalEmail = clientEmail || existing.clientEmail;
 
@@ -406,7 +421,8 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
 
 router.post("/partner/plans/:id/revise", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
@@ -441,7 +457,8 @@ router.post("/partner/plans/:id/revise", requirePartnerAuth, async (req: Partner
 
 router.delete("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [existing] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && existing.partnerId !== req.partnerId) {
@@ -464,7 +481,8 @@ router.delete("/partner/plans/:id", requirePartnerAuth, async (req: PartnerReque
 
 router.get("/partner/plans/:id/pdf", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = parseId(req.params.id);
+    if (id === null) { res.status(400).json({ error: "invalid_id", message: "Invalid plan ID" }); return; }
     const [plan] = await db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, id)).limit(1);
     if (!plan) { res.status(404).json({ error: "not_found" }); return; }
     if (req.partnerId !== MAIN_SITE_ADMIN_SENTINEL && plan.partnerId !== req.partnerId) {
