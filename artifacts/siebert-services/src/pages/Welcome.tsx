@@ -10,15 +10,25 @@ export default function Welcome() {
   const plan = params.get("plan") || "";
   const sessionId = params.get("session_id");
   const managed = params.get("managed") === "1";
+
   const [confirmed, setConfirmed] = useState(false);
+  const [manageToken, setManageToken] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState("");
 
   const isConsumer = plan.toLowerCase() === "consumer";
 
   useEffect(() => {
-    if (sessionId) setConfirmed(true);
-  }, [sessionId]);
+    if (sessionId) {
+      setConfirmed(true);
+      if (isConsumer) {
+        fetch(`/api/billing/manage-token?session_id=${encodeURIComponent(sessionId)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data?.token) setManageToken(data.token); })
+          .catch(() => {});
+      }
+    }
+  }, [sessionId, isConsumer]);
 
   const planNames: Record<string, string> = {
     essentials: "Essentials",
@@ -34,7 +44,10 @@ export default function Welcome() {
     setPortalLoading(true);
     setPortalError("");
     try {
-      const res = await fetch(`/api/billing/portal?session_id=${encodeURIComponent(sessionId)}`);
+      const param = manageToken
+        ? `token=${encodeURIComponent(manageToken)}`
+        : `session_id=${encodeURIComponent(sessionId)}`;
+      const res = await fetch(`/api/billing/portal?${param}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Could not open billing portal");
       window.location.href = data.url;
@@ -61,7 +74,7 @@ export default function Welcome() {
       step: "3",
       icon: CreditCard,
       title: "Manage anytime",
-      desc: "Update your payment method, view invoices, or cancel directly from the billing portal below — no need to call.",
+      desc: "Update your payment method, view invoices, or cancel directly from your subscription page — no need to call.",
     },
   ];
 
@@ -138,30 +151,44 @@ export default function Welcome() {
             })}
           </div>
 
-          {/* Consumer self-service portal block */}
+          {/* Consumer self-service section */}
           {isConsumer && sessionId && (
-            <div className="mt-10 rounded-xl border border-teal-200 bg-teal-50 p-6 text-center">
-              <CreditCard className="w-8 h-8 text-teal-600 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-teal-900 mb-1">Manage your subscription</h3>
-              <p className="text-sm text-teal-700 mb-4">
-                Update your payment method, download invoices, or cancel your plan — all from Stripe's secure billing portal.
-              </p>
-              {portalError && <p className="text-sm text-red-600 mb-3">{portalError}</p>}
-              <Button
-                onClick={openPortal}
-                disabled={portalLoading}
-                className="gap-2 bg-teal-600 hover:bg-teal-700 text-white"
-              >
-                {portalLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-4 h-4" />
-                )}
-                {portalLoading ? "Opening…" : "Open billing portal"}
-              </Button>
-              <p className="text-xs text-teal-600/70 mt-3">
-                You have a 3-day right to cancel for a full refund before services begin.
-              </p>
+            <div className="mt-10 rounded-xl border border-teal-200 bg-teal-50 p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-teal-100 border border-teal-200 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5 text-teal-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-teal-900 mb-1">Manage your subscription</h3>
+                  <p className="text-sm text-teal-700 mb-4">
+                    View your plan details, update your payment method, download invoices, or cancel — all without contacting support.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {manageToken && (
+                      <Button
+                        onClick={() => setLocation(`/manage/subscription?token=${encodeURIComponent(manageToken)}`)}
+                        className="gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        View my plan
+                      </Button>
+                    )}
+                    <Button
+                      onClick={openPortal}
+                      disabled={portalLoading}
+                      variant={manageToken ? "outline" : "default"}
+                      className={manageToken ? "gap-2 border-teal-300 text-teal-700 hover:bg-teal-100" : "gap-2 bg-teal-600 hover:bg-teal-700 text-white"}
+                    >
+                      {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                      {portalLoading ? "Opening…" : "Open billing portal"}
+                    </Button>
+                  </div>
+                  {portalError && <p className="text-sm text-red-600 mt-3">{portalError}</p>}
+                  <p className="text-xs text-teal-600/70 mt-3">
+                    You have a 3-day right to cancel for a full refund before services begin.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

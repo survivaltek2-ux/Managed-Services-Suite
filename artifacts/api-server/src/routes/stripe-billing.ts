@@ -5,6 +5,7 @@ import { requireAuth, requireAdmin } from "../middlewares/auth.js";
 import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY } from "../lib/stripe.js";
 import { sendContractEmail, sendSubscriptionPendingEmail, sendSubscriptionApprovedEmail, sendSubscriptionRejectedEmail } from "../lib/email.js";
 import { generateMSAContract } from "../lib/contract.js";
+import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
 
@@ -444,7 +445,24 @@ router.post("/admin/billing/subscriptions/:id/reject", requireAdmin, async (req:
   }
 });
 
-router.get("/billing/portal", async (req: Request, res: Response) => {
+const MANAGE_JWT_SECRET = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
+const MANAGE_TOKEN_PURPOSE = "consumer_manage";
+
+function issueManageToken(stripeCustomerId: string): string {
+  return jwt.sign({ stripeCustomerId, purpose: MANAGE_TOKEN_PURPOSE }, MANAGE_JWT_SECRET, { expiresIn: "24h" });
+}
+
+function verifyManageToken(token: string): { stripeCustomerId: string } | null {
+  try {
+    const payload = jwt.verify(token, MANAGE_JWT_SECRET) as any;
+    if (payload?.purpose !== MANAGE_TOKEN_PURPOSE || !payload?.stripeCustomerId) return null;
+    return { stripeCustomerId: payload.stripeCustomerId };
+  } catch {
+    return null;
+  }
+}
+
+router.get("/billing/manage-token", async (req: Request, res: Response) => {
   if (!isStripeConfigured()) return stripeNotConfiguredError(res);
   try {
     const stripe = getStripe();
@@ -454,29 +472,99 @@ router.get("/billing/portal", async (req: Request, res: Response) => {
       return;
     }
     let session: any;
-    try {
-      session = await stripe.checkout.sessions.retrieve(session_id);
-    } catch {
+    try { session = await stripe.checkout.sessions.retrieve(session_id); } catch {
       res.status(404).json({ error: "session_not_found", message: "Session not found or has expired." });
       return;
     }
     if (session.mode !== "subscription" || session.metadata?.type !== "auto_checkout") {
-      res.status(403).json({ error: "forbidden", message: "Billing portal access is not available for this session." });
-      return;
-    }
-    if (session.payment_status !== "paid" && session.status !== "complete") {
-      res.status(403).json({ error: "forbidden", message: "Payment has not completed for this session." });
+      res.status(403).json({ error: "forbidden", message: "This session is not eligible for consumer self-management." });
       return;
     }
     const customerId = typeof session.customer === "string" ? session.customer : (session.customer as any)?.id;
-    if (!customerId) {
-      res.status(404).json({ error: "no_customer", message: "No billing account found for this session." });
-      return;
-    }
+    if (!customerId) { res.status(404).json({ error: "no_customer", message: "No billing account found for this session." }); return; }
+    res.json({ token: issueManageToken(customerId) });
+  } catch (err: any) {
+    console.error("[Stripe] manage-token error:", err);
+    res.status(500).json({ error: "server_error", message: "Unable to generate management token. Please try again." });
+  }
+});
+
+router.get("/billing/subscription-info", async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query as { token?: string };
+    if (!token) { res.status(400).json({ error: "token_required" }); return; }
+    const payload = verifyManageToken(token);
+    if (!payload) { res.status(401).json({ error: "invalid_token", message: "This link has expired or is invalid. Please return to the welcome page." }); return; }
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.stripeCustomerId, payload.stripeCustomerId));
+    if (!sub) { res.status(404).json({ error: "not_found", message: "No subscription found for this account." }); return; }
+    const [tier] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.slug, sub.planId));
+    let features: string[] = [];
+    try { features = JSON.parse(tier?.features || "[]"); } catch { features = []; }
+    res.json({
+      planName: sub.planName,
+      planSlug: sub.planId,
+      status: sub.status,
+      billingCycle: sub.billingCycle,
+      amount: sub.amount,
+      seats: sub.seats,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+      customerName: sub.customerName,
+      customerEmail: sub.customerEmail,
+      features,
+      autoActivated: sub.autoActivated,
+    });
+  } catch (err: any) {
+    console.error("[Stripe] subscription-info error:", err);
+    res.status(500).json({ error: "server_error", message: "Unable to load subscription details. Please try again." });
+  }
+});
+
+router.get("/billing/portal", async (req: Request, res: Response) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const { session_id, token } = req.query as { session_id?: string; token?: string };
     const base = getBaseUrl(req);
+    let customerId: string | null = null;
+
+    if (token) {
+      const payload = verifyManageToken(token);
+      if (!payload) {
+        res.status(401).json({ error: "invalid_token", message: "This link has expired or is invalid. Please return to the welcome page." });
+        return;
+      }
+      customerId = payload.stripeCustomerId;
+    } else {
+      if (!session_id || typeof session_id !== "string" || !session_id.startsWith("cs_")) {
+        res.status(400).json({ error: "invalid_request", message: "A valid checkout session ID is required." });
+        return;
+      }
+      let session: any;
+      try {
+        session = await stripe.checkout.sessions.retrieve(session_id);
+      } catch {
+        res.status(404).json({ error: "session_not_found", message: "Session not found or has expired." });
+        return;
+      }
+      if (session.mode !== "subscription" || session.metadata?.type !== "auto_checkout") {
+        res.status(403).json({ error: "forbidden", message: "Billing portal access is not available for this session." });
+        return;
+      }
+      if (session.payment_status !== "paid" && session.status !== "complete") {
+        res.status(403).json({ error: "forbidden", message: "Payment has not completed for this session." });
+        return;
+      }
+      customerId = typeof session.customer === "string" ? session.customer : (session.customer as any)?.id ?? null;
+      if (!customerId) {
+        res.status(404).json({ error: "no_customer", message: "No billing account found for this session." });
+        return;
+      }
+    }
+
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${base}/welcome?managed=1`,
+      customer: customerId!,
+      return_url: `${base}/manage/subscription${token ? `?token=${encodeURIComponent(token)}` : "?managed=1"}`,
     });
     res.json({ url: portalSession.url });
   } catch (err: any) {

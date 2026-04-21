@@ -62,6 +62,7 @@ import PrintableHipaa from "./pages/resources/PrintableHipaa";
 import PrintableBuyersGuide from "./pages/resources/PrintableBuyersGuide";
 import { ExitIntentPopup } from "@/components/leadMagnets";
 import Welcome from "./pages/Welcome";
+import ManageSubscription from "./pages/ManageSubscription";
 import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
@@ -84,6 +85,7 @@ function PublicRouter() {
         <Route path="/quote" component={Quote} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/welcome" component={Welcome} />
+        <Route path="/manage/subscription" component={ManageSubscription} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
 
