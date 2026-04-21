@@ -162,7 +162,15 @@ export default function Login() {
           {error && (
             <div className="flex items-start gap-2.5 bg-destructive/10 text-destructive text-sm p-3.5 rounded-xl mb-4 border border-destructive/20 font-medium">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
+              <span className="flex-1">{error}</span>
+              <button
+                type="button"
+                onClick={() => setError("")}
+                className="ml-1 flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
             </div>
           )}
 

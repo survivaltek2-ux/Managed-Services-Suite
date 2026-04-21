@@ -120,12 +120,13 @@ export default function Portal() {
 
     if (ssoErr) {
       const messages: Record<string, string> = {
-        access_denied: "Sign-in was cancelled.",
+        access_denied: "Sign-in was cancelled. Please try again.",
         token_failed: "Could not complete sign-in. Please try again.",
-        profile_failed: "Could not retrieve your profile.",
-        server_error: "An error occurred during sign-in. Please try again.",
-        no_email: "Could not retrieve your email.",
+        profile_failed: "Could not retrieve your Microsoft profile. Please try again.",
+        server_error: "An unexpected error occurred during sign-in. Please try again.",
+        no_email: "Your Microsoft account does not have an email address associated with it. Please try a different account.",
         no_account: "No account found for your email. Please register first.",
+        wrong_tenant: "Your Microsoft account belongs to an unauthorized organization. Please sign in with your personal or correct company account.",
       };
       setSsoError(messages[ssoErr] || "Sign-in failed. Please try again.");
       window.history.replaceState({}, "", window.location.pathname);
@@ -347,8 +348,17 @@ export default function Portal() {
           </CardHeader>
           <CardContent className="pt-6">
             {ssoError && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-xl mb-4 border border-destructive/20 text-center font-medium">
-                {ssoError}
+              <div className="flex items-start gap-2.5 bg-destructive/10 text-destructive text-sm p-3.5 rounded-xl mb-4 border border-destructive/20 font-medium">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span className="flex-1">{ssoError}</span>
+                <button
+                  type="button"
+                  onClick={() => setSsoError("")}
+                  className="ml-1 flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity text-base leading-none"
+                  aria-label="Dismiss error"
+                >
+                  ×
+                </button>
               </div>
             )}
             {ssoLoading ? (
