@@ -6,3 +6,9 @@ id = "kfFXQF6DIagJGKuDfkVTU"
 uri = "file://attached_assets/contracts/siebert-msa-template.pdf"
 type = "pdf"
 title = "Siebert Services — MSA Template (PDF)"
+
+[[outputs]]
+id = "Q0i_ql-XRqlc22TH6dSgY"
+uri = "file://attached_assets/contracts/siebert-msa-fixed-preview.pdf"
+type = "pdf"
+title = "Fixed MSA (Patrice Barnes) — 21 pages, no blanks"

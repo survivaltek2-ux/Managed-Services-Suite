@@ -78,34 +78,70 @@ doc.pipe(stream);
 
 let pageNumber = 0;
 
-function addPage() {
-  doc.addPage();
-  pageNumber++;
-  drawFooter();
+// pdfkit triggers a new page whenever the cursor passes the bottom margin.
+// drawFooter() writes BELOW the regular content area, so we have to neutralise
+// the bottom margin while drawing it — otherwise pdfkit would auto-add a page
+// for every footer write, leaving the document peppered with blank pages.
+function drawFooter() {
+  const page = doc.page;
+  const origBottom = page.margins.bottom;
+  const savedY = doc.y;
+  page.margins.bottom = 0;
+  try {
+    const y = PAGE.height - 54;
+    doc.save()
+      .moveTo(PAGE.margin, y)
+      .lineTo(PAGE.width - PAGE.margin, y)
+      .strokeColor(COLORS.rule)
+      .lineWidth(0.5)
+      .stroke()
+      .restore();
+
+    doc.font(FONTS.regular)
+      .fontSize(8)
+      .fillColor(COLORS.lightGray)
+      .text("Siebert Services — Master Services Agreement", PAGE.margin, y + 6,
+        { width: CONTENT_WIDTH / 2, align: "left", lineBreak: false });
+
+    doc.font(FONTS.regular)
+      .fontSize(8)
+      .fillColor(COLORS.lightGray)
+      .text(`Page ${pageNumber}`, PAGE.margin, y + 6,
+        { width: CONTENT_WIDTH, align: "right", lineBreak: false });
+  } finally {
+    page.margins.bottom = origBottom;
+    // Restore the cursor: drawFooter() writes near the bottom of the page,
+    // which advances doc.y past the bottom margin and would cause every
+    // subsequent text() call to trigger another auto-page-break.
+    doc.y = savedY;
+  }
 }
 
-function drawFooter() {
-  const y = PAGE.height - 54;
-  doc.save()
-    .moveTo(PAGE.margin, y)
-    .lineTo(PAGE.width - PAGE.margin, y)
-    .strokeColor(COLORS.rule)
-    .lineWidth(0.5)
-    .stroke();
+// Hook into pdfkit's pageAdded event so that EVERY page (whether added
+// explicitly via addPage() or auto-added because content overflowed) gets a
+// footer drawn exactly once. This eliminates the need to call drawFooter()
+// manually after each addPage().
+doc.on("pageAdded", () => {
+  pageNumber++;
+  drawFooter();
+});
 
-  doc.font(FONTS.regular)
-    .fontSize(8)
-    .fillColor(COLORS.lightGray)
-    .text("Siebert Services — Master Services Agreement", PAGE.margin, y + 6,
-      { width: CONTENT_WIDTH / 2, align: "left" });
+function addPage() {
+  // If we're already at the very top of a fresh page (e.g. content just
+  // auto-broke), don't add another empty one.
+  if (doc.y > PAGE.margin + 1) {
+    doc.addPage();
+  }
+}
 
-  doc.font(FONTS.regular)
-    .fontSize(8)
-    .fillColor(COLORS.lightGray)
-    .text(`Page ${pageNumber}`, PAGE.margin, y + 6,
-      { width: CONTENT_WIDTH, align: "right" });
-
-  doc.restore();
+// Reserve `needed` pixels of vertical room; if the row wouldn't fit on the
+// current page, force a page break before drawing it. Used to keep table rows
+// and other multi-column blocks together.
+function pageBreakIfNeeded(needed) {
+  const maxY = PAGE.height - doc.page.margins.bottom;
+  if (doc.y + needed > maxY) {
+    doc.addPage();
+  }
 }
 
 function hRule(color = COLORS.rule, weight = 0.5) {
@@ -197,9 +233,13 @@ function definitionRow(term, definition) {
 }
 
 function tableRow(cols, widths, isHeader = false, shade = false) {
+  const rowH = isHeader ? 20 : 18;
+  // Reserve room for the row + the divider line beneath it. Without this, a
+  // row drawn near the bottom margin causes each individual cell text() call
+  // to trigger its own page break — splitting one row across multiple pages.
+  pageBreakIfNeeded(rowH + 4);
   const startX = PAGE.margin;
   const startY = doc.y;
-  const rowH = isHeader ? 20 : 18;
 
   if (shade) {
     doc.rect(startX, startY - 2, CONTENT_WIDTH, rowH)
@@ -278,7 +318,6 @@ function signatureLine(label, wide = false) {
 // COVER PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 doc.addPage();
-pageNumber++;
 
 doc.rect(0, 0, PAGE.width, 260).fill(COLORS.navy);
 
@@ -352,7 +391,6 @@ doc.font(FONTS.italic).fontSize(8.5).fillColor(COLORS.lightGray)
     "and the Customer identified above. Do not distribute without authorization.",
     PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: "center" }
   );
-drawFooter();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TABLE OF CONTENTS (placeholder — filled after rendering)
