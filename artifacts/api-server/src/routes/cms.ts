@@ -6,6 +6,7 @@ import { requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { requirePartnerAuth, PartnerRequest } from "../middlewares/partnerAuth.js";
 import jwt from "jsonwebtoken";
 import { getSmtpSettings, testSmtpConnection, invalidateSmtpCache, sendAdminTicketReply, sendTicketStatusUpdate, sendQuoteStatusUpdate } from "../lib/email.js";
+import { stripe, isStripeConfigured } from "../lib/stripe.js";
 import bcrypt from "bcryptjs";
 
 const JWT_SECRET = process.env.JWT_SECRET || "siebert-services-secret-key-2024";
@@ -880,16 +881,90 @@ router.post("/admin/cms/pricing-tiers", requireAuth, requireAdmin, async (req: A
   }
 });
 
+function parsePriceCents(priceText: string): number | null {
+  const digits = String(priceText).replace(/[^0-9.]/g, "");
+  const num = parseFloat(digits);
+  if (!isFinite(num) || num <= 0) return null;
+  return Math.round(num * 100);
+}
+
 router.put("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
-    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active, stripeProductId, stripeMonthlyPriceId, stripeAnnualPriceId } = req.body;
+    const { slug, name, tagline, startingPrice, annualPrice, priceUnit, pricePrefix, mostPopular, features, excludedFeatures, ctaLabel, ctaLink, sortOrder, active, stripeProductId: bodyStripeProductId, stripeMonthlyPriceId: bodyMonthlyId, stripeAnnualPriceId: bodyAnnualId } = req.body;
+
+    const [existing] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found", message: "Pricing tier not found" }); return; }
+
+    const newMonthlyStr = String(startingPrice ?? "0");
+    const newAnnualStr = String(annualPrice ?? "0");
+
+    const newMonthlyCents = parsePriceCents(newMonthlyStr);
+    const newAnnualCents = parsePriceCents(newAnnualStr);
+    const oldMonthlyCents = parsePriceCents(existing.startingPrice);
+    const oldAnnualCents = parsePriceCents(existing.annualPrice);
+
+    const monthlyChanged = newMonthlyCents !== oldMonthlyCents;
+    const annualChanged = newAnnualCents !== oldAnnualCents;
+
+    const effectiveProductId = 'stripeProductId' in req.body
+      ? (bodyStripeProductId || null)
+      : (existing.stripeProductId || null);
+    let resolvedMonthlyId = bodyMonthlyId !== undefined ? (bodyMonthlyId || null) : existing.stripeMonthlyPriceId;
+    let resolvedAnnualId = bodyAnnualId !== undefined ? (bodyAnnualId || null) : existing.stripeAnnualPriceId;
+
+    if (isStripeConfigured() && stripe) {
+      if (monthlyChanged) {
+        if (newMonthlyCents !== null && effectiveProductId) {
+          const newPrice = await stripe.prices.create({
+            product: effectiveProductId,
+            unit_amount: newMonthlyCents,
+            currency: "usd",
+            recurring: { interval: "month" },
+          });
+          resolvedMonthlyId = newPrice.id;
+          console.log(`[pricing-tier ${id}] New Stripe monthly price: ${newPrice.id} ($${newMonthlyCents / 100}/mo)`);
+          if (existing.stripeMonthlyPriceId) {
+            try { await stripe.prices.update(existing.stripeMonthlyPriceId, { active: false }); } catch (e) { console.warn(`[pricing-tier ${id}] Could not deactivate old monthly price ${existing.stripeMonthlyPriceId}:`, e); }
+          }
+        } else {
+          // Price changed but no parseable amount or no stripeProductId. Clear the stale
+          // Stripe price ID so the next checkout can auto-create a fresh one at the
+          // correct amount rather than charging the wrong old price.
+          resolvedMonthlyId = null;
+          if (!effectiveProductId) console.warn(`[pricing-tier ${id}] Monthly price changed but no stripeProductId — clearing stale price ID`);
+        }
+      }
+      if (annualChanged) {
+        if (newAnnualCents !== null && effectiveProductId) {
+          const newPrice = await stripe.prices.create({
+            product: effectiveProductId,
+            unit_amount: newAnnualCents,
+            currency: "usd",
+            recurring: { interval: "year" },
+          });
+          resolvedAnnualId = newPrice.id;
+          console.log(`[pricing-tier ${id}] New Stripe annual price: ${newPrice.id} ($${newAnnualCents / 100}/yr)`);
+          if (existing.stripeAnnualPriceId) {
+            try { await stripe.prices.update(existing.stripeAnnualPriceId, { active: false }); } catch (e) { console.warn(`[pricing-tier ${id}] Could not deactivate old annual price ${existing.stripeAnnualPriceId}:`, e); }
+          }
+        } else {
+          // Same rationale as monthly: clear stale ID so checkout regenerates correctly.
+          resolvedAnnualId = null;
+          if (!effectiveProductId) console.warn(`[pricing-tier ${id}] Annual price changed but no stripeProductId — clearing stale price ID`);
+        }
+      }
+    } else if (!isStripeConfigured()) {
+      if (monthlyChanged) resolvedMonthlyId = null;
+      if (annualChanged) resolvedAnnualId = null;
+    }
+
     const [item] = await db.update(pricingTiersTable).set({
       slug,
       name,
       tagline: tagline || "",
-      startingPrice: String(startingPrice ?? "0"),
-      annualPrice: String(annualPrice ?? "0"),
+      startingPrice: newMonthlyStr,
+      annualPrice: newAnnualStr,
       priceUnit: priceUnit || "per user / month",
       pricePrefix: pricePrefix || "Starting at",
       mostPopular: !!mostPopular,
@@ -899,13 +974,13 @@ router.put("/admin/cms/pricing-tiers/:id", requireAuth, requireAdmin, async (req
       ctaLink: ctaLink || "/quote",
       sortOrder: sortOrder ?? 0,
       active: active !== false,
-      stripeProductId: stripeProductId || null,
-      stripeMonthlyPriceId: stripeMonthlyPriceId || null,
-      stripeAnnualPriceId: stripeAnnualPriceId || null,
+      stripeProductId: effectiveProductId,
+      stripeMonthlyPriceId: resolvedMonthlyId,
+      stripeAnnualPriceId: resolvedAnnualId,
       updatedAt: new Date(),
     }).where(eq(pricingTiersTable.id, id)).returning();
     if (!item) { res.status(404).json({ error: "not_found", message: "Pricing tier not found" }); return; }
-    await logActivity(req.userId, "update", "pricing_tier", id);
+    await logActivity(req.userId, "update", "pricing_tier", id, `Updated pricing tier: ${name}${monthlyChanged || annualChanged ? " (price changed)" : ""}`);
     res.json(parsePricingTier(item));
   } catch (err) {
     console.error(err);
