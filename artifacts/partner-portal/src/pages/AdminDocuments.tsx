@@ -2,19 +2,28 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Upload, Download, Trash2, Loader2 } from "lucide-react";
+import { Search, Upload, Download, Trash2, Loader2, FileSignature, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useLocation } from "wouter";
 
 const CATEGORIES = ["contract", "proposal", "invoice", "report", "agreement", "other"];
+
+interface Signer {
+  name: string;
+  email: string;
+  role: string;
+  signingOrder: number;
+}
 
 export default function AdminDocuments() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [documents, setDocuments] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +35,17 @@ export default function AdminDocuments() {
   const [form, setForm] = useState({ name: "", description: "", category: "other", partnerId: "" });
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // E-sign state
+  const [esignOpen, setEsignOpen] = useState(false);
+  const [esignDoc, setEsignDoc] = useState<any | null>(null);
+  const [esignSending, setEsignSending] = useState(false);
+  const [esignSubject, setEsignSubject] = useState("");
+  const [esignMessage, setEsignMessage] = useState("");
+  const [esignSigners, setEsignSigners] = useState<Signer[]>([
+    { name: "", email: "", role: "Customer", signingOrder: 1 },
+    { name: "Siebert Services", email: "", role: "Countersigner", signingOrder: 2 },
+  ]);
 
   const headers = getAuthHeaders();
 
@@ -112,6 +132,66 @@ export default function AdminDocuments() {
     } catch { toast({ title: "Delete failed", variant: "destructive" }); }
   };
 
+  const openEsignModal = (doc: any) => {
+    setEsignDoc(doc);
+    setEsignSubject(`Please sign: ${doc.name}`);
+    setEsignMessage("");
+    setEsignSigners([
+      { name: "", email: "", role: "Customer", signingOrder: 1 },
+      { name: "Siebert Services", email: user?.email || "", role: "Countersigner", signingOrder: 2 },
+    ]);
+    setEsignOpen(true);
+  };
+
+  const updateSigner = (index: number, field: keyof Signer, value: string | number) => {
+    setEsignSigners(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+  };
+
+  const addSigner = () => {
+    setEsignSigners(prev => [...prev, { name: "", email: "", role: "", signingOrder: prev.length + 1 }]);
+  };
+
+  const removeSigner = (index: number) => {
+    setEsignSigners(prev => prev.filter((_, i) => i !== index).map((s, i) => ({ ...s, signingOrder: i + 1 })));
+  };
+
+  const handleSendForSignature = async () => {
+    if (!esignDoc) return;
+    const validSigners = esignSigners.filter(s => s.name && s.email);
+    if (validSigners.length === 0) {
+      toast({ title: "Add at least one signer with name and email", variant: "destructive" });
+      return;
+    }
+    setEsignSending(true);
+    try {
+      const res = await fetch("/api/admin/esign/envelopes", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentId: esignDoc.id,
+          signers: validSigners,
+          subject: esignSubject,
+          message: esignMessage,
+          initiatedByEmail: user?.email,
+          initiatedByName: user?.contactName,
+        }),
+      });
+
+      if (res.ok) {
+        toast({ title: "Sent for signature!", description: "Signers will receive an email from SignWell." });
+        setEsignOpen(false);
+        navigate("/admin/esign");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: err.message || "Failed to send", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to send", variant: "destructive" });
+    } finally {
+      setEsignSending(false);
+    }
+  };
+
   if (!user || !user.isAdmin) {
     return (
       <PortalLayout>
@@ -179,6 +259,15 @@ export default function AdminDocuments() {
                           <td className="px-5 py-3 text-xs text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString()}</td>
                           <td className="px-5 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost" size="sm"
+                                className="h-7 text-xs gap-1 text-[#0176d3] hover:text-[#032d60]"
+                                title="Send for signature"
+                                onClick={() => openEsignModal(doc)}
+                              >
+                                <FileSignature className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Sign</span>
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" onClick={() => handleDownload(doc)} disabled={downloading === doc.id}>
                                 {downloading === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                               </Button>
@@ -197,6 +286,7 @@ export default function AdminDocuments() {
             </CardContent>
           </Card>
 
+          {/* Upload Dialog */}
           <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
             <DialogContent>
               <DialogHeader><DialogTitle>Upload Document</DialogTitle></DialogHeader>
@@ -226,6 +316,130 @@ export default function AdminDocuments() {
                 <Button variant="outline" onClick={() => { setUploadOpen(false); setFile(null); }}>Cancel</Button>
                 <Button onClick={handleUpload} disabled={!form.name || !file || uploading}>
                   {uploading ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Uploading...</> : <><Upload className="w-4 h-4 mr-1" /> Upload</>}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Send for Signature Dialog */}
+          <Dialog open={esignOpen} onOpenChange={setEsignOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileSignature className="w-4 h-4 text-[#0176d3]" />
+                  Send for Signature
+                </DialogTitle>
+              </DialogHeader>
+              {esignDoc && (
+                <div className="space-y-4">
+                  <div className="bg-muted/50 rounded-md px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">Document:</span>{" "}
+                    <span className="font-medium">{esignDoc.name}</span>
+                  </div>
+
+                  <div>
+                    <Label>Email Subject</Label>
+                    <Input
+                      value={esignSubject}
+                      onChange={e => setEsignSubject(e.target.value)}
+                      placeholder="Please sign this document"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Message to signers (optional)</Label>
+                    <Textarea
+                      value={esignMessage}
+                      onChange={e => setEsignMessage(e.target.value)}
+                      placeholder="Please review and sign at your earliest convenience..."
+                      rows={2}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Signers <span className="text-muted-foreground font-normal text-xs">(signing order = sequence)</span></Label>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={addSigner}>
+                        <Plus className="w-3 h-3" /> Add Signer
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {esignSigners.map((signer, i) => (
+                        <div key={i} className="border rounded-md p-3 space-y-2 relative">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              Signer {i + 1} {signer.role && `— ${signer.role}`}
+                            </span>
+                            {esignSigners.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeSigner(i)}
+                                className="text-muted-foreground hover:text-red-500 transition-colors"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Full Name *</Label>
+                              <Input
+                                value={signer.name}
+                                onChange={e => updateSigner(i, "name", e.target.value)}
+                                placeholder="John Smith"
+                                className="h-8 mt-0.5 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Email *</Label>
+                              <Input
+                                type="email"
+                                value={signer.email}
+                                onChange={e => updateSigner(i, "email", e.target.value)}
+                                placeholder="john@example.com"
+                                className="h-8 mt-0.5 text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Role / Title (optional)</Label>
+                              <Input
+                                value={signer.role}
+                                onChange={e => updateSigner(i, "role", e.target.value)}
+                                placeholder="Customer, CEO, etc."
+                                className="h-8 mt-0.5 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Signing Order</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={signer.signingOrder}
+                                onChange={e => updateSigner(i, "signingOrder", parseInt(e.target.value) || i + 1)}
+                                className="h-8 mt-0.5 text-sm"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEsignOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={handleSendForSignature}
+                  disabled={esignSending || esignSigners.every(s => !s.name || !s.email)}
+                  className="gap-2"
+                >
+                  {esignSending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
+                    : <><FileSignature className="w-4 h-4" /> Send for Signature</>}
                 </Button>
               </DialogFooter>
             </DialogContent>

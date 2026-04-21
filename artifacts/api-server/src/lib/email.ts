@@ -1885,3 +1885,54 @@ export async function sendContractEmail(params: {
 
   console.log(`[Contract] Customer email: ${(customerSent as PromiseFulfilledResult<boolean>).value ? "sent" : "failed"}, Admin email: ${(adminSent as PromiseFulfilledResult<boolean>).value ? "sent" : "failed"}`);
 }
+
+export async function sendEsignNotification(params: {
+  to: string;
+  adminName: string;
+  documentName: string;
+  envelopeId: number;
+  eventType: "completed" | "declined" | "viewed";
+  recipientName?: string;
+}): Promise<boolean> {
+  const { to, adminName, documentName, envelopeId, eventType, recipientName } = params;
+
+  const portalUrl = process.env.PORTAL_URL || "https://siebertrservices.com/partners";
+  const envelopeUrl = `${portalUrl}/admin/esign`;
+
+  const eventLabels: Record<string, string> = {
+    completed: "✅ Contract Fully Executed",
+    declined:  "❌ Contract Declined",
+    viewed:    "👁 Contract Viewed",
+  };
+
+  const eventMessages: Record<string, string> = {
+    completed: `All parties have signed <strong>${esc(documentName)}</strong>. The executed PDF has been saved to the document store.`,
+    declined:  `<strong>${esc(recipientName || "A signer")}</strong> declined to sign <strong>${esc(documentName)}</strong>.`,
+    viewed:    `<strong>${esc(recipientName || "A signer")}</strong> has viewed <strong>${esc(documentName)}</strong>.`,
+  };
+
+  const subject = `${eventLabels[eventType] || "E-Sign Update"}: ${documentName}`;
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 17px;">${eventLabels[eventType] || "E-Sign Update"}</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(adminName)},</p>
+        <p style="font-size: 14px; margin: 0 0 20px;">${eventMessages[eventType] || ""}</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${envelopeUrl}"
+             style="background: #0176d3; color: #fff; padding: 12px 28px; border-radius: 6px;
+                    text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
+            View Envelope Details
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #999; margin: 0;">
+          This is an automated notification from the Siebert Services Partner Portal.
+        </p>
+      </div>
+    </div>`;
+
+  return sendEmail(to, subject, html);
+}

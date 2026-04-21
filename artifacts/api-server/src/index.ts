@@ -251,6 +251,28 @@ async function runStartupMigrations() {
       CONSTRAINT lead_magnet_seq_uniq UNIQUE (submission_id, step)
     )`);
 
+  // ── esign_envelopes — e-signature tracking ───────────────────────────────
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS esign_envelopes (
+      id                    serial PRIMARY KEY,
+      document_id           integer REFERENCES documents(id),
+      partner_id            integer REFERENCES partners(id),
+      provider_envelope_id  text NOT NULL UNIQUE,
+      document_name         text NOT NULL,
+      signers_json          text NOT NULL DEFAULT '[]',
+      status                text NOT NULL DEFAULT 'sent',
+      subject               text,
+      message               text,
+      initiated_by_email    text,
+      initiated_by_name     text,
+      events_json           text NOT NULL DEFAULT '[]',
+      executed_document_id  integer REFERENCES documents(id),
+      sent_at               timestamp NOT NULL DEFAULT now(),
+      completed_at          timestamp,
+      created_at            timestamp NOT NULL DEFAULT now(),
+      updated_at            timestamp NOT NULL DEFAULT now()
+    )`);
+
   console.log("[migrate] Startup migrations applied");
 }
 
