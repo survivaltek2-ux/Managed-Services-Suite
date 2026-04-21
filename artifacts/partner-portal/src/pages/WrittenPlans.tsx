@@ -356,25 +356,46 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
   async function generatePlan() {
     setGenerating(true);
     try {
-      const method = planId ? "PUT" : "POST";
-      const url = planId ? `${BASE}/${planId}` : BASE;
-      const res = await fetch(url, {
-        method,
-        headers: authHeader(),
-        body: JSON.stringify({
-          clientName: answers.clientName,
-          clientEmail: answers.clientEmail,
-          clientTitle: answers.clientTitle,
-          clientCompany: answers.clientCompany,
-          clientPhone: answers.clientPhone,
-          questionnaireAnswers: answers,
-          validityDays,
-          ...(onBehalfOfPartnerId ? { onBehalfOfPartnerId } : {}),
-        }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      const d = await res.json();
-      const plan = d.plan || d;
+      const clientBody = {
+        clientName: answers.clientName,
+        clientEmail: answers.clientEmail,
+        clientTitle: answers.clientTitle,
+        clientCompany: answers.clientCompany,
+        clientPhone: answers.clientPhone,
+        questionnaireAnswers: answers,
+        validityDays,
+        ...(onBehalfOfPartnerId ? { onBehalfOfPartnerId } : {}),
+      };
+
+      let plan;
+      if (planId) {
+        // Draft exists: update answers then regenerate content from them
+        const putRes = await fetch(`${BASE}/${planId}`, {
+          method: "PUT",
+          headers: authHeader(),
+          body: JSON.stringify(clientBody),
+        });
+        if (!putRes.ok) throw new Error("Failed");
+        const regenRes = await fetch(`${BASE}/${planId}/regenerate`, {
+          method: "PUT",
+          headers: authHeader(),
+          body: JSON.stringify({}),
+        });
+        if (!regenRes.ok) throw new Error("Failed");
+        const d = await regenRes.json();
+        plan = d.plan || d;
+      } else {
+        // New plan: POST validates questionnaire and generates content in one step
+        const res = await fetch(BASE, {
+          method: "POST",
+          headers: authHeader(),
+          body: JSON.stringify(clientBody),
+        });
+        if (!res.ok) throw new Error("Failed");
+        const d = await res.json();
+        plan = d.plan || d;
+      }
+
       setPlanId(plan.id);
       setGeneratedPlan(plan);
       setEditedContent(plan.planContent);

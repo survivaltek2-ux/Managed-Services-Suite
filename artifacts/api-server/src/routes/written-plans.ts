@@ -348,6 +348,11 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
       res.status(400).json({ error: "cannot_send_terminal", message: "Cannot resend a plan that has been approved or declined. Create a revision instead." });
       return;
     }
+    const content = existing.planContent as PlanContentShape | null;
+    if (!content?.executiveSummary || !content?.recommendedServices?.length) {
+      res.status(400).json({ error: "plan_content_missing", message: "Plan content must be generated before sending. Use 'Generate Plan' first." });
+      return;
+    }
     const { personalNote, validityDays, clientEmail } = req.body;
     const token = generateReviewToken();
     const vdays = validityDays || existing.validityDays || 30;
