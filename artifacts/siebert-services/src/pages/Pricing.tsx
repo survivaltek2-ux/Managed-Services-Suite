@@ -149,6 +149,14 @@ export default function Pricing() {
     return { price: monthly, hasDiscount: false, original: monthly };
   };
 
+  const getUnitPrice = (tier: PricingTier): number => {
+    const p = priceFor(tier);
+    return Number(p.price) || Number(tier.startingPrice) || 0;
+  };
+
+  const formatTotal = (value: number): string =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+
   const handleTierCta = async (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
     const seatQuantity = Math.max(3, Math.min(500, seatCounts[slug] || 3));
@@ -355,8 +363,24 @@ export default function Pricing() {
                     })()}
                     <label className="block mb-6">
                       <span className="block text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                        Seats
+                        Seats ({seatCounts[tier.slug] ?? 3})
                       </span>
+                      <input
+                        type="range"
+                        min={3}
+                        max={500}
+                        step={1}
+                        value={seatCounts[tier.slug] ?? 3}
+                        onChange={(e) =>
+                          setSeatCounts((current) => ({
+                            ...current,
+                            [tier.slug]: Math.max(3, Math.min(500, parseInt(e.target.value || "3", 10) || 3)),
+                          }))
+                        }
+                        className="w-full mb-3 accent-primary"
+                        aria-label={`${tier.name} seat slider`}
+                        data-testid={`seat-slider-${tier.slug}`}
+                      />
                       <input
                         type="number"
                         min={3}
@@ -373,6 +397,17 @@ export default function Pricing() {
                         aria-label={`${tier.name} seats`}
                         data-testid={`seat-count-${tier.slug}`}
                       />
+                      <div className="mt-3 rounded-xl bg-gray-50 border border-border/60 px-4 py-3 text-sm text-navy-light">
+                        <div className="flex items-center justify-between gap-4">
+                          <span>Estimated total</span>
+                          <span className="font-semibold text-navy">
+                            {formatTotal(getUnitPrice(tier) * (seatCounts[tier.slug] ?? 3))}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {tier.priceUnit}
+                        </div>
+                      </div>
                     </label>
 
                     <ul className="space-y-2.5 flex-1 mb-7">
