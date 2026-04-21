@@ -1342,7 +1342,7 @@ router.get("/admin/partner/commissions", requireAdmin, async (_req, res) => {
     const result = commissions.map(c => ({
       ...c,
       stripePayoutsEnabled: c.stripeConnectAccountId
-        ? (payoutsEnabledMap[c.stripeConnectAccountId] ?? null)
+        ? (payoutsEnabledMap[c.stripeConnectAccountId] ?? false)
         : null,
     }));
 
