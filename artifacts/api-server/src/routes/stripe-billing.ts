@@ -13,9 +13,60 @@ const objStorage = new ObjectStorageService();
 const router: IRouter = Router();
 
 function getBaseUrl(req: Request): string {
-  const host = req.get("host") || "";
+  // PUBLIC_URL (or PUBLIC_BASE_URL) is the most authoritative — set it in
+  // production to pin success/cancel redirects to the canonical hostname.
+  const explicit = (process.env.PUBLIC_URL || process.env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (explicit) return explicit;
+
+  // On Replit deployments and the preview proxy, the X-Forwarded-* headers
+  // point at the public hostname the user actually sees. Prefer those over
+  // req.protocol/host (which can be the internal node socket).
+  const host = req.get("x-forwarded-host") || req.get("host") || "";
   const proto = req.get("x-forwarded-proto") || req.protocol || "https";
-  return `${proto}://${host}`;
+  if (host) return `${proto}://${host}`;
+
+  // Last-resort fallbacks for local dev and Replit preview.
+  if (process.env.REPLIT_DOMAINS) return `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}`;
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  return `http://localhost:${process.env.PORT || 8080}`;
+}
+
+/** Log the resolved base URL once on the first checkout attempt so misconfig is visible. */
+let baseUrlLogged = false;
+function logResolvedBaseUrlOnce(req: Request): string {
+  const base = getBaseUrl(req);
+  if (!baseUrlLogged) {
+    baseUrlLogged = true;
+    console.log(`[Stripe Checkout] Resolved base URL = ${base} (PUBLIC_URL=${process.env.PUBLIC_URL ? "set" : "unset"})`);
+  }
+  return base;
+}
+
+/** Stripe error codes that mean a cached product/price ID is unusable and we should refresh. */
+const STRIPE_STALE_RESOURCE_CODES = new Set<string>([
+  "resource_missing",
+  "product_not_active",
+  "price_not_active",
+  "invalid_request_error",
+]);
+function isStaleResourceError(err: any): boolean {
+  if (!err) return false;
+  const code = err?.code || err?.raw?.code;
+  if (code && STRIPE_STALE_RESOURCE_CODES.has(code)) return true;
+  // 404 from Stripe is always a stale-id situation.
+  if (err?.statusCode === 404) return true;
+  // Fallback: parameter messages naming our cached product/price IDs.
+  const msg: string = String(err?.message || err?.raw?.message || "");
+  return /(?:No such (?:product|price)|product:.*\bprod_|price:.*\bprice_)/i.test(msg);
+}
+
+/** Structured one-line log for every checkout attempt — easy to grep. */
+function logCheckoutAttempt(fields: Record<string, unknown>): void {
+  try {
+    console.log(`[Stripe Checkout] ${JSON.stringify(fields)}`);
+  } catch {
+    console.log("[Stripe Checkout]", fields);
+  }
 }
 
 function stripeNotConfiguredError(res: Response) {
@@ -685,13 +736,40 @@ router.get("/admin/billing/stats", requireAdmin, async (_req, res) => {
 });
 
 router.post("/checkout/:tierId", async (req: Request, res: Response) => {
-  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  // Capture context up-front so every exit path can log a structured outcome.
+  const ctx: Record<string, unknown> = {
+    tierId: req.params.tierId,
+    billingCycle: req.body?.billingCycle,
+    seatQuantity: req.body?.seatQuantity,
+    customerType: req.body?.customerType,
+  };
+
+  if (!isStripeConfigured()) {
+    logCheckoutAttempt({ ...ctx, outcome: "stripe_not_configured" });
+    return stripeNotConfiguredError(res);
+  }
   try {
     const stripe = getStripe();
     const tierId = req.params.tierId;
-    const { billingCycle = "monthly", email, seatQuantity = 1, customerType = "business" } = req.body;
-    const seats = Math.max(1, Math.min(500, parseInt(String(seatQuantity), 10) || 1));
+    const { billingCycle: rawBilling, email, seatQuantity = 1, customerType = "business" } = req.body || {};
+
+    // Validate billing cycle.
+    const billingCycle: "monthly" | "annual" = rawBilling === "annual" ? "annual" : "monthly";
     const safeCustomerType: "business" | "consumer" = customerType === "consumer" ? "consumer" : "business";
+    ctx.billingCycle = billingCycle;
+    ctx.customerType = safeCustomerType;
+
+    // Seat minimum must match the frontend: 3 for Business, 1 for Consumer.
+    // Reject obviously malformed seatQuantity instead of silently coercing.
+    const parsedSeats = parseInt(String(seatQuantity), 10);
+    if (Number.isNaN(parsedSeats) || parsedSeats < 1 || parsedSeats > 500) {
+      logCheckoutAttempt({ ...ctx, outcome: "invalid_seat_quantity", parsedSeats });
+      res.status(400).json({ error: "invalid_seat_quantity", message: "Seat quantity must be between 1 and 500." });
+      return;
+    }
+    const seatFloor = safeCustomerType === "consumer" ? 1 : 3;
+    const seats = Math.max(seatFloor, Math.min(500, parsedSeats));
+    ctx.seats = seats;
 
     let tier: any = null;
     const tierIdStr = String(tierId);
@@ -704,13 +782,43 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       tier = t;
     }
 
-    if (!tier) { res.status(404).json({ error: "tier_not_found" }); return; }
+    if (!tier) {
+      logCheckoutAttempt({ ...ctx, outcome: "tier_not_found" });
+      res.status(404).json({ error: "tier_not_found", message: "That plan is no longer available." });
+      return;
+    }
+    ctx.tierSlug = tier.slug;
     if (tier.slug === "enterprise") {
+      logCheckoutAttempt({ ...ctx, outcome: "contact_sales" });
       res.status(400).json({ error: "contact_sales", message: "Enterprise plans require a custom quote. Please contact us." });
       return;
     }
 
-    const base = getBaseUrl(req);
+    // Validate price data BEFORE we hit Stripe so a misconfigured tier
+    // surfaces as a clean admin-actionable error rather than a Stripe failure
+    // (or, worse, a successful charge at the wrong amount).
+    const startingPriceNum = parseFloat(tier.startingPrice ?? "0");
+    const annualMonthlyNum = parseFloat(tier.annualPrice ?? "0");
+    if (!(startingPriceNum > 0)) {
+      logCheckoutAttempt({ ...ctx, outcome: "invalid_tier_price", startingPriceNum });
+      res.status(409).json({ error: "invalid_tier_price", message: "This plan's price is not configured. Please contact support." });
+      return;
+    }
+    if (billingCycle === "annual") {
+      // annualPrice is the per-seat-per-month equivalent when billed annually.
+      // It must be > 0 and ≤ the monthly startingPrice (otherwise the annual rate
+      // would actually overcharge vs. monthly, which is clearly misconfigured).
+      if (!(annualMonthlyNum > 0) || annualMonthlyNum > startingPriceNum) {
+        logCheckoutAttempt({ ...ctx, outcome: "invalid_annual_price", startingPriceNum, annualMonthlyNum });
+        res.status(409).json({
+          error: "invalid_annual_price",
+          message: "This plan's annual pricing is not configured correctly. Please contact support.",
+        });
+        return;
+      }
+    }
+
+    const base = logResolvedBaseUrlOnce(req);
 
     const resolvePriceId = async (retrying = false): Promise<string> => {
       const freshTier = retrying
@@ -817,23 +925,34 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
     try {
       const priceId = await resolvePriceId();
       const session = await createSession(priceId);
+      logCheckoutAttempt({ ...ctx, outcome: "ok", sessionId: session.id });
       res.json({ url: session.url, sessionId: session.id });
     } catch (stripeErr: any) {
-      if (stripeErr?.code === "resource_missing") {
-        console.warn("[Stripe] Cached IDs are stale (test-mode?), clearing and retrying for tier:", tier.slug);
+      if (isStaleResourceError(stripeErr)) {
+        console.warn(
+          `[Stripe Checkout] Cached IDs stale for tier=${tier.slug} (code=${stripeErr?.code || "n/a"}, status=${stripeErr?.statusCode || "n/a"}) — clearing and retrying.`,
+        );
         await db.update(pricingTiersTable)
           .set({ stripeProductId: null, stripeMonthlyPriceId: null, stripeAnnualPriceId: null, updatedAt: new Date() })
           .where(eq(pricingTiersTable.id, tier.id));
-        const freshPriceId = await resolvePriceId(true);
-        const session = await createSession(freshPriceId);
-        res.json({ url: session.url, sessionId: session.id });
+        try {
+          const freshPriceId = await resolvePriceId(true);
+          const session = await createSession(freshPriceId);
+          logCheckoutAttempt({ ...ctx, outcome: "ok_after_self_heal", sessionId: session.id });
+          res.json({ url: session.url, sessionId: session.id });
+        } catch (retryErr: any) {
+          logCheckoutAttempt({ ...ctx, outcome: "stripe_error_after_retry", code: retryErr?.code, statusCode: retryErr?.statusCode });
+          console.error("[Stripe Checkout] Retry after self-heal failed:", retryErr);
+          res.status(502).json({ error: "stripe_error", message: retryErr?.message || "Stripe checkout failed." });
+        }
       } else {
         throw stripeErr;
       }
     }
   } catch (err: any) {
-    console.error("[Stripe] Self-checkout error:", err);
-    res.status(500).json({ error: "stripe_error", message: err.message });
+    logCheckoutAttempt({ ...ctx, outcome: "stripe_error", code: err?.code, statusCode: err?.statusCode });
+    console.error("[Stripe Checkout] Self-checkout error:", err);
+    res.status(502).json({ error: "stripe_error", message: err?.message || "Stripe checkout failed." });
   }
 });
 

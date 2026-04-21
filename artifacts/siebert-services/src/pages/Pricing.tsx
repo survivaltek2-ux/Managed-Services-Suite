@@ -165,6 +165,7 @@ export default function Pricing() {
   const [customerType, setCustomerType] = useState<CustomerType>("business");
   const [, setLocation] = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<{ tierSlug: string; message: string } | null>(null);
   const [seatCounts, setSeatCounts] = useState<Record<string, number>>({
     consumer: 1,
     essentials: 3,
@@ -207,6 +208,24 @@ export default function Pricing() {
   const formatTotal = (value: number): string =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
+  const messageForCheckoutError = (errorCode: string | undefined, message: string | undefined): string => {
+    switch (errorCode) {
+      case "stripe_not_configured":
+        return "Online checkout isn't available right now. Please request a quote and we'll set you up by hand.";
+      case "tier_not_found":
+        return "That plan isn't available anymore. Please request a quote so we can help you pick the right one.";
+      case "invalid_tier_price":
+      case "invalid_annual_price":
+        return "This plan's pricing isn't set up correctly. Please request a quote and we'll get you sorted.";
+      case "invalid_seat_quantity":
+        return "Please pick a seat count between 1 and 500 and try again.";
+      case "stripe_error":
+        return "We hit a snag talking to our payment processor. Please retry, or request a quote if it keeps failing.";
+      default:
+        return message || "Something went wrong starting checkout. Please retry or request a quote.";
+    }
+  };
+
   const handleTierCta = async (tier: PricingTier) => {
     const slug = (tier.slug || "").toLowerCase();
     const isConsumer = slug === "consumer";
@@ -228,6 +247,7 @@ export default function Pricing() {
       return;
     }
 
+    setCheckoutError(null);
     setCheckoutLoading(slug);
     try {
       const res = await fetch(`/api/checkout/${encodeURIComponent(slug)}`, {
@@ -235,22 +255,18 @@ export default function Pricing() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ billingCycle: billing, seatQuantity, customerType }),
       });
-      const data = await res.json();
-      if (data.url) {
+      let data: any = null;
+      try { data = await res.json(); } catch { /* non-JSON response */ }
+
+      if (res.ok && data?.url) {
         window.location.href = data.url;
-      } else if (data.error === "stripe_not_configured" || data.error === "tier_not_found") {
-        const baseLink = tier.ctaLink || "/quote";
-        const sep = baseLink.includes("?") ? "&" : "?";
-        setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
-      } else {
-        const baseLink = tier.ctaLink || "/quote";
-        const sep = baseLink.includes("?") ? "&" : "?";
-        setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
+        return;
       }
+
+      const errorCode: string = (data?.error as string) || (res.status >= 500 ? "stripe_error" : "stripe_error");
+      setCheckoutError({ tierSlug: slug, message: messageForCheckoutError(errorCode, data?.message) });
     } catch {
-      const baseLink = tier.ctaLink || "/quote";
-      const sep = baseLink.includes("?") ? "&" : "?";
-      setLocation(`${baseLink}${sep}tier=${encodeURIComponent(slug)}`);
+      setCheckoutError({ tierSlug: slug, message: messageForCheckoutError("stripe_error", undefined) });
     } finally {
       setCheckoutLoading(null);
     }
@@ -612,6 +628,33 @@ export default function Pricing() {
                         <>{tier.ctaLabel || "Get Started"} <ArrowRight className="w-4 h-4" /></>
                       )}
                     </Button>
+
+                    {checkoutError && checkoutError.tierSlug === tier.slug && (
+                      <div
+                        role="alert"
+                        data-testid={`pricing-cta-error-${tier.slug}`}
+                        className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800"
+                      >
+                        <p className="leading-snug">{checkoutError.message}</p>
+                        <div className="mt-2 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleTierCta(tier)}
+                            data-testid={`pricing-cta-retry-${tier.slug}`}
+                            className="font-semibold text-rose-900 underline underline-offset-2 hover:text-rose-700"
+                          >
+                            Retry
+                          </button>
+                          <Link
+                            href={`/quote?tier=${encodeURIComponent(tier.slug)}`}
+                            data-testid={`pricing-cta-quote-${tier.slug}`}
+                            className="font-semibold text-rose-900 underline underline-offset-2 hover:text-rose-700"
+                          >
+                            Request a quote
+                          </Link>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>

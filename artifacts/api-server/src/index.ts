@@ -5,6 +5,7 @@ import { startZoomWebSocketSubscription } from "./lib/zoomWebSocket.js";
 import { startLeadMagnetSequenceScheduler } from "./lib/leadMagnetSequence.js";
 import { startPlanReminderScheduler } from "./routes/written-plans.js";
 import { startPartnerstackScheduler } from "./routes/partnerstack.js";
+import { runStripeBootHealthCheck } from "./lib/stripe.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
@@ -149,6 +150,9 @@ async function runStartupMigrations() {
   await db.execute(sql`ALTER TABLE pricing_tiers ADD COLUMN IF NOT EXISTS stripe_product_id text`);
   await db.execute(sql`ALTER TABLE pricing_tiers ADD COLUMN IF NOT EXISTS stripe_monthly_price_id text`);
   await db.execute(sql`ALTER TABLE pricing_tiers ADD COLUMN IF NOT EXISTS stripe_annual_price_id text`);
+  await db.execute(sql`ALTER TABLE pricing_tiers ADD COLUMN IF NOT EXISTS auto_activate boolean NOT NULL DEFAULT false`);
+  // Consumer plan auto-activates (subscription mode); business tiers require admin approval.
+  await db.execute(sql`UPDATE pricing_tiers SET auto_activate = true WHERE slug = 'consumer' AND auto_activate IS DISTINCT FROM true`);
 
   // ── pricing_tiers — fix annual prices that were seeded as "0" ────────────
   // Also clear any stale Stripe annual price IDs created at $0 so checkout
@@ -366,4 +370,9 @@ app.listen(port, async () => {
   } catch (err) {
     console.error("[PartnerStack] Startup error:", err);
   }
+  // Stripe key + connectivity health check — surfaces misconfig at boot
+  // instead of waiting for a customer to click "Get Started".
+  runStripeBootHealthCheck().catch((err) => {
+    console.error("[Stripe Health] Unexpected error:", err);
+  });
 });
