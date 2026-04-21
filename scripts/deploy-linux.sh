@@ -88,9 +88,6 @@ pnpm install --frozen-lockfile
 echo "Building production bundles..."
 pnpm run build:deploy
 
-echo "Applying database schema..."
-pnpm run db:push
-
 if [ "$RUN_SETUP_ADMIN" = "true" ]; then
   echo "Ensuring admin user exists..."
   pnpm run setup:admin
