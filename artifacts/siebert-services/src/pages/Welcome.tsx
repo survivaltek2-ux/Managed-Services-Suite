@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearch, useLocation } from "wouter";
-import { CheckCircle, ArrowRight, Phone, Mail, Calendar } from "lucide-react";
+import { CheckCircle, ArrowRight, Phone, Mail, Calendar, CreditCard, Settings, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui";
 
 export default function Welcome() {
@@ -9,21 +9,84 @@ export default function Welcome() {
   const params = new URLSearchParams(search);
   const plan = params.get("plan") || "";
   const sessionId = params.get("session_id");
+  const managed = params.get("managed") === "1";
   const [confirmed, setConfirmed] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState("");
+
+  const isConsumer = plan.toLowerCase() === "consumer";
 
   useEffect(() => {
-    if (sessionId) {
-      setConfirmed(true);
-    }
+    if (sessionId) setConfirmed(true);
   }, [sessionId]);
 
   const planNames: Record<string, string> = {
     essentials: "Essentials",
     business: "Business",
     enterprise: "Enterprise",
+    consumer: "Consumer",
   };
 
   const planName = planNames[plan.toLowerCase()] || plan || "your plan";
+
+  const openPortal = async () => {
+    if (!sessionId) return;
+    setPortalLoading(true);
+    setPortalError("");
+    try {
+      const res = await fetch(`/api/billing/portal?session_id=${encodeURIComponent(sessionId)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not open billing portal");
+      window.location.href = data.url;
+    } catch (err: any) {
+      setPortalError(err.message || "Something went wrong. Please try again.");
+      setPortalLoading(false);
+    }
+  };
+
+  const consumerSteps = [
+    {
+      step: "1",
+      icon: Mail,
+      title: "Check your email",
+      desc: "A confirmation receipt is on its way. Check your inbox (and spam folder) for your subscription details.",
+    },
+    {
+      step: "2",
+      icon: Settings,
+      title: "You're already active",
+      desc: "Your Consumer plan activated immediately. Support is available now — contact us any time.",
+    },
+    {
+      step: "3",
+      icon: CreditCard,
+      title: "Manage anytime",
+      desc: "Update your payment method, view invoices, or cancel directly from the billing portal below — no need to call.",
+    },
+  ];
+
+  const businessSteps = [
+    {
+      step: "1",
+      icon: Mail,
+      title: "Check your email",
+      desc: "We'll send a welcome email with your account details, onboarding checklist, and next steps within 24 hours.",
+    },
+    {
+      step: "2",
+      icon: Phone,
+      title: "Onboarding call",
+      desc: "Our team will reach out to schedule a kickoff call to understand your environment and begin setup.",
+    },
+    {
+      step: "3",
+      icon: Calendar,
+      title: "Go live",
+      desc: "Monitoring, security, and support services are typically fully active within 5–10 business days.",
+    },
+  ];
+
+  const steps = isConsumer ? consumerSteps : businessSteps;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -35,14 +98,21 @@ export default function Welcome() {
             <CheckCircle className="w-10 h-10 text-emerald-400" />
           </div>
           <h1 className="text-4xl md:text-5xl font-display font-extrabold text-white leading-tight mb-4">
-            Welcome aboard!
+            {managed ? "Welcome back!" : "Welcome aboard!"}
           </h1>
           <p className="text-xl text-white/80 mb-2">
-            You've subscribed to the <span className="text-primary font-bold">{planName}</span> plan.
+            {managed
+              ? "Your subscription is active and managed."
+              : <>You've subscribed to the <span className="text-primary font-bold">{planName}</span> plan.</>}
           </p>
-          {confirmed && (
+          {confirmed && !managed && (
             <p className="text-white/60 text-sm">
               Your payment was confirmed. You'll receive a receipt at your email shortly.
+            </p>
+          )}
+          {isConsumer && confirmed && !managed && (
+            <p className="mt-2 text-sm font-semibold text-teal-300">
+              Your plan is active immediately — you're all set.
             </p>
           )}
         </div>
@@ -53,26 +123,7 @@ export default function Welcome() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-center mb-10">What happens next?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                step: "1",
-                icon: Mail,
-                title: "Check your email",
-                desc: "We'll send you a welcome email with your account details, onboarding checklist, and next steps within 24 hours.",
-              },
-              {
-                step: "2",
-                icon: Phone,
-                title: "Onboarding call",
-                desc: "Our team will reach out to schedule a kickoff call to understand your environment and begin setup.",
-              },
-              {
-                step: "3",
-                icon: Calendar,
-                title: "Go live",
-                desc: "Monitoring, security, and support services are typically fully active within 5–10 business days.",
-              },
-            ].map(item => {
+            {steps.map(item => {
               const Icon = item.icon;
               return (
                 <div key={item.step} className="flex flex-col items-center text-center p-6 rounded-xl border border-border bg-card">
@@ -86,6 +137,33 @@ export default function Welcome() {
               );
             })}
           </div>
+
+          {/* Consumer self-service portal block */}
+          {isConsumer && sessionId && (
+            <div className="mt-10 rounded-xl border border-teal-200 bg-teal-50 p-6 text-center">
+              <CreditCard className="w-8 h-8 text-teal-600 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-teal-900 mb-1">Manage your subscription</h3>
+              <p className="text-sm text-teal-700 mb-4">
+                Update your payment method, download invoices, or cancel your plan — all from Stripe's secure billing portal.
+              </p>
+              {portalError && <p className="text-sm text-red-600 mb-3">{portalError}</p>}
+              <Button
+                onClick={openPortal}
+                disabled={portalLoading}
+                className="gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                {portalLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-4 h-4" />
+                )}
+                {portalLoading ? "Opening…" : "Open billing portal"}
+              </Button>
+              <p className="text-xs text-teal-600/70 mt-3">
+                You have a 3-day right to cancel for a full refund before services begin.
+              </p>
+            </div>
+          )}
 
           <div className="mt-12 text-center space-y-4">
             <p className="text-muted-foreground">Have questions? We're here to help.</p>

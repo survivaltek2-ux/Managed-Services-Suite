@@ -444,6 +444,47 @@ router.post("/admin/billing/subscriptions/:id/reject", requireAdmin, async (req:
   }
 });
 
+router.get("/billing/portal", async (req: Request, res: Response) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const { session_id } = req.query as { session_id?: string };
+    if (!session_id) { res.status(400).json({ error: "session_id_required" }); return; }
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    const customerId = typeof session.customer === "string" ? session.customer : (session.customer as any)?.id;
+    if (!customerId) { res.status(404).json({ error: "no_customer", message: "No Stripe customer found for this session." }); return; }
+    const base = getBaseUrl(req);
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${base}/welcome?managed=1`,
+    });
+    res.json({ url: portalSession.url });
+  } catch (err: any) {
+    console.error("[Stripe] Consumer billing portal error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.get("/admin/billing/subscriptions/:id/portal", requireAdmin, async (req: Request, res: Response) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const id = parseInt(req.params.id);
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    if (!sub) { res.status(404).json({ error: "not_found" }); return; }
+    if (!sub.stripeCustomerId) { res.status(400).json({ error: "no_customer", message: "This subscription has no Stripe customer ID." }); return; }
+    const base = getBaseUrl(req);
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: sub.stripeCustomerId,
+      return_url: `${base}/partners/billing`,
+    });
+    res.json({ url: portalSession.url });
+  } catch (err: any) {
+    console.error("[Stripe] Admin billing portal error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
 router.get("/admin/billing/subscriptions", requireAdmin, async (_req, res) => {
   try {
     const subs = await db.select().from(subscriptionsTable).orderBy(desc(subscriptionsTable.createdAt));

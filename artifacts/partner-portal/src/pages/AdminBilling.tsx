@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus, Clock, ShieldCheck, ShieldX, ChevronDown, ChevronUp, Building2, User } from "lucide-react";
+import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus, Clock, ShieldCheck, ShieldX, ChevronDown, ChevronUp, Building2, User, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -64,6 +64,7 @@ export default function AdminBilling() {
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectDialogId, setRejectDialogId] = useState<number | null>(null);
+  const [portalLoadingId, setPortalLoadingId] = useState<number | null>(null);
 
   const headers = getAuthHeaders();
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -150,6 +151,20 @@ export default function AdminBilling() {
       toast({ title: "Error creating subscription", variant: "destructive" });
     } finally {
       setCreatingSubscription(false);
+    }
+  };
+
+  const openPortal = async (id: number) => {
+    setPortalLoadingId(id);
+    try {
+      const res = await fetch(`/api/admin/billing/subscriptions/${id}/portal`, { headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not open portal");
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({ title: err.message || "Failed to open billing portal", variant: "destructive" });
+    } finally {
+      setPortalLoadingId(null);
     }
   };
 
@@ -389,18 +404,32 @@ export default function AdminBilling() {
                               <td className="px-4 py-2.5 text-right font-medium">{sub.amount ? fmt(parseFloat(sub.amount)) : "—"}</td>
                               <td className="px-4 py-2.5 text-xs text-muted-foreground">{fmtDate(sub.currentPeriodEnd)}</td>
                               <td className="px-4 py-2.5 text-right">
-                                {sub.status !== "canceled" && !sub.cancelAtPeriodEnd && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-xs text-red-600 hover:text-red-700"
-                                    onClick={() => cancelSubscription(sub.id)}
-                                    disabled={cancellingId === sub.id}
-                                  >
-                                    {cancellingId === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                  </Button>
-                                )}
-                                {sub.cancelAtPeriodEnd && <span className="text-xs text-orange-600">Cancels soon</span>}
+                                <div className="flex items-center justify-end gap-1">
+                                  {sub.stripeCustomerId && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 text-xs text-sky-600 hover:text-sky-700"
+                                      onClick={() => openPortal(sub.id)}
+                                      disabled={portalLoadingId === sub.id}
+                                      title="Open Stripe billing portal for this customer"
+                                    >
+                                      {portalLoadingId === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                                    </Button>
+                                  )}
+                                  {sub.status !== "canceled" && !sub.cancelAtPeriodEnd && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 text-xs text-red-600 hover:text-red-700"
+                                      onClick={() => cancelSubscription(sub.id)}
+                                      disabled={cancellingId === sub.id}
+                                    >
+                                      {cancellingId === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                    </Button>
+                                  )}
+                                  {sub.cancelAtPeriodEnd && <span className="text-xs text-orange-600">Cancels soon</span>}
+                                </div>
                               </td>
                             </tr>
                           ))}
