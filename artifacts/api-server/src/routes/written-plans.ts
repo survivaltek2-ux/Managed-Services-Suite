@@ -189,14 +189,18 @@ router.get("/partner/plans/:id", requirePartnerAuth, async (req: PartnerRequest,
     const events = await db.select().from(planActivityEventsTable)
       .where(eq(planActivityEventsTable.planId, id))
       .orderBy(planActivityEventsTable.createdAt);
-    // Fetch revision history
-    const revisions = plan.parentPlanId
-      ? await db.select().from(writtenPlansTable)
-          .where(eq(writtenPlansTable.parentPlanId, plan.parentPlanId ?? id))
-          .orderBy(writtenPlansTable.version)
-      : await db.select().from(writtenPlansTable)
-          .where(eq(writtenPlansTable.parentPlanId, id))
-          .orderBy(writtenPlansTable.version);
+    // Build complete revision lineage: root plan + all children
+    const rootId = plan.parentPlanId ?? plan.id;
+    const rootFetch = plan.parentPlanId
+      ? db.select().from(writtenPlansTable).where(eq(writtenPlansTable.id, rootId)).limit(1)
+      : Promise.resolve([plan]);
+    const childrenFetch = db.select().from(writtenPlansTable)
+      .where(eq(writtenPlansTable.parentPlanId, rootId))
+      .orderBy(writtenPlansTable.version);
+    const [[rootPlan], children] = await Promise.all([rootFetch, childrenFetch]);
+    const revisions = rootPlan
+      ? [rootPlan, ...children].sort((a, b) => a.version - b.version)
+      : children.sort((a, b) => a.version - b.version);
     res.json({ plan, events, revisions });
   } catch (err) {
     console.error("[WrittenPlans] get error:", err);

@@ -260,6 +260,23 @@ function PlanDocument({ content, editable, onChange }: {
 
 // ─── Plan Wizard ──────────────────────────────────────────────────────────────
 
+const DRAFT_STORAGE_KEY = "written_plan_wizard_draft";
+
+function loadDraft(): { answers: WizardAnswers; step: number } | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveDraft(answers: WizardAnswers, step: number) {
+  try { localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ answers, step })); } catch { /* quota */ }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_STORAGE_KEY); } catch { /* */ }
+}
+
 export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId }: {
   initial?: { answers: WizardAnswers; planId?: number };
   onComplete: (plan: WrittenPlan) => void;
@@ -267,8 +284,12 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
   onBehalfOfPartnerId?: number;
 }) {
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
-  const [answers, setAnswers] = useState<WizardAnswers>(initial?.answers || BLANK_ANSWERS);
+
+  // Restore draft on initial mount (only when not editing an existing plan)
+  const savedDraft = !initial ? loadDraft() : null;
+
+  const [step, setStep] = useState(savedDraft?.step || 1);
+  const [answers, setAnswers] = useState<WizardAnswers>(initial?.answers || savedDraft?.answers || BLANK_ANSWERS);
   const [planId, setPlanId] = useState<number | undefined>(initial?.planId);
   const [generatedPlan, setGeneratedPlan] = useState<WrittenPlan | null>(null);
   const [editedContent, setEditedContent] = useState<PlanContent | null>(null);
@@ -278,9 +299,24 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
   const [sendEmail, setSendEmail] = useState(answers.clientEmail);
   const [validityDays, setValidityDays] = useState(30);
   const [personalNote, setPersonalNote] = useState("");
+  const [draftRestored, setDraftRestored] = useState(!!savedDraft);
+
+  // Auto-save questionnaire answers to localStorage on every change
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (step >= 4) return; // Don't auto-save after generation
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveDraft(answers, step), 600);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [answers, step]);
 
   function upd<K extends keyof WizardAnswers>(k: K, v: WizardAnswers[K]) {
     setAnswers(a => ({ ...a, [k]: v }));
+  }
+
+  function handleCancel() {
+    clearDraft();
+    onCancel();
   }
 
   async function generatePlan() {
@@ -353,6 +389,7 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
       if (!res.ok) throw new Error("Failed");
       const d = await res.json();
       toast({ title: "Plan sent to client!" });
+      clearDraft();
       onComplete(d.plan);
     } catch {
       toast({ title: "Failed to send plan", variant: "destructive" });
@@ -389,6 +426,14 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           <div className="bg-[#0176d3] h-1.5 rounded-full transition-all" style={{ width: `${((step - 1) / 4) * 100}%` }} />
         </div>
       </div>
+
+      {draftRestored && step < 4 && (
+        <div className="mb-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+          <span className="flex items-center gap-2"><RotateCcw className="w-3.5 h-3.5" /> Draft restored from your last session.</span>
+          <button onClick={() => { clearDraft(); setAnswers(BLANK_ANSWERS); setStep(1); setDraftRestored(false); }}
+            className="text-xs underline hover:no-underline text-blue-600 shrink-0">Start fresh</button>
+        </div>
+      )}
 
       <Card className="p-6">
         {/* Step 1: Client Info */}
@@ -556,7 +601,7 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6 pt-5 border-t">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={step === 1 ? onCancel : () => setStep(s => s - 1)}>
+            <Button variant="outline" onClick={step === 1 ? handleCancel : () => setStep(s => s - 1)}>
               {step === 1 ? "Cancel" : <><ChevronLeft className="w-4 h-4 mr-1" /> Back</>}
             </Button>
           </div>
