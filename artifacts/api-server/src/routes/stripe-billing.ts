@@ -92,8 +92,10 @@ router.post("/admin/billing/subscriptions", requireAdmin, async (req: any, res) 
     }
     if (!tier) { res.status(404).json({ error: "tier_not_found" }); return; }
 
+    const annualPriceRaw = parseFloat(tier.annualPrice ?? "0");
+    const effectiveAnnualPrice = annualPriceRaw > 0 ? tier.annualPrice : tier.startingPrice;
     const priceAmount = billingCycle === "annual"
-      ? Math.round(parseFloat(tier.annualPrice || tier.startingPrice) * 100)
+      ? Math.round(parseFloat(effectiveAnnualPrice) * 100)
       : Math.round(parseFloat(tier.startingPrice) * 100);
 
     let email = "";
@@ -268,8 +270,10 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
 
       if (cachedPriceId) return cachedPriceId;
 
+      const freshAnnualRaw = parseFloat(freshTier.annualPrice ?? "0");
+      const freshEffectiveAnnual = freshAnnualRaw > 0 ? freshTier.annualPrice : freshTier.startingPrice;
       const priceAmount = billingCycle === "annual"
-        ? Math.round(parseFloat(freshTier.annualPrice || freshTier.startingPrice) * 100)
+        ? Math.round(parseFloat(freshEffectiveAnnual) * 100)
         : Math.round(parseFloat(freshTier.startingPrice) * 100);
 
       let productId: string | null = freshTier.stripeProductId || null;

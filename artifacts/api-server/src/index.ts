@@ -105,6 +105,19 @@ async function runStartupMigrations() {
   await db.execute(sql`ALTER TABLE pricing_tiers ADD COLUMN IF NOT EXISTS stripe_monthly_price_id text`);
   await db.execute(sql`ALTER TABLE pricing_tiers ADD COLUMN IF NOT EXISTS stripe_annual_price_id text`);
 
+  // ── pricing_tiers — fix annual prices that were seeded as "0" ────────────
+  // Also clear any stale Stripe annual price IDs created at $0 so checkout
+  // auto-creates correct live-mode prices on the next attempt.
+  await db.execute(sql`
+    UPDATE pricing_tiers SET annual_price = '76',  stripe_annual_price_id = NULL
+    WHERE slug = 'essentials' AND (annual_price = '0' OR annual_price = '')`);
+  await db.execute(sql`
+    UPDATE pricing_tiers SET annual_price = '127', stripe_annual_price_id = NULL
+    WHERE slug = 'business'   AND (annual_price = '0' OR annual_price = '')`);
+  await db.execute(sql`
+    UPDATE pricing_tiers SET annual_price = '195', stripe_annual_price_id = NULL
+    WHERE slug = 'enterprise' AND (annual_price = '0' OR annual_price = '')`);
+
   // ── Other missing tables ──────────────────────────────────────────────────
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS case_studies (
