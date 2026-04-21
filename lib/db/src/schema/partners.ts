@@ -209,6 +209,17 @@ export const partnerstackWebhookEventsTable = pgTable("partnerstack_webhook_even
   processedAt: timestamp("processed_at"),
 });
 
+export const partnerstackSyncLogTable = pgTable("partnerstack_sync_log", {
+  id: serial("id").primaryKey(),
+  direction: text("direction").notNull(),       // "push" | "pull"
+  kind: text("kind").notNull(),                 // "partner" | "transaction" | "full_sync"
+  success: boolean("success").notNull(),
+  partnerCount: integer("partner_count").notNull().default(0),
+  transactionCount: integer("transaction_count").notNull().default(0),
+  message: text("message"),
+  ranAt: timestamp("ran_at").notNull().defaultNow(),
+});
+
 export const partnerSupportTicketsTable = pgTable("partner_support_tickets", {
   id: serial("id").primaryKey(),
   partnerId: integer("partner_id").notNull().references(() => partnersTable.id),

@@ -8,14 +8,15 @@
 const BASE_URL = "https://api.partnerstack.com/v2";
 
 export function isPartnerstackConfigured(): boolean {
-  return Boolean(process.env.PARTNERSTACK_PUBLIC_KEY && process.env.PARTNERSTACK_SECRET_KEY);
+  // Some PartnerStack accounts only ship a single secret API key — public key is optional.
+  return Boolean(process.env.PARTNERSTACK_SECRET_KEY);
 }
 
 function authHeader(): string {
-  const pub = process.env.PARTNERSTACK_PUBLIC_KEY;
+  const pub = process.env.PARTNERSTACK_PUBLIC_KEY ?? "";
   const sec = process.env.PARTNERSTACK_SECRET_KEY;
-  if (!pub || !sec) {
-    throw new Error("PartnerStack credentials not configured (PARTNERSTACK_PUBLIC_KEY / PARTNERSTACK_SECRET_KEY)");
+  if (!sec) {
+    throw new Error("PartnerStack secret key not configured (PARTNERSTACK_SECRET_KEY)");
   }
   return "Basic " + Buffer.from(`${pub}:${sec}`).toString("base64");
 }
@@ -165,11 +166,24 @@ export async function createTransaction(input: {
 // Account info (used for connection status)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function ping(): Promise<{ ok: boolean; partnerCount: number; sample?: PsPartner }> {
-  const out = await psFetch<PsListResponse<PsPartner>>("/partnerships", { query: { limit: "1" } });
+export async function ping(): Promise<{
+  ok: boolean;
+  reachable: true;
+  sampleSize: number;
+  accountHint: string | null;
+  sample?: PsPartner;
+}> {
+  // PartnerStack v2 doesn't expose a single "/me" endpoint that all accounts can use,
+  // so we use the partnerships list as a reachability check. We grab up to 25 to give
+  // a more useful sample size + an account hint (group_key is usually the account).
+  const out = await psFetch<PsListResponse<PsPartner>>("/partnerships", { query: { limit: "25" } });
+  const data = out.data ?? [];
+  const accountHint = data.find(p => p.group_key)?.group_key ?? null;
   return {
     ok: true,
-    partnerCount: out.data?.length ?? 0,
-    sample: out.data?.[0],
+    reachable: true,
+    sampleSize: data.length,
+    accountHint,
+    sample: data[0],
   };
 }

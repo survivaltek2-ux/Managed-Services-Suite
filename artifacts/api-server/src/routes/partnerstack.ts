@@ -7,6 +7,7 @@ import {
   partnerCommissionsTable,
   partnerstackConfigsTable,
   partnerstackWebhookEventsTable,
+  partnerstackSyncLogTable,
 } from "@workspace/db";
 import { requireAdmin } from "../middlewares/auth.js";
 import {
@@ -51,6 +52,28 @@ async function clearConfigError() {
   }
 }
 
+async function recordSyncRun(entry: {
+  direction: "push" | "pull";
+  kind: "partner" | "transaction" | "full_sync";
+  success: boolean;
+  partnerCount?: number;
+  transactionCount?: number;
+  message?: string | null;
+}) {
+  try {
+    await db.insert(partnerstackSyncLogTable).values({
+      direction: entry.direction,
+      kind: entry.kind,
+      success: entry.success,
+      partnerCount: entry.partnerCount ?? 0,
+      transactionCount: entry.transactionCount ?? 0,
+      message: entry.message ? entry.message.slice(0, 500) : null,
+    });
+  } catch (err) {
+    console.error("[PartnerStack] Failed to record sync log:", err);
+  }
+}
+
 // ─── Outbound push helpers (called from partners.ts) ────────────────────────
 
 function splitName(contactName: string): { first: string; last: string } {
@@ -88,10 +111,12 @@ export async function pushPartnerToPartnerstack(partnerId: number): Promise<void
     }).where(eq(partnerstackConfigsTable.id, cfg.id));
     await clearConfigError();
     console.log(`[PartnerStack] Pushed partner #${partner.id} → ${ps.key}`);
+    await recordSyncRun({ direction: "push", kind: "partner", success: true, partnerCount: 1, message: `Partner #${partner.id} → ${ps.key}` });
   } catch (err: any) {
     const msg = `Push partner #${partnerId} failed: ${err.message || err}`;
     console.error(`[PartnerStack] ${msg}`);
     await setConfigError(msg).catch(() => {});
+    await recordSyncRun({ direction: "push", kind: "partner", success: false, message: msg });
   }
 }
 
@@ -129,10 +154,12 @@ export async function pushCommissionToPartnerstack(commissionId: number): Promis
     }).where(eq(partnerstackConfigsTable.id, cfg.id));
     await clearConfigError();
     console.log(`[PartnerStack] Pushed commission #${commission.id} → ${tx.key}`);
+    await recordSyncRun({ direction: "push", kind: "transaction", success: true, transactionCount: 1, message: `Commission #${commission.id} → ${tx.key}` });
   } catch (err: any) {
     const msg = `Push commission #${commissionId} failed: ${err.message || err}`;
     console.error(`[PartnerStack] ${msg}`);
     await setConfigError(msg).catch(() => {});
+    await recordSyncRun({ direction: "push", kind: "transaction", success: false, message: msg });
   }
 }
 
@@ -151,22 +178,23 @@ async function upsertPartnerFromPs(ps: PsPartner): Promise<void> {
     if (byEmail) existing = byEmail;
   }
 
-  const mappedStatus =
+  const mappedStatus: "approved" | "rejected" | "suspended" | "pending" =
     ps.state === "approved" ? "approved" :
     ps.state === "rejected" ? "rejected" :
     ps.state === "suspended" ? "suspended" :
     "pending";
 
   if (existing) {
-    await db.update(partnersTable).set({
+    const update: Partial<typeof partnersTable.$inferInsert> = {
       partnerstackKey: ps.key,
       partnerstackSyncedAt: new Date(),
-      // Only update status if PartnerStack approved/rejected (avoid overwriting local edits with "pending").
-      ...(ps.state === "approved" || ps.state === "rejected" || ps.state === "suspended"
-        ? { status: mappedStatus as any }
-        : {}),
       updatedAt: new Date(),
-    }).where(eq(partnersTable.id, existing.id));
+    };
+    // Only update status if PartnerStack approved/rejected/suspended (avoid overwriting local edits with "pending").
+    if (ps.state === "approved" || ps.state === "rejected" || ps.state === "suspended") {
+      update.status = mappedStatus;
+    }
+    await db.update(partnersTable).set(update).where(eq(partnersTable.id, existing.id));
     return;
   }
 
@@ -177,7 +205,7 @@ async function upsertPartnerFromPs(ps: PsPartner): Promise<void> {
     contactName,
     email: ps.email,
     password: placeholderHash,
-    status: mappedStatus as any,
+    status: mappedStatus,
     partnerstackKey: ps.key,
     partnerstackSyncedAt: new Date(),
   }).onConflictDoNothing();
@@ -195,7 +223,7 @@ async function upsertCommissionFromPs(tx: PsTransaction): Promise<void> {
   const [existing] = await db.select().from(partnerCommissionsTable)
     .where(eq(partnerCommissionsTable.partnerstackKey, tx.key)).limit(1);
 
-  const mappedStatus =
+  const mappedStatus: "paid" | "approved" | "rejected" | "pending" =
     tx.state === "paid" ? "paid" :
     tx.state === "approved" ? "approved" :
     tx.state === "declined" ? "rejected" :
@@ -204,7 +232,7 @@ async function upsertCommissionFromPs(tx: PsTransaction): Promise<void> {
   if (existing) {
     await db.update(partnerCommissionsTable).set({
       amount: tx.amount.toFixed(2),
-      status: mappedStatus as any,
+      status: mappedStatus,
       partnerstackSyncedAt: new Date(),
     }).where(eq(partnerCommissionsTable.id, existing.id));
     return;
@@ -215,7 +243,7 @@ async function upsertCommissionFromPs(tx: PsTransaction): Promise<void> {
     type: "partnerstack",
     description: tx.description || `PartnerStack transaction ${tx.key}`,
     amount: tx.amount.toFixed(2),
-    status: mappedStatus as any,
+    status: mappedStatus,
     partnerstackKey: tx.key,
     partnerstackSyncedAt: new Date(),
   });
@@ -256,6 +284,14 @@ async function runFullSync(): Promise<{ partnersPulled: number; transactionsPull
     updatedAt: new Date(),
   }).where(eq(partnerstackConfigsTable.id, cfg.id));
   await clearConfigError();
+  await recordSyncRun({
+    direction: "pull",
+    kind: "full_sync",
+    success: true,
+    partnerCount: partners.length,
+    transactionCount: transactions.length,
+    message: `Pulled ${partners.length} partners + ${transactions.length} transactions`,
+  });
 
   return { partnersPulled: partners.length, transactionsPulled: transactions.length };
 }
@@ -265,21 +301,32 @@ async function runFullSync(): Promise<{ partnersPulled: number; transactionsPull
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 min
 const PARTNERSTACK_LOCK_ID = 202604212;
 
+interface AdvisoryLockRow { acquired: boolean }
+function readLockRow(result: unknown): AdvisoryLockRow | undefined {
+  if (result && typeof result === "object" && "rows" in result) {
+    const rows = (result as { rows?: AdvisoryLockRow[] }).rows;
+    return rows?.[0];
+  }
+  return undefined;
+}
+
 async function pollOnce(): Promise<void> {
   if (!isPartnerstackConfigured()) return;
   try {
     await db.transaction(async (tx) => {
-      const lockResult = await tx.execute<{ acquired: boolean }>(
+      const lockResult = await tx.execute<AdvisoryLockRow>(
         sql`SELECT pg_try_advisory_xact_lock(${PARTNERSTACK_LOCK_ID}) AS acquired`
       );
-      const lockRow = (lockResult as any).rows?.[0];
+      const lockRow = readLockRow(lockResult);
       if (!lockRow?.acquired) return;
       const result = await runFullSync();
       console.log(`[PartnerStack] Poll OK — partners=${result.partnersPulled}, transactions=${result.transactionsPulled}`);
     });
   } catch (err: any) {
+    const msg = `Polling failed: ${err.message || err}`;
     console.error("[PartnerStack] Poll error:", err.message || err);
-    await setConfigError(`Polling failed: ${err.message || err}`).catch(() => {});
+    await setConfigError(msg).catch(() => {});
+    await recordSyncRun({ direction: "pull", kind: "full_sync", success: false, message: msg });
   }
 }
 
@@ -309,6 +356,15 @@ function verifySignature(rawBody: Buffer, signatureHeader: string | undefined): 
 }
 
 router.post("/webhooks/partnerstack", async (req: Request, res: Response) => {
+  // Secure-by-default: if no webhook secret is configured, reject every inbound
+  // request rather than processing unsigned payloads. This prevents anyone on
+  // the internet from forging events into the partner/commission tables.
+  if (!process.env.PARTNERSTACK_WEBHOOK_SECRET) {
+    console.warn("[PartnerStack Webhook] Rejecting — PARTNERSTACK_WEBHOOK_SECRET is not configured");
+    res.status(503).json({ error: "webhook_not_configured" });
+    return;
+  }
+
   const sig = (req.headers["x-partnerstack-signature"] as string)
     || (req.headers["x-ps-signature"] as string)
     || undefined;
@@ -319,9 +375,7 @@ router.post("/webhooks/partnerstack", async (req: Request, res: Response) => {
     return;
   }
 
-  // Signature is optional only if PARTNERSTACK_WEBHOOK_SECRET is unset
-  // (gives admins a way to bring the integration up before configuring webhooks).
-  if (process.env.PARTNERSTACK_WEBHOOK_SECRET && !verifySignature(raw, sig)) {
+  if (!verifySignature(raw, sig)) {
     console.warn("[PartnerStack Webhook] Invalid signature");
     res.status(401).json({ error: "invalid_signature" });
     return;
@@ -401,18 +455,38 @@ router.get("/admin/partnerstack/status", requireAdmin, async (_req: Request, res
     .from(partnersTable)
     .where(isNotNull(partnersTable.partnerstackKey));
 
-  let connection: { ok: boolean; partnerCount: number; error: string | null } = {
+  let connection: {
+    ok: boolean;
+    reachable: boolean;
+    accountHint: string | null;
+    sampleSize: number;
+    error: string | null;
+  } = {
     ok: false,
-    partnerCount: 0,
+    reachable: false,
+    accountHint: null,
+    sampleSize: 0,
     error: configured ? null : "Credentials not configured",
   };
 
   if (configured) {
     try {
       const p = await ping();
-      connection = { ok: true, partnerCount: p.partnerCount, error: null };
+      connection = {
+        ok: true,
+        reachable: true,
+        accountHint: p.accountHint,
+        sampleSize: p.sampleSize,
+        error: null,
+      };
     } catch (err: any) {
-      connection = { ok: false, partnerCount: 0, error: err.message || String(err) };
+      connection = {
+        ok: false,
+        reachable: false,
+        accountHint: null,
+        sampleSize: 0,
+        error: err.message || String(err),
+      };
     }
   }
 
@@ -430,6 +504,13 @@ router.get("/admin/partnerstack/status", requireAdmin, async (_req: Request, res
     },
     syncedPartnerCount: syncedCount,
   });
+});
+
+router.get("/admin/partnerstack/sync-log", requireAdmin, async (_req: Request, res: Response) => {
+  const rows = await db.select().from(partnerstackSyncLogTable)
+    .orderBy(desc(partnerstackSyncLogTable.ranAt))
+    .limit(50);
+  res.json({ entries: rows });
 });
 
 router.post("/admin/partnerstack/sync", requireAdmin, async (_req: Request, res: Response) => {

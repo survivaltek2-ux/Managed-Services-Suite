@@ -13,7 +13,13 @@ import { format } from "date-fns";
 interface Status {
   configured: boolean;
   webhookConfigured: boolean;
-  connection: { ok: boolean; partnerCount: number; error: string | null };
+  connection: {
+    ok: boolean;
+    reachable: boolean;
+    accountHint: string | null;
+    sampleSize: number;
+    error: string | null;
+  };
   config: {
     lastPushAt: string | null;
     lastPullAt: string | null;
@@ -23,6 +29,17 @@ interface Status {
     totalCommissionsSynced: number;
   };
   syncedPartnerCount: number;
+}
+
+interface SyncLogEntry {
+  id: number;
+  direction: string;
+  kind: string;
+  success: boolean;
+  partnerCount: number;
+  transactionCount: number;
+  message: string | null;
+  ranAt: string;
 }
 
 interface SyncedPartner {
@@ -63,6 +80,7 @@ export default function AdminPartnerstack() {
   const [status, setStatus] = useState<Status | null>(null);
   const [partners, setPartners] = useState<SyncedPartner[]>([]);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
+  const [syncLog, setSyncLog] = useState<SyncLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -77,14 +95,16 @@ export default function AdminPartnerstack() {
     setLoading(true);
     try {
       const base = `${import.meta.env.BASE_URL}api`;
-      const [s, p, e] = await Promise.all([
+      const [s, p, e, l] = await Promise.all([
         fetch(`${base}/admin/partnerstack/status`, { headers: authHeaders() }).then(r => r.json()),
         fetch(`${base}/admin/partnerstack/partners`, { headers: authHeaders() }).then(r => r.json()),
         fetch(`${base}/admin/partnerstack/webhook-events`, { headers: authHeaders() }).then(r => r.json()),
+        fetch(`${base}/admin/partnerstack/sync-log`, { headers: authHeaders() }).then(r => r.json()),
       ]);
       setStatus(s);
       setPartners(p.partners || []);
       setEvents(e.events || []);
+      setSyncLog(l.entries || []);
     } catch (err: any) {
       toast({ title: "Failed to load", description: err.message, variant: "destructive" });
     } finally {
@@ -167,13 +187,20 @@ export default function AdminPartnerstack() {
                   <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                     <div>
-                      <div className="font-semibold text-green-900">Connected</div>
+                      <div className="font-semibold text-green-900">
+                        Connected
+                        {status.connection.accountHint && (
+                          <span className="ml-2 text-xs font-normal text-green-700">
+                            (account: <code className="font-mono">{status.connection.accountHint}</code>)
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-green-800 mt-1">
-                        PartnerStack API is reachable. Webhook secret:{" "}
+                        PartnerStack API is reachable (sampled {status.connection.sampleSize} partners). Webhook secret:{" "}
                         {status.webhookConfigured ? (
                           <span className="font-medium">configured</span>
                         ) : (
-                          <span className="font-medium text-amber-700">missing — incoming events will be rejected</span>
+                          <span className="font-medium text-amber-700">missing — incoming webhooks will be rejected for security</span>
                         )}
                       </div>
                     </div>
@@ -248,6 +275,54 @@ export default function AdminPartnerstack() {
                               )}
                             </td>
                             <td className="py-2 pr-3 text-xs text-muted-foreground">{fmtTs(p.partnerstackSyncedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sync log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Sync Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {syncLog.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-6 text-center">
+                    No sync activity yet. Push or pull operations will appear here.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-left text-xs uppercase text-muted-foreground border-b">
+                        <tr>
+                          <th className="py-2 pr-3">When</th>
+                          <th className="py-2 pr-3">Direction</th>
+                          <th className="py-2 pr-3">Kind</th>
+                          <th className="py-2 pr-3">Result</th>
+                          <th className="py-2 pr-3">Counts</th>
+                          <th className="py-2 pr-3">Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {syncLog.map(s => (
+                          <tr key={s.id} className="border-b last:border-0">
+                            <td className="py-2 pr-3 text-xs">{fmtTs(s.ranAt)}</td>
+                            <td className="py-2 pr-3 capitalize">{s.direction}</td>
+                            <td className="py-2 pr-3">{s.kind}</td>
+                            <td className="py-2 pr-3">
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${s.success ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                                {s.success ? "ok" : "failed"}
+                              </span>
+                            </td>
+                            <td className="py-2 pr-3 text-xs text-muted-foreground">
+                              {s.partnerCount > 0 && `${s.partnerCount}p `}
+                              {s.transactionCount > 0 && `${s.transactionCount}t`}
+                            </td>
+                            <td className="py-2 pr-3 text-xs max-w-md truncate">{s.message || ""}</td>
                           </tr>
                         ))}
                       </tbody>

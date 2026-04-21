@@ -88,6 +88,17 @@ async function runStartupMigrations() {
       received_at timestamp NOT NULL DEFAULT now(),
       processed_at timestamp
     )`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS partnerstack_sync_log (
+      id serial PRIMARY KEY,
+      direction text NOT NULL,
+      kind text NOT NULL,
+      success boolean NOT NULL,
+      partner_count integer NOT NULL DEFAULT 0,
+      transaction_count integer NOT NULL DEFAULT 0,
+      message text,
+      ran_at timestamp NOT NULL DEFAULT now()
+    )`);
 
   // ── lead_magnet_submissions — unsubscribe + extra fields ─────────────────
   await db.execute(sql`ALTER TABLE lead_magnet_submissions ADD COLUMN IF NOT EXISTS source text`);
