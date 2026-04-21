@@ -99,6 +99,12 @@ export function generateMSAContract(params: ContractParams): Promise<Buffer> {
     const LIGHT_GRAY = "#777";
     const LINE_GRAY = "#cccccc";
     const pageWidth = doc.page.width - 120;
+    const bottomLimit = () => doc.page.height - doc.page.margins.bottom;
+    const ensureSpace = (needed: number) => {
+      if (doc.y + needed > bottomLimit()) {
+        doc.addPage();
+      }
+    };
 
     // ── Header ──────────────────────────────────────────────────────────────
     doc
@@ -350,7 +356,8 @@ export function generateMSAContract(params: ContractParams): Promise<Buffer> {
     ];
 
     terms.forEach(({ title, body }) => {
-      if (doc.y > doc.page.height - 130) doc.addPage();
+      const estimated = 30 + doc.heightOfString(body, { width: pageWidth, align: "justify" }) + 16;
+      ensureSpace(estimated);
 
       doc
         .fillColor(BLUE)
@@ -370,7 +377,7 @@ export function generateMSAContract(params: ContractParams): Promise<Buffer> {
     });
 
     // ── Acceptance ────────────────────────────────────────────────────────────
-    if (doc.y > doc.page.height - 160) doc.addPage();
+    ensureSpace(140);
 
     doc.moveDown(0.5);
     doc.moveTo(60, doc.y).lineTo(60 + pageWidth, doc.y).strokeColor(LINE_GRAY).lineWidth(1).stroke();
