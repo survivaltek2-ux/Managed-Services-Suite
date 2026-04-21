@@ -163,8 +163,6 @@ export default function PlanReview() {
 
   const [declineReason, setDeclineReason] = useState("");
   const [declineNote, setDeclineNote] = useState("");
-  const [callConfirm, setCallConfirm] = useState(false);
-
   useEffect(() => {
     if (!token) return;
     fetch(`/api/public/plan-review/${token}`)
@@ -384,7 +382,7 @@ export default function PlanReview() {
                 <span className="font-semibold text-[#032d60] text-sm">Sign & Approve</span>
                 <span className="text-xs text-muted-foreground text-center">Digitally sign the plan</span>
               </button>
-              <button onClick={() => { setCallConfirm(false); setAction("call"); }}
+              <button onClick={() => setAction("call")}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border hover:border-[#0176d3] hover:bg-[#f0f7ff] transition-colors group">
                 <Phone className="w-7 h-7 text-[#0176d3] group-hover:scale-110 transition-transform" />
                 <span className="font-semibold text-gray-800 text-sm">Request a Call</span>
