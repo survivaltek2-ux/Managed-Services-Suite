@@ -128,10 +128,34 @@ export default function AdminPartners() {
     try {
       const res = await fetch(`/api/admin/partners/${p.id}/send-stripe-reminder`, { method: "POST", headers });
       const d = await res.json();
-      if (res.ok) toast({ title: `Reminder sent to ${p.email}` });
-      else toast({ title: d.message || "Failed to send reminder", variant: "destructive" });
+      if (res.ok) {
+        toast({ title: `Reminder sent to ${p.email}` });
+        if (d.lastStripeReminderSentAt) {
+          setPartners(prev => prev.map(partner =>
+            partner.id === p.id ? { ...partner, lastStripeReminderSentAt: d.lastStripeReminderSentAt } : partner
+          ));
+        }
+      } else {
+        toast({ title: d.message || "Failed to send reminder", variant: "destructive" });
+      }
     } catch { toast({ title: "Error sending reminder", variant: "destructive" }); }
     finally { setSendingReminder(null); }
+  };
+
+  const reminderCooldownHours = 24;
+  const isReminderCoolingDown = (p: any): boolean => {
+    if (!p.lastStripeReminderSentAt) return false;
+    const sentAt = new Date(p.lastStripeReminderSentAt).getTime();
+    return Date.now() - sentAt < reminderCooldownHours * 60 * 60 * 1000;
+  };
+  const formatReminderAge = (ts: string | null | undefined): string => {
+    if (!ts) return "";
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   const openEdit = (p: any) => { setForm({ ...EMPTY_PARTNER_FORM, ...p, password: "" }); setEditPartner(p); };
@@ -328,14 +352,23 @@ export default function AdminPartners() {
                                 <button title="Reactivate" onClick={() => quickStatus(p.id, "approved")} className="p-1.5 hover:bg-green-100 rounded text-green-600"><RefreshCw className="w-4 h-4" /></button>
                               )}
                               {!p.stripeConnectAccountId && (
-                                <button
-                                  title="Send Stripe Reminder"
-                                  onClick={() => handleSendReminder(p)}
-                                  disabled={sendingReminder === p.id}
-                                  className="p-1.5 hover:bg-blue-100 rounded text-blue-500 disabled:opacity-50"
-                                >
-                                  {sendingReminder === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                                </button>
+                                <span className="inline-flex items-center gap-1">
+                                  <button
+                                    title={isReminderCoolingDown(p)
+                                      ? `Reminder sent ${formatReminderAge(p.lastStripeReminderSentAt)} — wait ${reminderCooldownHours}h between reminders`
+                                      : p.lastStripeReminderSentAt
+                                        ? `Send again (last sent ${formatReminderAge(p.lastStripeReminderSentAt)})`
+                                        : "Send Stripe Reminder"}
+                                    onClick={() => handleSendReminder(p)}
+                                    disabled={sendingReminder === p.id || isReminderCoolingDown(p)}
+                                    className="p-1.5 hover:bg-blue-100 rounded text-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {sendingReminder === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                  </button>
+                                  {p.lastStripeReminderSentAt && (
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatReminderAge(p.lastStripeReminderSentAt)}</span>
+                                  )}
+                                </span>
                               )}
                               <button title="Edit" onClick={() => openEdit(p)} className="p-1.5 hover:bg-muted rounded text-muted-foreground"><Edit2 className="w-4 h-4" /></button>
                               <button title="Reset Password" onClick={() => { setPwPartner(p); setNewPw(""); }} className="p-1.5 hover:bg-muted rounded text-muted-foreground"><Lock className="w-4 h-4" /></button>

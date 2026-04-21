@@ -1058,8 +1058,12 @@ router.post("/admin/partners/:id/send-stripe-reminder", requireAuth, requireAdmi
       email: partner.email,
     });
     if (sent) {
+      const sentAt = new Date();
+      await db.update(partnersTable)
+        .set({ lastStripeReminderSentAt: sentAt })
+        .where(eq(partnersTable.id, id));
       console.log(`[Stripe Reminder] Reminder sent to partner #${id} (${partner.email})`);
-      res.json({ success: true, message: `Reminder sent to ${partner.email}` });
+      res.json({ success: true, message: `Reminder sent to ${partner.email}`, lastStripeReminderSentAt: sentAt.toISOString() });
     } else {
       res.status(500).json({ error: "email_failed", message: "Failed to send reminder email. Check your SMTP configuration." });
     }

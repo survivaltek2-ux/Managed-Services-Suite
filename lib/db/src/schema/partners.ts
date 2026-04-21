@@ -41,6 +41,7 @@ export const partnersTable = pgTable("partners", {
   clientTicketsEnabled: boolean("client_tickets_enabled").notNull().default(false),
   stripeCustomerId: text("stripe_customer_id"),
   stripeConnectAccountId: text("stripe_connect_account_id"),
+  lastStripeReminderSentAt: timestamp("last_stripe_reminder_sent_at"),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
