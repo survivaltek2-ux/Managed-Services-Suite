@@ -45,6 +45,7 @@ export const partnersTable = pgTable("partners", {
   approvedAt: timestamp("approved_at"),
   resetToken: text("reset_token"),
   resetTokenExpires: timestamp("reset_token_expires"),
+  msObjectId: text("ms_object_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

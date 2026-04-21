@@ -9,6 +9,7 @@ import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth
 import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder, sendPasswordResetEmail } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
+import { inviteGuestUser } from "../lib/microsoft-graph.js";
 
 function getAppBaseUrl(): string {
   const redirectUri = process.env.MICROSOFT_REDIRECT_URI || "";
@@ -96,6 +97,20 @@ router.post("/partner/auth/register", async (req, res) => {
       email: partner.email,
       password,
     }).catch(err => console.error("[Email] Partner registration notification error:", err));
+    const partnerPortalUrl = `${getAppBaseUrl()}/partners/login`;
+    inviteGuestUser(
+      partner.email,
+      partner.contactName,
+      partnerPortalUrl,
+      `Hi ${partner.contactName}, you've been invited to join the Siebert Services Partner Portal as a Microsoft guest. Click the link below to accept your invitation and sign in with Microsoft.`
+    ).then(result => {
+      if (result) {
+        db.update(partnersTable)
+          .set({ msObjectId: result.msObjectId })
+          .where(eq(partnersTable.id, partner.id))
+          .catch(err => console.error("[Graph] Failed to store partner ms_object_id:", err));
+      }
+    }).catch(err => console.error("[Graph] Partner guest invite error:", err));
   } catch (err) {
     console.error("Partner register error:", err);
     res.status(500).json({ error: "server_error", message: "Registration failed" });

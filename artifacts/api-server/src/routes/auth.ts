@@ -7,6 +7,7 @@ import { eq, and, gt, isNull } from "drizzle-orm";
 import { generateToken, requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
 import { sendLoginCode, sendUserRegistrationNotification, sendPasswordResetEmail } from "../lib/email.js";
+import { inviteGuestUser } from "../lib/microsoft-graph.js";
 
 function getAppBaseUrl(): string {
   const redirectUri = process.env.MICROSOFT_REDIRECT_URI || "";
@@ -59,6 +60,20 @@ router.post("/auth/register", async (req, res) => {
       company: user.company,
       password,
     }).catch(err => console.error("[Email] User registration notification error:", err));
+    const portalUrl = `${getAppBaseUrl()}/portal`;
+    inviteGuestUser(
+      user.email,
+      user.name,
+      portalUrl,
+      `Hi ${user.name}, you've been invited to access the Siebert Services client portal. Click the link below to accept your invitation and sign in with Microsoft.`
+    ).then(result => {
+      if (result) {
+        db.update(usersTable)
+          .set({ msObjectId: result.msObjectId })
+          .where(eq(usersTable.id, user.id))
+          .catch(err => console.error("[Graph] Failed to store ms_object_id:", err));
+      }
+    }).catch(err => console.error("[Graph] Guest invite error:", err));
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "server_error", message: "Registration failed" });
