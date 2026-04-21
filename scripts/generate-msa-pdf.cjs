@@ -26,6 +26,20 @@ const OUTPUT_PATH = process.argv[2] ||
 
 fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
 
+// Optional placeholder substitutions. When MSA_VALUES_FILE points to a JSON
+// file mapping bracketed placeholder text (e.g. "CUSTOMER LEGAL NAME") to its
+// real value, the placeholder() / inlinePlaceholder() helpers below will use
+// the substituted value instead of emitting "[PLACEHOLDER TEXT]".
+let PLACEHOLDER_VALUES = {};
+if (process.env.MSA_VALUES_FILE) {
+  try {
+    PLACEHOLDER_VALUES = JSON.parse(fs.readFileSync(process.env.MSA_VALUES_FILE, "utf8"));
+  } catch (e) {
+    console.error("[generate-msa-pdf] Failed to read MSA_VALUES_FILE:", e.message);
+    process.exit(1);
+  }
+}
+
 const COLORS = {
   navy: "#0a1628",
   navyMed: "#1a3a5c",
@@ -136,11 +150,15 @@ function bodyText(text, opts = {}) {
 }
 
 function placeholder(text) {
+  if (Object.prototype.hasOwnProperty.call(PLACEHOLDER_VALUES, text)) {
+    const v = PLACEHOLDER_VALUES[text];
+    if (v !== null && v !== undefined && String(v).length > 0) return String(v);
+  }
   return `[${text}]`;
 }
 
 function inlinePlaceholder(text) {
-  return `[${text}]`;
+  return placeholder(text);
 }
 
 function bulletList(items, indent = 0) {
