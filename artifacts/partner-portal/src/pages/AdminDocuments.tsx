@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Upload, Download, Trash2, Loader2, FileSignature, Plus, Minus } from "lucide-react";
+import { Search, Upload, Download, Trash2, Loader2, FileSignature, Plus, Minus, CheckCircle2, Eye, XCircle, AlertTriangle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 
 const CATEGORIES = ["contract", "proposal", "invoice", "report", "agreement", "other"];
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.FC<any> }> = {
+  sent:      { label: "Sent for Signature", color: "bg-blue-100 text-blue-800",    icon: Clock },
+  viewed:    { label: "Viewed",             color: "bg-yellow-100 text-yellow-800", icon: Eye },
+  signed:    { label: "Signed",             color: "bg-indigo-100 text-indigo-800", icon: CheckCircle2 },
+  completed: { label: "Completed",          color: "bg-green-100 text-green-800",  icon: CheckCircle2 },
+  declined:  { label: "Declined",           color: "bg-red-100 text-red-800",      icon: XCircle },
+  expired:   { label: "Expired",            color: "bg-gray-100 text-gray-600",    icon: AlertTriangle },
+};
+
+function EnvelopeStatusBadge({ envelope, onNavigate }: { envelope: { id: number; status: string }; onNavigate: () => void }) {
+  const cfg = STATUS_CONFIG[envelope.status] || { label: envelope.status, color: "bg-gray-100 text-gray-600", icon: Clock };
+  const Icon = cfg.icon;
+  return (
+    <button
+      onClick={onNavigate}
+      title="View envelope details"
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${cfg.color}`}
+    >
+      <Icon className="w-3 h-3" />
+      {cfg.label}
+    </button>
+  );
+}
 
 interface Signer {
   name: string;
@@ -251,6 +275,14 @@ export default function AdminDocuments() {
                           <td className="px-5 py-3">
                             <div className="font-medium">{doc.name}</div>
                             {doc.description && <div className="text-xs text-muted-foreground truncate max-w-[220px]">{doc.description}</div>}
+                            {doc.envelope && (
+                              <div className="mt-1">
+                                <EnvelopeStatusBadge
+                                  envelope={doc.envelope}
+                                  onNavigate={() => navigate("/admin/esign")}
+                                />
+                              </div>
+                            )}
                           </td>
                           <td className="px-5 py-3 capitalize">{doc.category}</td>
                           <td className="px-5 py-3">{doc.partnerCompany || <span className="text-muted-foreground">All Partners</span>}</td>

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import { db, documentsTable, partnersTable } from "@workspace/db";
-import { eq, and, or, isNull, desc } from "drizzle-orm";
+import { eq, and, or, isNull, desc, sql } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, isMainSiteAdmin } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 
@@ -147,7 +147,28 @@ router.get("/admin/documents", requireAuth, async (_req, res) => {
       .from(documentsTable)
       .leftJoin(partnersTable, eq(documentsTable.partnerId, partnersTable.id))
       .orderBy(desc(documentsTable.createdAt));
-    res.json(docs.map(d => ({ ...d, tags: JSON.parse(d.tags || "[]") })));
+
+    // Attach the most-recent envelope (id + status) for each document so the
+    // documents list can show an inline status badge without a separate fetch.
+    let envelopeByDocId: Record<number, { id: number; status: string }> = {};
+    if (docs.length > 0) {
+      const docIds = docs.map(d => d.id);
+      const rows = await db.execute(sql`
+        SELECT DISTINCT ON (document_id) document_id, id, status
+        FROM esign_envelopes
+        WHERE document_id = ANY(ARRAY[${sql.raw(docIds.join(","))}]::int[])
+        ORDER BY document_id, created_at DESC
+      `);
+      for (const row of rows.rows as { document_id: number; id: number; status: string }[]) {
+        envelopeByDocId[row.document_id] = { id: row.id, status: row.status };
+      }
+    }
+
+    res.json(docs.map(d => ({
+      ...d,
+      tags: JSON.parse(d.tags || "[]"),
+      envelope: envelopeByDocId[d.id] ?? null,
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load documents" });
