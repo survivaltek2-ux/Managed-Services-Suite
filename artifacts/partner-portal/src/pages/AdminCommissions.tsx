@@ -106,7 +106,7 @@ export default function AdminCommissions() {
           : "Manual payout recorded";
         toast({ title: msg });
         if (data.warning) {
-          toast({ title: data.warning, variant: "warning" as any, description: "Follow up with the partner to complete their Stripe onboarding." });
+          toast({ title: data.warning, variant: "warning", description: "Follow up with the partner to complete their Stripe onboarding." });
         }
         load();
       } else {
