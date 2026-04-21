@@ -44,6 +44,7 @@ import NotFound from "./pages/not-found";
 import AdminUsers from "./pages/AdminUsers";
 import AdminMSAGenerator from "./pages/AdminMSAGenerator";
 import AdminEsign from "./pages/AdminEsign";
+import AdminPricing from "./pages/AdminPricing";
 import ForceChangePassword from "./pages/ForceChangePassword";
 
 import { useAuth } from "./hooks/use-auth";
@@ -119,6 +120,7 @@ function Router() {
       <Route path="/admin/users"><ProtectedRoute component={AdminUsers} /></Route>
       <Route path="/admin/msa-generator"><ProtectedRoute component={AdminMSAGenerator} /></Route>
       <Route path="/admin/esign"><ProtectedRoute component={AdminEsign} /></Route>
+      <Route path="/admin/pricing"><ProtectedRoute component={AdminPricing} /></Route>
       <Route path="/billing"><ProtectedRoute component={Billing} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>
