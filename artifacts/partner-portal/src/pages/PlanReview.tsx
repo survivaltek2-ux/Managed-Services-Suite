@@ -313,7 +313,7 @@ export default function PlanReview() {
         <Phone className="w-12 h-12 text-orange-400 mx-auto mb-4" />
         <h1 className="text-xl font-bold mb-2">Call Requested</h1>
         <p className="text-gray-500 text-sm mb-4">You have requested a consultation call. Your Siebert Services representative will reach out to schedule a time with you.</p>
-        <p className="text-gray-400 text-xs">You can still sign or decline the plan after your call — contact your representative to reopen this plan.</p>
+        <p className="text-gray-400 text-xs">To sign or decline the plan after your call, please ask your representative to resend it.</p>
       </div>
     </div>
   );
