@@ -3,7 +3,7 @@ import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, Plus, Edit2, Trash2, Loader2, Save, UserCheck, Ban, RefreshCw, Lock, Building2
+  Search, Plus, Edit2, Trash2, Loader2, Save, UserCheck, Ban, RefreshCw, Lock, Building2, Mail, CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -82,6 +82,8 @@ export default function AdminPartners() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterTier, setFilterTier] = useState("all");
+  const [filterStripe, setFilterStripe] = useState("all");
+  const [sendingReminder, setSendingReminder] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editPartner, setEditPartner] = useState<any | null>(null);
   const [deletePartner, setDeletePartner] = useState<any | null>(null);
@@ -109,15 +111,28 @@ export default function AdminPartners() {
     const matchSearch = !q || [p.companyName, p.contactName, p.email, p.city, p.state].some((f: string) => f?.toLowerCase().includes(q));
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
     const matchTier = filterTier === "all" || p.tier === filterTier;
-    return matchSearch && matchStatus && matchTier;
-  }), [partners, search, filterStatus, filterTier]);
+    const matchStripe = filterStripe === "all" || (filterStripe === "missing" && !p.stripeConnectAccountId) || (filterStripe === "connected" && !!p.stripeConnectAccountId);
+    return matchSearch && matchStatus && matchTier && matchStripe;
+  }), [partners, search, filterStatus, filterTier, filterStripe]);
 
   const stats = useMemo(() => ({
     total: partners.length,
     approved: partners.filter(p => p.status === "approved").length,
     pending: partners.filter(p => p.status === "pending").length,
     suspended: partners.filter(p => p.status === "suspended").length,
+    noStripe: partners.filter(p => !p.stripeConnectAccountId).length,
   }), [partners]);
+
+  const handleSendReminder = async (p: any) => {
+    setSendingReminder(p.id);
+    try {
+      const res = await fetch(`/api/admin/partners/${p.id}/send-stripe-reminder`, { method: "POST", headers });
+      const d = await res.json();
+      if (res.ok) toast({ title: `Reminder sent to ${p.email}` });
+      else toast({ title: d.message || "Failed to send reminder", variant: "destructive" });
+    } catch { toast({ title: "Error sending reminder", variant: "destructive" }); }
+    finally { setSendingReminder(null); }
+  };
 
   const openEdit = (p: any) => { setForm({ ...EMPTY_PARTNER_FORM, ...p, password: "" }); setEditPartner(p); };
   const openCreate = () => { setForm({ ...EMPTY_PARTNER_FORM }); setCreateOpen(true); };
@@ -198,21 +213,34 @@ export default function AdminPartners() {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
+          {(() => {
+            interface StatCard {
+              label: string;
+              value: number;
+              icon: React.ReactNode;
+              onClick?: () => void;
+              highlight?: boolean;
+            }
+            const cards: StatCard[] = [
               { label: "Total Partners", value: stats.total, icon: <Building2 className="w-4 h-4 text-primary" /> },
               { label: "Approved", value: stats.approved, icon: <UserCheck className="w-4 h-4 text-green-600" /> },
               { label: "Pending", value: stats.pending, icon: <Loader2 className="w-4 h-4 text-yellow-600" /> },
               { label: "Suspended", value: stats.suspended, icon: <Ban className="w-4 h-4 text-orange-600" /> },
-            ].map(s => (
-              <Card key={s.label}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">{s.icon}</div>
-                  <div><div className="text-xl font-bold">{s.value}</div><div className="text-xs text-muted-foreground">{s.label}</div></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+              { label: "No Stripe", value: stats.noStripe, icon: <CreditCard className="w-4 h-4 text-red-500" />, onClick: () => setFilterStripe(filterStripe === "missing" ? "all" : "missing"), highlight: stats.noStripe > 0 },
+            ];
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {cards.map(s => (
+                  <Card key={s.label} className={s.onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""} onClick={s.onClick}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${s.highlight ? "bg-red-50" : "bg-muted"}`}>{s.icon}</div>
+                      <div><div className={`text-xl font-bold ${s.highlight ? "text-red-600" : ""}`}>{s.value}</div><div className="text-xs text-muted-foreground">{s.label}</div></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            );
+          })()}
 
           <Card>
             <CardHeader className="pb-3">
@@ -229,6 +257,11 @@ export default function AdminPartners() {
                   <select className="border rounded-md px-3 py-2 text-sm" value={filterTier} onChange={e => setFilterTier(e.target.value)}>
                     <option value="all">All Tiers</option>
                     {["registered", "silver", "gold", "platinum"].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                  </select>
+                  <select className="border rounded-md px-3 py-2 text-sm" value={filterStripe} onChange={e => setFilterStripe(e.target.value)}>
+                    <option value="all">All Stripe</option>
+                    <option value="missing">No Stripe</option>
+                    <option value="connected">Stripe Connected</option>
                   </select>
                 </div>
                 <Button onClick={openCreate} className="shrink-0"><Plus className="w-4 h-4 mr-2" />New Partner</Button>
@@ -255,7 +288,14 @@ export default function AdminPartners() {
                       {filtered.map(p => (
                         <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3">
-                            <div className="font-medium">{p.companyName}</div>
+                            <div className="font-medium flex items-center gap-2">
+                              {p.companyName}
+                              {!p.stripeConnectAccountId && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-200">
+                                  <CreditCard className="w-3 h-3" />No Stripe
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground">{p.email}</div>
                           </td>
                           <td className="px-4 py-3 hidden md:table-cell">
@@ -286,6 +326,16 @@ export default function AdminPartners() {
                               )}
                               {p.status === "suspended" && (
                                 <button title="Reactivate" onClick={() => quickStatus(p.id, "approved")} className="p-1.5 hover:bg-green-100 rounded text-green-600"><RefreshCw className="w-4 h-4" /></button>
+                              )}
+                              {!p.stripeConnectAccountId && (
+                                <button
+                                  title="Send Stripe Reminder"
+                                  onClick={() => handleSendReminder(p)}
+                                  disabled={sendingReminder === p.id}
+                                  className="p-1.5 hover:bg-blue-100 rounded text-blue-500 disabled:opacity-50"
+                                >
+                                  {sendingReminder === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                </button>
                               )}
                               <button title="Edit" onClick={() => openEdit(p)} className="p-1.5 hover:bg-muted rounded text-muted-foreground"><Edit2 className="w-4 h-4" /></button>
                               <button title="Reset Password" onClick={() => { setPwPartner(p); setNewPw(""); }} className="p-1.5 hover:bg-muted rounded text-muted-foreground"><Lock className="w-4 h-4" /></button>

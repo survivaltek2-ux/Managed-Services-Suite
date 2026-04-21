@@ -1316,3 +1316,50 @@ export async function sendLeadMagnetSubmission(submission: {
     sendEmail(cfg.notificationEmail, `New Lead Magnet: ${label} — ${esc(submission.name)}${submission.company ? ` (${esc(submission.company)})` : ""}`, adminHtml),
   ]);
 }
+
+export async function sendStripeConnectReminder(partner: {
+  companyName: string;
+  contactName: string;
+  email: string;
+}) {
+  const portalUrl = process.env.PARTNER_PORTAL_URL
+    ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+    : "https://siebertrservices.com/partners";
+  const profileUrl = `${portalUrl}/profile`;
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Action Required: Connect Your Stripe Account</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(partner.contactName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">
+          We noticed that your partner account at <strong>${esc(partner.companyName)}</strong> does not yet have a Stripe account connected.
+          Connecting Stripe is required for us to send commission payouts directly to you.
+        </p>
+        <p style="font-size: 14px; margin: 0 0 20px;">
+          It only takes a few minutes to set up. Once connected, all future commissions will be transferred automatically.
+        </p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(profileUrl)}" style="display: inline-block; background: #0176d3; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 6px; text-decoration: none;">
+            Connect Stripe Now
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 8px;">
+          To connect: log in to the Partner Portal, navigate to <strong>Profile</strong>, and click <strong>Connect Stripe Account</strong>.
+        </p>
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 0;">
+          If you have any questions, please reach out to us at
+          <a href="mailto:sales@siebertrservices.com" style="color: #0176d3;">sales@siebertrservices.com</a>
+          or call <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a>.
+        </p>
+        <p style="font-size: 12px; color: #999; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+          — Siebert Services Partner Team
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(partner.email, "Action Required: Connect Your Stripe Account to Receive Payouts", html);
+}

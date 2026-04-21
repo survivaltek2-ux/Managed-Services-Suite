@@ -5,7 +5,7 @@ import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourc
 import { eq, and, desc, sql, count, sum, asc } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
-import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification } from "../lib/email.js";
+import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 
@@ -1034,6 +1034,38 @@ router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: Auth
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to delete partner" });
+  }
+});
+
+router.post("/admin/partners/:id/send-stripe-reminder", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [partner] = await db.select({
+      id: partnersTable.id,
+      companyName: partnersTable.companyName,
+      contactName: partnersTable.contactName,
+      email: partnersTable.email,
+      stripeConnectAccountId: partnersTable.stripeConnectAccountId,
+    }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
+    if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
+    if (partner.stripeConnectAccountId) {
+      res.status(400).json({ error: "already_connected", message: "This partner already has a Stripe account connected" });
+      return;
+    }
+    const sent = await sendStripeConnectReminder({
+      companyName: partner.companyName,
+      contactName: partner.contactName,
+      email: partner.email,
+    });
+    if (sent) {
+      console.log(`[Stripe Reminder] Reminder sent to partner #${id} (${partner.email})`);
+      res.json({ success: true, message: `Reminder sent to ${partner.email}` });
+    } else {
+      res.status(500).json({ error: "email_failed", message: "Failed to send reminder email. Check your SMTP configuration." });
+    }
+  } catch (err) {
+    console.error("[Stripe Reminder] Error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to send reminder" });
   }
 });
 
