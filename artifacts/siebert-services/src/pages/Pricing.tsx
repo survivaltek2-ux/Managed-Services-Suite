@@ -600,7 +600,7 @@ export default function Pricing() {
                   >
                     <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
                     <span className="underline-offset-4 group-hover:underline">
-                      Preview our Managed Services Agreement (PDF)
+                      Download our Managed Services Agreement (PDF)
                     </span>
                   </a>
                   <p className="text-xs text-white/50 mt-1.5">
