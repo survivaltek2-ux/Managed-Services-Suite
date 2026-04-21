@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers } from "@workspace/db";
+import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers, partnersTable } from "@workspace/db";
 import { eq, desc, and, lt, gt, inArray } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import {
@@ -161,6 +161,16 @@ function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
     recommendedServices,
     nextSteps,
   };
+}
+
+// ─── Partner email resolver ───────────────────────────────────────────────────
+
+async function resolvePartnerEmail(partnerId: number | null): Promise<string | undefined> {
+  if (!partnerId) return undefined;
+  try {
+    const [partner] = await db.select({ email: partnersTable.email }).from(partnersTable).where(eq(partnersTable.id, partnerId)).limit(1);
+    return partner?.email || undefined;
+  } catch { return undefined; }
 }
 
 // ─── Partner/Admin Routes ────────────────────────────────────────────────────
@@ -468,7 +478,9 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
     }).where(eq(writtenPlansTable.id, plan.id)).returning();
     await logEvent(plan.id, "approved", { signerName, signerTitle });
 
-    sendPlanApprovedEmail(updated).catch(e => console.error("[Email] plan approved error:", e));
+    resolvePartnerEmail(updated.partnerId).then(partnerEmail =>
+      sendPlanApprovedEmail(updated, partnerEmail).catch(e => console.error("[Email] plan approved error:", e))
+    );
 
     res.json({ success: true, plan: updated });
   } catch (err) {
@@ -494,7 +506,9 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
       updatedAt: new Date(),
     }).where(eq(writtenPlansTable.id, plan.id));
     await logEvent(plan.id, "declined", { reason, note });
-    sendPlanDeclinedEmail(plan, reason, note).catch(e => console.error("[Email] plan declined error:", e));
+    resolvePartnerEmail(plan.partnerId).then(partnerEmail =>
+      sendPlanDeclinedEmail(plan, reason, note, partnerEmail).catch(e => console.error("[Email] plan declined error:", e))
+    );
     res.json({ success: true });
   } catch (err) {
     console.error("[WrittenPlans] decline error:", err);
@@ -514,7 +528,9 @@ router.post("/public/plan-review/:token/request-call", async (req: Request, res:
     await db.update(writtenPlansTable).set({ status: "call_requested", updatedAt: new Date() })
       .where(eq(writtenPlansTable.id, plan.id));
     await logEvent(plan.id, "call_requested");
-    sendPlanCallRequestedEmail(plan).catch(e => console.error("[Email] call requested error:", e));
+    resolvePartnerEmail(plan.partnerId).then(partnerEmail =>
+      sendPlanCallRequestedEmail(plan, partnerEmail).catch(e => console.error("[Email] call requested error:", e))
+    );
     res.json({ success: true });
   } catch (err) {
     console.error("[WrittenPlans] request-call error:", err);
@@ -561,7 +577,8 @@ export async function sendPlanExpiryReminders() {
         .limit(1);
       const lastReminder = events[0];
       if (lastReminder && lastReminder.createdAt > oneDayAgo) continue;
-      await sendPlanExpiringEmail(plan).catch(e => console.error("[Email] expiry reminder error:", e));
+      const partnerEmail = await resolvePartnerEmail(plan.partnerId);
+      await sendPlanExpiringEmail(plan, partnerEmail).catch(e => console.error("[Email] expiry reminder error:", e));
       await logEvent(plan.id, "reminder_sent");
     }
   } catch (err) {

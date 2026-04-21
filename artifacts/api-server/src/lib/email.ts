@@ -2096,8 +2096,9 @@ export async function sendPlanApprovedEmail(plan: {
   clientName: string; clientEmail: string; clientCompany: string;
   signerName: string | null; signerTitle: string | null;
   approvedAt: Date | null; planNumber: string; partnerId: number | null;
-}): Promise<boolean> {
+}, recipientEmail?: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
+  const to = recipientEmail || cfg.notificationEmail;
   const approvedAt = plan.approvedAt ? plan.approvedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "just now";
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -2116,13 +2117,14 @@ export async function sendPlanApprovedEmail(plan: {
         <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">Log in to the Partner Portal to view the full signed plan and download a PDF copy.</p>
       </div>
     </div>`;
-  return sendEmail(cfg.notificationEmail, `Plan Approved: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+  return sendEmail(to, `Plan Approved: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
 }
 
 export async function sendPlanCallRequestedEmail(plan: {
   clientName: string; clientEmail: string; clientCompany: string; planNumber: string;
-}): Promise<boolean> {
+}, recipientEmail?: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
+  const to = recipientEmail || cfg.notificationEmail;
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
@@ -2135,13 +2137,14 @@ export async function sendPlanCallRequestedEmail(plan: {
         <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">Log in to the Partner Portal to view the plan and take next steps.</p>
       </div>
     </div>`;
-  return sendEmail(cfg.notificationEmail, `Call Requested: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+  return sendEmail(to, `Call Requested: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
 }
 
 export async function sendPlanDeclinedEmail(plan: {
   clientName: string; clientEmail: string; clientCompany: string; planNumber: string;
-}, reason: string, note?: string): Promise<boolean> {
+}, reason: string, note?: string, recipientEmail?: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
+  const to = recipientEmail || cfg.notificationEmail;
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
@@ -2157,14 +2160,15 @@ export async function sendPlanDeclinedEmail(plan: {
         <p style="font-size: 14px; color: #374151; margin: 20px 0 0;">You can revise the plan and resend it from the Partner Portal, or reach out to ${esc(plan.clientName)} at <a href="mailto:${esc(plan.clientEmail)}" style="color:#0176d3;">${esc(plan.clientEmail)}</a> to follow up.</p>
       </div>
     </div>`;
-  return sendEmail(cfg.notificationEmail, `Plan Declined: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+  return sendEmail(to, `Plan Declined: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
 }
 
 export async function sendPlanExpiringEmail(plan: {
   clientName: string; clientEmail: string; clientCompany: string;
   planNumber: string; expiresAt: Date | null; partnerId: number | null;
-}): Promise<boolean> {
+}, recipientEmail?: string): Promise<boolean> {
   const cfg = await loadEmailConfig();
+  const to = recipientEmail || cfg.notificationEmail;
   const expiry = plan.expiresAt ? plan.expiresAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "soon";
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -2178,5 +2182,5 @@ export async function sendPlanExpiringEmail(plan: {
         <p style="font-size: 13px; color: #6b7280; margin: 20px 0 0;">Log in to the Partner Portal to resend, revise, or extend the plan.</p>
       </div>
     </div>`;
-  return sendEmail(cfg.notificationEmail, `Plan Expiring ${expiry}: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
+  return sendEmail(to, `Plan Expiring ${expiry}: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
 }
