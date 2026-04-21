@@ -14,10 +14,14 @@ export default function Profile() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
-  const [connectStatus, setConnectStatus] = useState<{ connected: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean; accountId: string | null } | null>(null);
+  const [connectStatus, setConnectStatus] = useState<{ connected: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean; accountId: string | null; accountType: string | null; accountInvalid: boolean; stripeConfigured: boolean } | null>(null);
   const [connectLoading, setConnectLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [connectStatusLoading, setConnectStatusLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [stripeNotConfigured, setStripeNotConfigured] = useState(false);
+  const [oauthNotConfigured, setOauthNotConfigured] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
 
   const headers = getAuthHeaders();
 
@@ -33,6 +37,17 @@ export default function Profile() {
       window.history.replaceState({}, "", window.location.pathname);
     } else if (params.get("stripe_connect_refresh") === "1") {
       toast({ title: "Stripe onboarding incomplete", description: "Please connect your Stripe account to receive payouts.", variant: "destructive" });
+      fetchConnectStatus();
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("stripe_connect_error")) {
+      const errCode = params.get("stripe_connect_error") || "unknown_error";
+      const errMsg = errCode === "access_denied"
+        ? "You cancelled the Stripe account connection. Click 'Link Existing Account' to try again."
+        : errCode === "state_expired"
+        ? "The account linking session expired (10 minute limit). Please click 'Link Existing Account' to start again."
+        : `There was a problem connecting your Stripe account (${errCode}). Please try again or contact support.`;
+      setStripeError(errMsg);
+      fetchConnectStatus();
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -44,6 +59,11 @@ export default function Profile() {
       if (res.ok) {
         const data = await res.json();
         setConnectStatus(data);
+        if (data.stripeConfigured === false) {
+          setStripeNotConfigured(true);
+        } else if (data.stripeConfigured === true) {
+          setStripeNotConfigured(false);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch Stripe Connect status", err);
@@ -54,6 +74,7 @@ export default function Profile() {
 
   const handleConnectStripe = async () => {
     setConnectLoading(true);
+    setStripeNotConfigured(false);
     try {
       const res = await fetch("/api/partner/stripe-connect/onboard", {
         method: "POST",
@@ -65,7 +86,7 @@ export default function Profile() {
       } else {
         const err = await res.json().catch(() => ({}));
         if (err.error === "stripe_not_configured") {
-          toast({ title: "Stripe is not configured", description: "Please contact support to enable Stripe payouts.", variant: "destructive" });
+          setStripeNotConfigured(true);
         } else {
           toast({ title: err.message || "Failed to start Stripe onboarding", variant: "destructive" });
         }
@@ -74,6 +95,36 @@ export default function Profile() {
       toast({ title: "Error connecting Stripe", variant: "destructive" });
     } finally {
       setConnectLoading(false);
+    }
+  };
+
+  const handleOAuthStripe = async () => {
+    setOauthLoading(true);
+    setStripeNotConfigured(false);
+    setOauthNotConfigured(false);
+    setStripeError(null);
+    try {
+      const res = await fetch("/api/partner/stripe-connect/oauth/start", {
+        method: "POST",
+        headers,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = data.url;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (err.error === "stripe_not_configured") {
+          setStripeNotConfigured(true);
+        } else if (err.error === "oauth_not_configured") {
+          setOauthNotConfigured(true);
+        } else {
+          toast({ title: err.message || "Failed to start Stripe OAuth", variant: "destructive" });
+        }
+      }
+    } catch (err) {
+      toast({ title: "Error starting Stripe OAuth", variant: "destructive" });
+    } finally {
+      setOauthLoading(false);
     }
   };
 
@@ -87,7 +138,7 @@ export default function Profile() {
       });
       if (res.ok) {
         toast({ title: "Stripe account disconnected" });
-        setConnectStatus({ connected: false, accountId: null });
+        setConnectStatus({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null, stripeConfigured: true, accountType: null, accountInvalid: false });
       } else {
         toast({ title: "Failed to disconnect", variant: "destructive" });
       }
@@ -235,9 +286,34 @@ export default function Profile() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Checking connection status...
                 </div>
+              ) : stripeNotConfigured ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-red-800">Stripe payouts are not enabled</p>
+                      <p className="text-xs text-red-700 mt-1">
+                        Stripe Connect has not been configured on this platform. Commission payouts are currently on hold until your account administrator enables Stripe.
+                      </p>
+                      <p className="text-xs text-red-700 mt-2">
+                        Please contact your account administrator for assistance with enabling payouts.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ) : connectStatus?.connected ? (
                 <div className="space-y-3">
-                  {connectStatus.payoutsEnabled ? (
+                  {connectStatus.accountInvalid ? (
+                    <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-800">Stripe account unreachable</p>
+                        <p className="text-xs text-red-700 mt-0.5">
+                          The stored Stripe account ({connectStatus.accountId}) could not be retrieved. It may have been deleted or become invalid. Contact your administrator to update or clear the account.
+                        </p>
+                      </div>
+                    </div>
+                  ) : connectStatus.payoutsEnabled ? (
                     <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                       <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
@@ -248,6 +324,16 @@ export default function Profile() {
                         {connectStatus.accountId && (
                           <p className="text-xs text-emerald-600 font-mono mt-1">{connectStatus.accountId}</p>
                         )}
+                      </div>
+                    </div>
+                  ) : connectStatus.accountType === "standard" ? (
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Stripe account linked — setup required</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          Your existing Stripe account is linked but payouts are not yet active. Log into your Stripe dashboard directly to complete any required setup steps.
+                        </p>
                       </div>
                     </div>
                   ) : (
@@ -262,15 +348,27 @@ export default function Profile() {
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleConnectStripe}
-                      disabled={connectLoading}
-                      className="sf-btn sf-btn-outline text-xs"
-                    >
-                      {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                      {connectStatus.payoutsEnabled ? "Update Stripe Account" : "Complete Setup"}
-                    </button>
+                    {connectStatus.accountType === "standard" ? (
+                      <a
+                        href="https://dashboard.stripe.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="sf-btn sf-btn-outline text-xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open Stripe Dashboard
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleConnectStripe}
+                        disabled={connectLoading}
+                        className="sf-btn sf-btn-outline text-xs"
+                      >
+                        {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                        {connectStatus.payoutsEnabled ? "Update Stripe Account" : "Complete Setup"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleDisconnect}
@@ -293,17 +391,44 @@ export default function Profile() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleConnectStripe}
-                    disabled={connectLoading}
-                    className="sf-btn sf-btn-primary"
-                  >
-                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-                    {connectLoading ? "Redirecting to Stripe..." : "Connect Stripe Account"}
-                  </button>
+                  {stripeError && (
+                    <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-red-700">{stripeError}</p>
+                    </div>
+                  )}
+                  {oauthNotConfigured && (
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-700">
+                        Linking an existing Stripe account via OAuth is not available on this platform. You can still set up a new payout account using the button below.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleConnectStripe}
+                      disabled={connectLoading || oauthLoading}
+                      className="sf-btn sf-btn-primary"
+                    >
+                      {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                      {connectLoading ? "Redirecting to Stripe..." : "Set Up New Payout Account"}
+                    </button>
+                    {!oauthNotConfigured && (
+                      <button
+                        type="button"
+                        onClick={handleOAuthStripe}
+                        disabled={connectLoading || oauthLoading}
+                        className="sf-btn sf-btn-outline"
+                      >
+                        {oauthLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                        {oauthLoading ? "Redirecting..." : "Link Existing Stripe Account"}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    You'll be redirected to Stripe to complete account setup. This typically takes a few minutes.
+                    <strong>New account:</strong> Creates a Stripe Express sub-account linked to your email for payouts.{!oauthNotConfigured && <> <strong>Existing account:</strong> Links your current Stripe account directly via Stripe's OAuth flow.</>}
                   </p>
                 </div>
               )}

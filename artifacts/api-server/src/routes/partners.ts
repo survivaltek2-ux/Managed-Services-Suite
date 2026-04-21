@@ -8,6 +8,7 @@ import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSi
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
 import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder, sendPasswordResetEmail, sendPartnerStripeOnboardingEmail, sendPartnerWelcomeFromImport } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
+import type Stripe from "stripe";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 import { inviteGuestUser } from "../lib/microsoft-graph.js";
 
@@ -336,15 +337,19 @@ router.put("/partner/profile", requirePartnerAuth, async (req: PartnerRequest, r
 // ─── Stripe Connect ──────────────────────────────────────────────────────────
 
 router.get("/partner/stripe-connect/status", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
-  if (isMainSiteAdmin(req)) { res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null }); return; }
+  if (isMainSiteAdmin(req)) { res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null, stripeConfigured: false, accountType: null, accountInvalid: false }); return; }
   try {
     const [partner] = await db.select({ stripeConnectAccountId: partnersTable.stripeConnectAccountId })
       .from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     if (!partner) { res.status(404).json({ error: "not_found" }); return; }
 
     const accountId = partner.stripeConnectAccountId || null;
-    if (!accountId || !isStripeConfigured()) {
-      res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null });
+    if (!isStripeConfigured()) {
+      res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null, stripeConfigured: false, accountType: null, accountInvalid: false });
+      return;
+    }
+    if (!accountId) {
+      res.json({ connected: false, payoutsEnabled: false, detailsSubmitted: false, accountId: null, stripeConfigured: true, accountType: null, accountInvalid: false });
       return;
     }
 
@@ -356,10 +361,13 @@ router.get("/partner/stripe-connect/status", requirePartnerAuth, async (req: Par
         payoutsEnabled: account.payouts_enabled ?? false,
         detailsSubmitted: account.details_submitted ?? false,
         accountId,
+        accountType: account.type ?? null,
+        stripeConfigured: true,
+        accountInvalid: false,
       });
     } catch (stripeErr) {
       console.error("[Stripe Connect] Failed to retrieve account:", stripeErr);
-      res.json({ connected: true, payoutsEnabled: false, detailsSubmitted: false, accountId });
+      res.json({ connected: true, payoutsEnabled: false, detailsSubmitted: false, accountId, stripeConfigured: true, accountType: null, accountInvalid: true });
     }
   } catch (err) {
     console.error(err);
@@ -407,6 +415,149 @@ router.post("/partner/stripe-connect/onboard", requirePartnerAuth, async (req: P
   } catch (err: any) {
     console.error("[Stripe Connect] Onboard error:", err);
     res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+router.post("/partner/stripe-connect/oauth/start", requirePartnerAuth, async (req: PartnerRequest, res: Response) => {
+  if (isMainSiteAdmin(req)) { res.status(403).json({ error: "forbidden", message: "Not available for admin accounts" }); return; }
+  if (!isStripeConfigured()) { res.status(503).json({ error: "stripe_not_configured", message: "Stripe is not configured." }); return; }
+
+  const stripeClientId = process.env.STRIPE_CLIENT_ID;
+  if (!stripeClientId) {
+    res.status(503).json({ error: "oauth_not_configured", message: "Stripe Connect OAuth is not configured. Contact support or use the Express onboarding flow." });
+    return;
+  }
+
+  const oauthSigningSecret = process.env.JWT_SECRET;
+  if (!oauthSigningSecret) {
+    console.error("[Stripe OAuth Start] JWT_SECRET is not configured — cannot sign OAuth state securely");
+    res.status(503).json({ error: "config_error", message: "Server configuration error. Contact support." });
+    return;
+  }
+
+  try {
+    const partnerId = req.partnerId!;
+    const nonce = crypto.randomBytes(12).toString("hex");
+    const ts = Math.floor(Date.now() / 1000).toString();
+    const hmac = crypto.createHmac("sha256", oauthSigningSecret)
+      .update(`${partnerId}:${nonce}:${ts}`)
+      .digest("hex");
+    const state = `${partnerId}_${nonce}_${ts}_${hmac}`;
+
+    const portalBase = process.env.PARTNER_PORTAL_URL
+      ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+      : (() => {
+          const host = req.get("host") || "";
+          const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+          return `${proto}://${host}/partners`;
+        })();
+
+    const callbackUrl = encodeURIComponent(`${portalBase.replace(/\/partners$/, "")}/api/partner/stripe-connect/oauth/callback`);
+    const oauthUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${encodeURIComponent(stripeClientId)}&scope=read_write&state=${encodeURIComponent(state)}&redirect_uri=${callbackUrl}`;
+
+    res.json({ url: oauthUrl });
+  } catch (err: any) {
+    console.error("[Stripe OAuth Start] Error:", err);
+    res.status(500).json({ error: "server_error", message: err.message });
+  }
+});
+
+router.get("/partner/stripe-connect/oauth/callback", async (req, res: Response) => {
+  const { code, state, error: oauthError, error_description } = req.query as Record<string, string>;
+
+  const portalBase = process.env.PARTNER_PORTAL_URL
+    ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+    : (() => {
+        const host = req.get("host") || "";
+        const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+        return `${proto}://${host}/partners`;
+      })();
+  const profileUrl = `${portalBase}/profile`;
+  const callbackUrl = `${portalBase.replace(/\/partners$/, "")}/api/partner/stripe-connect/oauth/callback`;
+
+  if (oauthError) {
+    console.error(`[Stripe OAuth Callback] Error from Stripe: ${oauthError} — ${error_description}`);
+    res.redirect(`${profileUrl}?stripe_connect_error=${encodeURIComponent(oauthError)}`);
+    return;
+  }
+
+  if (!code || !state) {
+    res.redirect(`${profileUrl}?stripe_connect_error=missing_params`);
+    return;
+  }
+
+  const parts = state.split("_");
+  if (parts.length !== 4) {
+    res.redirect(`${profileUrl}?stripe_connect_error=invalid_state`);
+    return;
+  }
+  const [partnerId, nonce, ts, receivedHmac] = parts;
+
+  const callbackSigningSecret = process.env.JWT_SECRET;
+  if (!callbackSigningSecret) {
+    console.error("[Stripe OAuth Callback] JWT_SECRET is not configured — cannot verify state HMAC");
+    res.redirect(`${profileUrl}?stripe_connect_error=config_error`);
+    return;
+  }
+
+  const stateAge = Math.floor(Date.now() / 1000) - parseInt(ts, 10);
+  if (isNaN(stateAge) || stateAge < 0 || stateAge > 600) {
+    console.error(`[Stripe OAuth Callback] State expired or invalid timestamp (age: ${stateAge}s)`);
+    res.redirect(`${profileUrl}?stripe_connect_error=state_expired`);
+    return;
+  }
+
+  const expectedHmac = crypto.createHmac("sha256", callbackSigningSecret)
+    .update(`${partnerId}:${nonce}:${ts}`)
+    .digest("hex");
+
+  let hmacBuffer: Buffer;
+  try {
+    hmacBuffer = Buffer.from(receivedHmac, "hex");
+  } catch {
+    res.redirect(`${profileUrl}?stripe_connect_error=invalid_state`);
+    return;
+  }
+
+  if (hmacBuffer.length !== Buffer.from(expectedHmac, "hex").length || !crypto.timingSafeEqual(hmacBuffer, Buffer.from(expectedHmac, "hex"))) {
+    console.error("[Stripe OAuth Callback] Invalid state HMAC");
+    res.redirect(`${profileUrl}?stripe_connect_error=invalid_state`);
+    return;
+  }
+
+  const numPartnerId = parseInt(partnerId, 10);
+  if (!Number.isInteger(numPartnerId) || numPartnerId <= 0) {
+    res.redirect(`${profileUrl}?stripe_connect_error=invalid_state`);
+    return;
+  }
+
+  try {
+    const stripe = getStripe();
+    const tokenResponse = await stripe.oauth.token({ grant_type: "authorization_code", code, redirect_uri: callbackUrl });
+    const stripeAccountId = tokenResponse.stripe_user_id;
+
+    if (!stripeAccountId) {
+      console.error("[Stripe OAuth Callback] No stripe_user_id in token response");
+      res.redirect(`${profileUrl}?stripe_connect_error=no_account_id`);
+      return;
+    }
+
+    const updated = await db.update(partnersTable)
+      .set({ stripeConnectAccountId: stripeAccountId, updatedAt: new Date() })
+      .where(eq(partnersTable.id, numPartnerId))
+      .returning({ id: partnersTable.id });
+
+    if (!updated.length) {
+      console.error(`[Stripe OAuth Callback] Partner #${numPartnerId} not found in DB — no rows updated`);
+      res.redirect(`${profileUrl}?stripe_connect_error=partner_not_found`);
+      return;
+    }
+
+    console.log(`[Stripe OAuth Callback] Partner #${numPartnerId} linked existing account ${stripeAccountId}`);
+    res.redirect(`${profileUrl}?stripe_connect_return=1`);
+  } catch (err: any) {
+    console.error("[Stripe OAuth Callback] Token exchange error:", err);
+    res.redirect(`${profileUrl}?stripe_connect_error=${encodeURIComponent(err.message || "token_exchange_failed")}`);
   }
 });
 
@@ -1201,6 +1352,123 @@ router.delete("/admin/partners/:id", requireAuth, requireAdmin, async (req: Auth
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to delete partner" });
+  }
+});
+
+router.put("/admin/partners/:id/stripe-connect", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { stripeConnectAccountId: rawAccountId } = req.body as { stripeConnectAccountId?: string | null };
+    const stripeConnectAccountId = typeof rawAccountId === "string" ? rawAccountId.trim() : rawAccountId;
+
+    const [existing] = await db.select({ id: partnersTable.id, companyName: partnersTable.companyName }).from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
+
+    if (stripeConnectAccountId !== null && stripeConnectAccountId !== undefined && stripeConnectAccountId !== "") {
+      if (!/^acct_[a-zA-Z0-9]+$/.test(stripeConnectAccountId)) {
+        res.status(400).json({ error: "validation_error", message: "Invalid Stripe Connect account ID. Must start with acct_ followed by alphanumeric characters." });
+        return;
+      }
+    }
+
+    const [partner] = await db.update(partnersTable)
+      .set({ stripeConnectAccountId: stripeConnectAccountId || null, updatedAt: new Date() })
+      .where(eq(partnersTable.id, id))
+      .returning();
+
+    console.log(`[Admin] Updated stripeConnectAccountId for partner #${id} to ${stripeConnectAccountId || "null"}`);
+    res.json({ success: true, stripeConnectAccountId: partner.stripeConnectAccountId });
+  } catch (err) {
+    console.error("[Admin Stripe Connect] Error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to update Stripe Connect account ID" });
+  }
+});
+
+router.post("/admin/partners/:id/send-stripe-onboarding-link", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, id)).limit(1);
+    if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
+
+    if (!isStripeConfigured()) {
+      res.status(503).json({ error: "stripe_not_configured", message: "Stripe is not configured. Set STRIPE_SECRET_KEY to enable this feature." });
+      return;
+    }
+
+    const stripe = getStripe();
+
+    let accountId = partner.stripeConnectAccountId;
+
+    if (accountId) {
+      let stripeAccount: Stripe.Account;
+      try {
+        stripeAccount = await stripe.accounts.retrieve(accountId);
+      } catch (retrieveErr: unknown) {
+        const errMsg = retrieveErr instanceof Error ? retrieveErr.message : String(retrieveErr);
+        console.error(`[Admin Stripe Onboarding] Failed to retrieve account ${accountId}:`, retrieveErr);
+        res.status(400).json({
+          error: "invalid_account_id",
+          message: `The stored Stripe account ID (${accountId}) could not be retrieved from Stripe: ${errMsg}. Clear the account ID and try again to create a new Express account.`,
+        });
+        return;
+      }
+
+      if (stripeAccount.type === "standard") {
+        res.status(400).json({
+          error: "account_type_unsupported",
+          message: `This partner's Stripe account (${accountId}) is a Standard account. Account onboarding links are only available for Express accounts. Ask the partner to log into their Stripe dashboard directly to complete setup, or clear the account ID and use 'Set Up New Payout Account' to create an Express account instead.`,
+        });
+        return;
+      }
+    }
+
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: partner.email,
+        metadata: { partnerId: String(partner.id), companyName: partner.companyName },
+      });
+      accountId = account.id;
+      await db.update(partnersTable).set({ stripeConnectAccountId: accountId, updatedAt: new Date() }).where(eq(partnersTable.id, id));
+      console.log(`[Admin Stripe Onboarding] Created Express account ${accountId} for partner #${id}`);
+    } else {
+      console.log(`[Admin Stripe Onboarding] Reusing existing Express account ${accountId} for partner #${id}`);
+    }
+
+    const portalBase = process.env.PARTNER_PORTAL_URL
+      ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+      : (() => {
+          const host = req.get("host") || "";
+          const proto = req.get("x-forwarded-proto") || req.protocol || "https";
+          return `${proto}://${host}/partners`;
+        })();
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${portalBase}/profile?stripe_connect_refresh=1`,
+      return_url: `${portalBase}/profile?stripe_connect_return=1`,
+      type: "account_onboarding",
+    });
+
+    const sent = await sendPartnerStripeOnboardingEmail({
+      companyName: partner.companyName,
+      contactName: partner.contactName,
+      email: partner.email,
+    }, accountLink.url).catch(err => {
+      console.error("[Admin Stripe Onboarding] Email error:", err);
+      return false;
+    });
+
+    if (!sent) {
+      res.status(500).json({ error: "email_failed", message: "Onboarding link generated but email failed to send. Check your SMTP configuration." });
+      return;
+    }
+
+    console.log(`[Admin Stripe Onboarding] Onboarding link emailed to ${partner.email} (account: ${accountId})`);
+    res.json({ success: true, message: `Onboarding link sent to ${partner.email}`, stripeConnectAccountId: accountId });
+  } catch (err: any) {
+    console.error("[Admin Stripe Onboarding] Error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message || "Failed to send onboarding link" });
   }
 });
 

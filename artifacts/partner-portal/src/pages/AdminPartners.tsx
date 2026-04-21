@@ -3,7 +3,7 @@ import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, Plus, Edit2, Trash2, Loader2, Save, UserCheck, Ban, RefreshCw, Lock, Building2, Mail, CreditCard
+  Search, Plus, Edit2, Trash2, Loader2, Save, UserCheck, Ban, RefreshCw, Lock, Building2, Mail, CreditCard, Send, CheckCircle, AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -93,6 +93,9 @@ export default function AdminPartners() {
   const [newPw, setNewPw] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [stripeAccountInput, setStripeAccountInput] = useState("");
+  const [savingStripeConnect, setSavingStripeConnect] = useState(false);
+  const [sendingOnboardingLink, setSendingOnboardingLink] = useState(false);
 
   const headers = getAuthHeaders();
 
@@ -182,8 +185,62 @@ export default function AdminPartners() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  const openEdit = (p: any) => { setForm({ ...EMPTY_PARTNER_FORM, ...p, password: "" }); setEditPartner(p); };
+  const openEdit = (p: any) => {
+    setForm({ ...EMPTY_PARTNER_FORM, ...p, password: "" });
+    setStripeAccountInput(p.stripeConnectAccountId || "");
+    setEditPartner(p);
+  };
   const openCreate = () => { setForm({ ...EMPTY_PARTNER_FORM }); setCreateOpen(true); };
+
+  const handleSaveStripeConnect = async () => {
+    if (!editPartner) return;
+    setSavingStripeConnect(true);
+    try {
+      const res = await fetch(`/api/admin/partners/${editPartner.id}/stripe-connect`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ stripeConnectAccountId: stripeAccountInput.trim() || null }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        toast({ title: "Stripe Connect ID saved" });
+        setEditPartner({ ...editPartner, stripeConnectAccountId: d.stripeConnectAccountId });
+        load();
+      } else {
+        toast({ title: d.message || "Failed to save Stripe Connect ID", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error saving Stripe Connect ID", variant: "destructive" });
+    } finally {
+      setSavingStripeConnect(false);
+    }
+  };
+
+  const handleSendOnboardingLink = async () => {
+    if (!editPartner) return;
+    setSendingOnboardingLink(true);
+    try {
+      const res = await fetch(`/api/admin/partners/${editPartner.id}/send-stripe-onboarding-link`, {
+        method: "POST",
+        headers,
+      });
+      const d = await res.json();
+      if (res.ok) {
+        toast({ title: "Onboarding link sent", description: `Stripe setup email sent to ${editPartner.email}` });
+        if (d.stripeConnectAccountId) {
+          setEditPartner({ ...editPartner, stripeConnectAccountId: d.stripeConnectAccountId });
+          setStripeAccountInput(d.stripeConnectAccountId);
+          load();
+        }
+      } else {
+        toast({ title: d.message || "Failed to send onboarding link", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error sending onboarding link", variant: "destructive" });
+    } finally {
+      setSendingOnboardingLink(false);
+    }
+  };
 
   const handleCreate = async () => {
     if (!form.companyName || !form.contactName || !form.email || !form.password) {
@@ -439,6 +496,68 @@ export default function AdminPartners() {
             <DialogContent className="max-w-2xl">
               <DialogHeader><DialogTitle>Edit Partner — {editPartner?.companyName}</DialogTitle></DialogHeader>
               <PartnerForm isCreate={false} form={form} setForm={setForm} />
+
+              {/* Stripe Connect Section */}
+              <div className="border rounded-lg overflow-hidden mt-1">
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b">
+                  <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stripe Connect (Payouts)</span>
+                </div>
+                <div className="p-3 space-y-3">
+                  {editPartner?.stripeConnectAccountId && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-emerald-700 font-medium">Connected:</span>
+                      <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{editPartner.stripeConnectAccountId}</code>
+                    </div>
+                  )}
+                  {!editPartner?.stripeConnectAccountId && (
+                    <div className="flex items-center gap-2 text-xs text-amber-700">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>No Stripe Connect account linked for this partner.</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs">Stripe Connect Account ID</Label>
+                      <Input
+                        value={stripeAccountInput}
+                        onChange={e => setStripeAccountInput(e.target.value)}
+                        placeholder="acct_1AbCdEfGhIjKlMnO"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveStripeConnect}
+                        disabled={savingStripeConnect}
+                        className="text-xs"
+                      >
+                        {savingStripeConnect ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                        Save ID
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendOnboardingLink}
+                      disabled={sendingOnboardingLink}
+                      className="text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      {sendingOnboardingLink ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}
+                      Send Onboarding Link
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Emails partner a Stripe onboarding link to connect their account
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setEditPartner(null)}>Cancel</Button>
                 <Button onClick={handleUpdate} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Changes</Button>
