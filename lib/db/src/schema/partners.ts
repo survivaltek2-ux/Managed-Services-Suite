@@ -46,6 +46,8 @@ export const partnersTable = pgTable("partners", {
   resetToken: text("reset_token"),
   resetTokenExpires: timestamp("reset_token_expires"),
   msObjectId: text("ms_object_id"),
+  partnerstackKey: text("partnerstack_key").unique(),
+  partnerstackSyncedAt: timestamp("partnerstack_synced_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -178,7 +180,33 @@ export const partnerCommissionsTable = pgTable("partner_commissions", {
   periodEnd: timestamp("period_end"),
   stripeTransferId: text("stripe_transfer_id"),
   payoutMethod: text("payout_method"),
+  partnerstackKey: text("partnerstack_key").unique(),
+  partnerstackSyncedAt: timestamp("partnerstack_synced_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const partnerstackConfigsTable = pgTable("partnerstack_configs", {
+  id: serial("id").primaryKey(),
+  enabled: boolean("enabled").notNull().default(true),
+  lastPushAt: timestamp("last_push_at"),
+  lastPullAt: timestamp("last_pull_at"),
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
+  totalPartnersSynced: integer("total_partners_synced").notNull().default(0),
+  totalCommissionsSynced: integer("total_commissions_synced").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const partnerstackWebhookEventsTable = pgTable("partnerstack_webhook_events", {
+  id: serial("id").primaryKey(),
+  eventId: text("event_id").notNull().unique(),
+  eventType: text("event_type").notNull(),
+  status: text("status").notNull().default("received"),
+  error: text("error"),
+  rawPayload: text("raw_payload").notNull(),
+  receivedAt: timestamp("received_at").notNull().defaultNow(),
+  processedAt: timestamp("processed_at"),
 });
 
 export const partnerSupportTicketsTable = pgTable("partner_support_tickets", {

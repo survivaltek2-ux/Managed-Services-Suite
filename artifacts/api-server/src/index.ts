@@ -4,6 +4,7 @@ import { seedDatabase } from "./db-seed.js";
 import { startZoomWebSocketSubscription } from "./lib/zoomWebSocket.js";
 import { startLeadMagnetSequenceScheduler } from "./lib/leadMagnetSequence.js";
 import { startPlanReminderScheduler } from "./routes/written-plans.js";
+import { startPartnerstackScheduler } from "./routes/partnerstack.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
@@ -55,6 +56,38 @@ async function runStartupMigrations() {
   await db.execute(sql`ALTER TABLE partner_commissions ADD COLUMN IF NOT EXISTS tsd_discrepancy text`);
   await db.execute(sql`ALTER TABLE partner_commissions ADD COLUMN IF NOT EXISTS period_start timestamp`);
   await db.execute(sql`ALTER TABLE partner_commissions ADD COLUMN IF NOT EXISTS period_end timestamp`);
+
+  // ── PartnerStack two-way sync ─────────────────────────────────────────────
+  await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS partnerstack_key text`);
+  await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS partnerstack_synced_at timestamp`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS partners_partnerstack_key_uniq ON partners(partnerstack_key) WHERE partnerstack_key IS NOT NULL`);
+  await db.execute(sql`ALTER TABLE partner_commissions ADD COLUMN IF NOT EXISTS partnerstack_key text`);
+  await db.execute(sql`ALTER TABLE partner_commissions ADD COLUMN IF NOT EXISTS partnerstack_synced_at timestamp`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS partner_commissions_partnerstack_key_uniq ON partner_commissions(partnerstack_key) WHERE partnerstack_key IS NOT NULL`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS partnerstack_configs (
+      id serial PRIMARY KEY,
+      enabled boolean NOT NULL DEFAULT true,
+      last_push_at timestamp,
+      last_pull_at timestamp,
+      last_error text,
+      last_error_at timestamp,
+      total_partners_synced integer NOT NULL DEFAULT 0,
+      total_commissions_synced integer NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS partnerstack_webhook_events (
+      id serial PRIMARY KEY,
+      event_id text NOT NULL UNIQUE,
+      event_type text NOT NULL,
+      status text NOT NULL DEFAULT 'received',
+      error text,
+      raw_payload text NOT NULL,
+      received_at timestamp NOT NULL DEFAULT now(),
+      processed_at timestamp
+    )`);
 
   // ── lead_magnet_submissions — unsubscribe + extra fields ─────────────────
   await db.execute(sql`ALTER TABLE lead_magnet_submissions ADD COLUMN IF NOT EXISTS source text`);
@@ -316,5 +349,10 @@ app.listen(port, async () => {
     startPlanReminderScheduler();
   } catch (err) {
     console.error("[PlanReminder] Startup error:", err);
+  }
+  try {
+    startPartnerstackScheduler();
+  } catch (err) {
+    console.error("[PartnerStack] Startup error:", err);
   }
 });

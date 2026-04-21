@@ -49,6 +49,7 @@ import ForceChangePassword from "./pages/ForceChangePassword";
 import WrittenPlans from "./pages/WrittenPlans";
 import PlanReview from "./pages/PlanReview";
 import AdminPlans from "./pages/AdminPlans";
+import AdminPartnerstack from "./pages/AdminPartnerstack";
 
 import { useAuth } from "./hooks/use-auth";
 
@@ -127,6 +128,7 @@ function Router() {
       <Route path="/admin/esign"><ProtectedRoute component={AdminEsign} /></Route>
       <Route path="/admin/pricing"><ProtectedRoute component={AdminPricing} /></Route>
       <Route path="/admin/plans"><ProtectedRoute component={AdminPlans} /></Route>
+      <Route path="/admin/partnerstack"><ProtectedRoute component={AdminPartnerstack} /></Route>
       <Route path="/billing"><ProtectedRoute component={Billing} /></Route>
       <Route path="/service-availability"><ProtectedRoute component={ServiceAvailability} /></Route>
       <Route path="/vivint"><ProtectedRoute component={Vivint} /></Route>

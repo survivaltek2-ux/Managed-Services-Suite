@@ -11,6 +11,7 @@ import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 import type Stripe from "stripe";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 import { inviteGuestUser } from "../lib/microsoft-graph.js";
+import { pushPartnerToPartnerstack, pushCommissionToPartnerstack } from "./partnerstack.js";
 
 function getAppBaseUrl(): string {
   const redirectUri = process.env.MICROSOFT_REDIRECT_URI || "";
@@ -1611,6 +1612,7 @@ router.put("/admin/partners/:id/approve", requireAuth, requireAdmin, async (req:
         contactName: partner.contactName,
         stripeConnectAccountId: existing?.stripeConnectAccountId ?? null,
       }, req).catch(err => console.error("[Stripe Auto-Connect] Error:", err));
+      pushPartnerToPartnerstack(partner.id).catch(err => console.error("[PartnerStack] Approval push error:", err));
     }
   } catch (err) {
     console.error(err);
@@ -1864,6 +1866,7 @@ router.post("/admin/partner/commissions", requireAdmin, async (req, res) => {
       periodEnd: periodEnd ? new Date(periodEnd) : null,
     }).returning();
     res.status(201).json(commission);
+    pushCommissionToPartnerstack(commission.id).catch(err => console.error("[PartnerStack] Commission push error:", err));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to create commission" });

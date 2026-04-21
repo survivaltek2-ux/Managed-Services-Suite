@@ -31,6 +31,7 @@ import stripeWebhooksRouter from "./stripe-webhooks.js";
 import contractsRouter from "./contracts.js";
 import esignRouter from "./esign.js";
 import writtenPlansRouter from "./written-plans.js";
+import partnerstackRouter from "./partnerstack.js";
 
 const router: IRouter = Router();
 
@@ -66,5 +67,6 @@ router.use(stripeWebhooksRouter);
 router.use(contractsRouter);
 router.use(esignRouter);
 router.use(writtenPlansRouter);
+router.use(partnerstackRouter);
 
 export default router;
