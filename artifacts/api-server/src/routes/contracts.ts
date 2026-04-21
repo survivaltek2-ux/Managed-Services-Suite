@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Response } from "express";
 import { spawn } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -18,18 +18,47 @@ const PLAN_TIER_LABEL: Record<string, string> = {
 };
 
 // scripts/generate-msa-pdf.cjs lives at the monorepo root.
-// This route file is at artifacts/api-server/src/routes/, so the script is
-// four directory levels up. import.meta.dirname is stable here because the
-// api-server is ESM ("type": "module") on Node 20+.
-const SCRIPT_PATH = path.resolve(
-  import.meta.dirname,
-  "..",
-  "..",
-  "..",
-  "..",
-  "scripts",
-  "generate-msa-pdf.cjs"
-);
+// We resolve its absolute path lazily (and the api-server's node_modules)
+// at request time. This is CJS-safe because we rely only on process.cwd()
+// and well-known repo-relative paths — esbuild's CJS output leaves
+// import.meta empty, so we deliberately avoid it here.
+//
+// In dev (tsx filter run): cwd = artifacts/api-server/
+// In production (built index.cjs run from package dir): cwd = artifacts/api-server/
+// We probe a small set of candidate locations to be robust either way.
+function resolveExisting(candidates: string[], label: string): string {
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  throw new Error(
+    `[contracts] Could not locate ${label}. Tried: ${candidates.join(", ")}`
+  );
+}
+
+function findScriptPath(): string {
+  const cwd = process.cwd();
+  return resolveExisting(
+    [
+      path.resolve(cwd, "..", "..", "scripts", "generate-msa-pdf.cjs"),
+      path.resolve(cwd, "scripts", "generate-msa-pdf.cjs"),
+      path.resolve(cwd, "..", "..", "..", "scripts", "generate-msa-pdf.cjs"),
+    ],
+    "scripts/generate-msa-pdf.cjs"
+  );
+}
+
+function findApiServerNodeModules(): string {
+  const cwd = process.cwd();
+  return resolveExisting(
+    [
+      // Dev or built artifact running from artifacts/api-server/
+      path.resolve(cwd, "node_modules", "pdfkit"),
+      // Running from the workspace root
+      path.resolve(cwd, "artifacts", "api-server", "node_modules", "pdfkit"),
+    ],
+    "pdfkit (api-server node_modules)"
+  ).replace(/[\/\\]pdfkit$/, "");
+}
 
 function formatLongDate(d: Date): string {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -83,7 +112,8 @@ function buildPlaceholderMap(input: {
     "Monthly or Annual Invoice": `${cycleLabel} invoice`,
     "BILLING CONTACT NAME": input.customerName,
     "BILLING EMAIL": input.customerEmail,
-    "CONTRACTS EMAIL, e.g., legal@siebertservices.com": "legal@siebertrservices.com",
+    // Note: contracts/notice email placeholder is intentionally left
+    // unsubstituted so legal can confirm the correct address before sending.
   };
 
   if (input.entityType) map["ENTITY TYPE AND STATE OF FORMATION"] = input.entityType;
@@ -100,19 +130,25 @@ function buildPlaceholderMap(input: {
   return map;
 }
 
-// Path to api-server's node_modules so the canonical script (which lives
-// at the workspace root, not next to a node_modules with pdfkit) can resolve
-// `require("pdfkit")` via NODE_PATH fallback.
-const API_SERVER_NODE_MODULES = path.resolve(import.meta.dirname, "..", "..", "node_modules");
-
 function runMsaGenerator(outputPath: string, valuesPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    let scriptPath: string;
+    let nodeModulesPath: string;
+    try {
+      scriptPath = findScriptPath();
+      nodeModulesPath = findApiServerNodeModules();
+    } catch (e) {
+      return reject(e);
+    }
+
+    // NODE_PATH fallback so the script (at workspace root) can resolve
+    // `require("pdfkit")` from the api-server's installed node_modules.
     const existingNodePath = process.env.NODE_PATH;
     const nodePath = existingNodePath
-      ? `${API_SERVER_NODE_MODULES}${path.delimiter}${existingNodePath}`
-      : API_SERVER_NODE_MODULES;
+      ? `${nodeModulesPath}${path.delimiter}${existingNodePath}`
+      : nodeModulesPath;
 
-    const child = spawn("node", [SCRIPT_PATH, outputPath], {
+    const child = spawn("node", [scriptPath, outputPath], {
       env: {
         ...process.env,
         MSA_VALUES_FILE: valuesPath,
