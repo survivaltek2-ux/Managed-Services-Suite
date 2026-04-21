@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText } from "lucide-react";
+import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText, Download } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 
@@ -588,6 +588,24 @@ export default function Pricing() {
                       Talk to a human
                     </Button>
                   </Link>
+                </div>
+                <div className="mt-5 pt-5 border-t border-white/10">
+                  <a
+                    href={`${import.meta.env.BASE_URL}siebert-msa-template.pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    data-testid="link-download-msa-template"
+                    className="inline-flex items-center gap-2 text-sm text-white/80 hover:text-primary transition-colors group"
+                  >
+                    <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                    <span className="underline-offset-4 group-hover:underline">
+                      Preview our Managed Services Agreement (PDF)
+                    </span>
+                  </a>
+                  <p className="text-xs text-white/50 mt-1.5">
+                    Review the contract template our clients sign — no email required.
+                  </p>
                 </div>
               </div>
               <div className="hidden md:block">
