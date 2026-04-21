@@ -44,6 +44,11 @@ ZOOM_WS_SUBSCRIPTION_ID = "UaDd__jFTTilfIn9yc7c9Q"
 [userenv.production]
 PUBLIC_URL = "https://siebertrservices.com"
 
+[userenv.development]
+PARTNERSTACK_PUBLIC_KEY = "ps_pub_e2e_test_key"
+PARTNERSTACK_SECRET_KEY = "ps_sec_e2e_test_key"
+PARTNERSTACK_WEBHOOK_SECRET = "e2e_webhook_secret_for_testing_only"
+
 [nix]
 channel = "stable-25_05"
 
