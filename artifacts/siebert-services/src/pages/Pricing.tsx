@@ -258,31 +258,35 @@ export default function Pricing() {
       });
   }, []);
 
-  const showTiers = loaded ? tiers : FALLBACK_TIERS;
-
   const sorted = useMemo(
     () => [...(loaded ? tiers : FALLBACK_TIERS)].sort((a, b) => a.sortOrder - b.sortOrder),
     [tiers, loaded]
   );
 
+  const filteredTiers = useMemo(
+    () =>
+      customerType === "consumer"
+        ? sorted.filter((t) => t.slug === "consumer")
+        : sorted.filter((t) => t.slug !== "consumer"),
+    [sorted, customerType]
+  );
+
   const dynamicFeatures = useMemo(() => {
     const seen = new Set<string>();
     const rows: { key: string; in: string[] }[] = [];
-    // Union of features + excludedFeatures from all tiers, in encounter order
-    for (const tier of sorted) {
+    for (const tier of filteredTiers) {
       for (const f of [...tier.features, ...tier.excludedFeatures]) {
         if (!seen.has(f)) {
           seen.add(f);
           rows.push({
             key: f,
-            // A tier includes this feature if it appears in their features array
-            in: sorted.filter((t) => t.features.includes(f)).map((t) => t.slug),
+            in: filteredTiers.filter((t) => t.features.includes(f)).map((t) => t.slug),
           });
         }
       }
     }
     return rows;
-  }, [sorted]);
+  }, [filteredTiers]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -412,8 +416,8 @@ export default function Pricing() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
-            {sorted.map((tier, idx) => (
+          <div className={`grid grid-cols-1 gap-6 lg:gap-8 items-stretch ${filteredTiers.length === 1 ? "max-w-sm mx-auto" : "md:grid-cols-3"}`}>
+            {filteredTiers.map((tier, idx) => (
               <motion.div
                 key={tier.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -660,7 +664,7 @@ export default function Pricing() {
               <thead>
                 <tr className="bg-navy text-white">
                   <th className="text-left px-6 py-4 text-sm font-bold">Feature</th>
-                  {sorted.map((t) => (
+                  {filteredTiers.map((t) => (
                     <th key={t.id} className="text-center px-4 py-4 text-sm font-bold">
                       {t.name}
                       {t.mostPopular && (
@@ -674,7 +678,7 @@ export default function Pricing() {
                 {dynamicFeatures.map((row, i) => (
                   <tr key={row.key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}>
                     <td className="px-6 py-3.5 text-sm text-navy font-medium">{row.key}</td>
-                    {sorted.map((t) => {
+                    {filteredTiers.map((t) => {
                       const included = row.in.includes(t.slug);
                       return (
                         <td key={t.id} className="px-4 py-3.5 text-center">
@@ -694,7 +698,7 @@ export default function Pricing() {
 
           {/* Mobile accordion */}
           <div className="md:hidden space-y-3">
-            {sorted.map((tier) => {
+            {filteredTiers.map((tier) => {
               const isOpen = openMobileTier === tier.slug;
               return (
                 <div key={tier.id} className="bg-white rounded-2xl border border-border/60 overflow-hidden">

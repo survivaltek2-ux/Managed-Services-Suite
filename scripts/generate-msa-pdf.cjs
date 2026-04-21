@@ -352,7 +352,6 @@ doc.font(FONTS.italic).fontSize(8.5).fillColor(COLORS.lightGray)
     "and the Customer identified above. Do not distribute without authorization.",
     PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: "center" }
   );
-
 drawFooter();
 
 // ─────────────────────────────────────────────────────────────────────────────
