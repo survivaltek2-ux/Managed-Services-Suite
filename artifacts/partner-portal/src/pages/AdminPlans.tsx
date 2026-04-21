@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   FileText, Search, Loader, Download, ChevronLeft, RefreshCw, Plus, X,
 } from "lucide-react";
@@ -266,6 +268,8 @@ function PartnerSelectorModal({ partners, onSelect, onCancel }: {
 type View = "list" | "select-partner" | "wizard" | "detail";
 
 export default function AdminPlans() {
+  const { user, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [plans, setPlans] = useState<WrittenPlan[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -278,6 +282,12 @@ export default function AdminPlans() {
   const [detailData, setDetailData] = useState<{ plan: WrittenPlan; events: ActivityEvent[] } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [wizardPartnerId, setWizardPartnerId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!authLoading && (!user || !user.isAdmin)) {
+      setLocation("/dashboard");
+    }
+  }, [authLoading, user, setLocation]);
 
   const load = useCallback(async () => {
     setLoading(true);

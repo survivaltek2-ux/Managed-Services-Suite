@@ -738,19 +738,19 @@ export async function sendPlanExpiryReminders() {
       );
       const lockRow = lockResult.rows?.[0];
       if (!lockRow?.acquired) return;
-      await runReminderBatch();
+      await runReminderBatch(tx);
     });
   } catch (err) {
     console.error("[WrittenPlans] reminder cron error:", err);
   }
 }
 
-async function runReminderBatch() {
+async function runReminderBatch(qb: typeof db) {
   try {
     const now = new Date();
     const threeDaysOut = new Date(Date.now() + 3 * 86400000);
     // Include sent AND viewed; exclude already expired plans
-    const plans = await db.select().from(writtenPlansTable)
+    const plans = await qb.select().from(writtenPlansTable)
       .where(
         and(
           inArray(writtenPlansTable.status, ["sent", "viewed"]),
@@ -760,13 +760,13 @@ async function runReminderBatch() {
       );
     for (const plan of plans) {
       // Single reminder per plan — skip if any reminder has ever been sent
-      const events = await db.select().from(planActivityEventsTable)
+      const events = await qb.select().from(planActivityEventsTable)
         .where(and(eq(planActivityEventsTable.planId, plan.id), eq(planActivityEventsTable.eventType, "reminder_sent")))
         .limit(1);
       if (events.length > 0) continue;
       const partnerEmail = await resolvePartnerEmail(plan.partnerId);
       await sendPlanExpiringEmail(plan, partnerEmail).catch(e => console.error("[Email] expiry reminder error:", e));
-      await logEvent(plan.id, "reminder_sent");
+      await qb.insert(planActivityEventsTable).values({ planId: plan.id, eventType: "reminder_sent", metadata: {} });
     }
   } catch (err) {
     console.error("[WrittenPlans] reminder cron error:", err);
