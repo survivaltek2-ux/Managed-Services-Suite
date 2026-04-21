@@ -40,7 +40,6 @@ OKTA_CLIENT_SECRET = "5UOHSpNeZNl8kIRnYlzD9R2WwNUdE5VZ4k4uWgGbQB2HTKNer_HXyTpDPa
 OKTA_DOMAIN = "integrator-3295524.okta.com"
 OKTA_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/okta/callback"
 ZOOM_WS_SUBSCRIPTION_ID = "UaDd__jFTTilfIn9yc7c9Q"
-PARTNERSTACK_SECRET_KEY = "Y1AJhjXVURddENy5CO9OvyYDRHURXqardsraFNuwZbIR5kpalDWN3gGvdLjkulLF"
 
 [nix]
 channel = "stable-25_05"

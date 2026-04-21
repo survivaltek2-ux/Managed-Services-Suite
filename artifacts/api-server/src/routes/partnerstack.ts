@@ -271,10 +271,20 @@ async function runFullSync(): Promise<{ partnersPulled: number; transactionsPull
   }
 
   // Push any approved local partners that don't yet have a partnerstack_key.
-  const unpushed = await db.select({ id: partnersTable.id }).from(partnersTable)
+  const unpushedPartners = await db.select({ id: partnersTable.id }).from(partnersTable)
     .where(sql`${partnersTable.status} = 'approved' AND ${partnersTable.partnerstackKey} IS NULL`);
-  for (const u of unpushed.slice(0, 20)) {
+  for (const u of unpushedPartners.slice(0, 20)) {
     await pushPartnerToPartnerstack(u.id);
+  }
+
+  // Push any local commissions whose partner is synced but the commission itself isn't.
+  // This makes "Sync Now" a true push + pull and recovers from any earlier transient errors.
+  const unpushedCommissions = await db.select({ id: partnerCommissionsTable.id })
+    .from(partnerCommissionsTable)
+    .innerJoin(partnersTable, eq(partnersTable.id, partnerCommissionsTable.partnerId))
+    .where(sql`${partnerCommissionsTable.partnerstackKey} IS NULL AND ${partnersTable.partnerstackKey} IS NOT NULL`);
+  for (const c of unpushedCommissions.slice(0, 50)) {
+    await pushCommissionToPartnerstack(c.id);
   }
 
   await db.update(partnerstackConfigsTable).set({
