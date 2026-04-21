@@ -544,15 +544,17 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
     if (["approved", "declined", "call_requested"].includes(plan.status)) {
       res.status(400).json({ error: "already_responded" }); return;
     }
+    const normalizedSignerName = signerName.trim();
+    const normalizedSignerTitle = signerTitle ? signerTitle.trim() || null : null;
     const [updated] = await db.update(writtenPlansTable).set({
       status: "approved",
       approvedAt: new Date(),
-      signerName,
-      signerTitle: signerTitle || null,
+      signerName: normalizedSignerName,
+      signerTitle: normalizedSignerTitle,
       signatureImage,
       updatedAt: new Date(),
     }).where(eq(writtenPlansTable.id, plan.id)).returning();
-    await logEvent(plan.id, "approved", { signerName, signerTitle });
+    await logEvent(plan.id, "approved", { signerName: normalizedSignerName, signerTitle: normalizedSignerTitle });
 
     resolvePartnerEmail(updated.partnerId).then(partnerEmail =>
       sendPlanApprovedEmail(updated, partnerEmail).catch(e => console.error("[Email] plan approved error:", e))
@@ -603,9 +605,9 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
       declineNote: note || null,
       updatedAt: new Date(),
     }).where(eq(writtenPlansTable.id, plan.id));
-    await logEvent(plan.id, "declined", { reason, note });
+    await logEvent(plan.id, "declined", { reason: reason.trim(), note });
     resolvePartnerEmail(plan.partnerId).then(partnerEmail =>
-      sendPlanDeclinedEmail(plan, reason, note, partnerEmail).catch(e => console.error("[Email] plan declined error:", e))
+      sendPlanDeclinedEmail(plan, reason.trim(), note, partnerEmail).catch(e => console.error("[Email] plan declined error:", e))
     );
     res.json({ success: true });
   } catch (err) {
