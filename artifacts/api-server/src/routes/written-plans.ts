@@ -715,4 +715,10 @@ async function runReminderBatch() {
   }
 }
 
+export function startPlanReminderScheduler(): void {
+  const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+  setInterval(() => { sendPlanExpiryReminders(); }, INTERVAL_MS);
+  console.log("[WrittenPlans] Expiry reminder scheduler started (interval: 6h)");
+}
+
 export default router;

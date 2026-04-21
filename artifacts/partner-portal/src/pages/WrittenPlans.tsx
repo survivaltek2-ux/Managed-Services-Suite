@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, FileText, Clock, CheckCircle, XCircle, Mail, Phone, Eye,
   Download, ChevronLeft, Send, Edit2, RefreshCw, Trash2, X,
-  Loader, AlertCircle, CheckSquare, Calendar, User, Building2,
+  Loader, AlertCircle,
   ChevronDown, ChevronUp, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";

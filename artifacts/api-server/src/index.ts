@@ -3,6 +3,7 @@ import { ensureTsdConfigsExist, startTsdSyncScheduler } from "./lib/tsdSync.js";
 import { seedDatabase } from "./db-seed.js";
 import { startZoomWebSocketSubscription } from "./lib/zoomWebSocket.js";
 import { startLeadMagnetSequenceScheduler } from "./lib/leadMagnetSequence.js";
+import { startPlanReminderScheduler } from "./routes/written-plans.js";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
@@ -310,5 +311,10 @@ app.listen(port, async () => {
     startLeadMagnetSequenceScheduler();
   } catch (err) {
     console.error("[LeadMagnetSeq] Startup error:", err);
+  }
+  try {
+    startPlanReminderScheduler();
+  } catch (err) {
+    console.error("[PlanReminder] Startup error:", err);
   }
 });
