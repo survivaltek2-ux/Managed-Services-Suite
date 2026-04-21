@@ -197,7 +197,7 @@ export default function AdminBilling() {
                   Pending Signups — Action Required ({pendingSignups.length})
                 </CardTitle>
                 <p className="text-xs text-orange-700 mt-0.5">
-                  These customers completed checkout and are in a free review period — their cards have not been charged. Approve to start billing; reject to cancel with no charge.
+                  These customers completed checkout with a pre-authorized hold on their card — no charge yet. Approve to capture the payment and start their subscription; reject to release the hold with no charge.
                 </p>
               </CardHeader>
               <CardContent className="p-0">

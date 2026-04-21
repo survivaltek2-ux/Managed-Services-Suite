@@ -272,12 +272,55 @@ router.post("/admin/billing/subscriptions/:id/approve", requireAdmin, async (req
       return;
     }
 
-    // End the trial immediately — this triggers Stripe to invoice and charge the card now.
-    await stripe.subscriptions.update(sub.stripeSubscriptionId, { trial_end: "now" });
+    const paymentIntentId = sub.stripePaymentIntentId;
+    if (!paymentIntentId) {
+      res.status(400).json({ error: "no_payment_intent", message: "No pre-authorization payment intent found for this signup." });
+      return;
+    }
 
-    // Mark approved in the database.
+    // 1. Capture the pre-authorized payment — this charges the card for the first period.
+    const captured = await stripe.paymentIntents.capture(paymentIntentId);
+    const paymentMethodId = captured.payment_method as string | null;
+
+    // 2. Create the recurring subscription starting from the next billing period.
+    //    The first period is already covered by the captured one-time payment.
+    const seats = sub.seats || 1;
+    const cycle = (sub.billingCycle || "monthly") as "monthly" | "annual";
+    const nextPeriodSecs = Math.floor(Date.now() / 1000) + (cycle === "annual" ? 365 : 30) * 24 * 60 * 60;
+
+    let newStripeSubId = sub.stripeSubscriptionId; // keep placeholder if sub creation fails
+    try {
+      const priceId = sub.stripePriceId;
+      if (priceId && paymentMethodId && sub.stripeCustomerId) {
+        // Attach payment method to customer if not already attached.
+        await stripe.paymentMethods.attach(paymentMethodId, { customer: sub.stripeCustomerId }).catch(() => { /* already attached */ });
+
+        const newSub = await stripe.subscriptions.create({
+          customer: sub.stripeCustomerId,
+          items: [{ price: priceId, quantity: seats }],
+          default_payment_method: paymentMethodId,
+          // trial_end = start of next period so customer isn't double-charged.
+          trial_end: nextPeriodSecs,
+          metadata: { planSlug: sub.planId, billingCycle: cycle, seats: String(seats), type: "approved_checkout" },
+        });
+        newStripeSubId = newSub.id;
+        console.log(`[Billing] Created subscription ${newSub.id} for approved signup ${sub.stripePaymentIntentId}`);
+      } else {
+        console.warn(`[Billing] Missing priceId, paymentMethod, or customerId — subscription not created. PI: ${paymentIntentId}`);
+      }
+    } catch (subErr) {
+      console.error("[Billing] Subscription creation failed (non-fatal — first period was captured):", subErr);
+    }
+
+    // 3. Mark approved in the database.
     await db.update(subscriptionsTable)
-      .set({ approvalStatus: "approved", status: "active" as any, updatedAt: new Date() })
+      .set({
+        stripeSubscriptionId: newStripeSubId,
+        approvalStatus: "approved",
+        status: "trialing" as any, // trialing until next period billing kicks in
+        currentPeriodEnd: new Date(nextPeriodSecs * 1000),
+        updatedAt: new Date(),
+      })
       .where(eq(subscriptionsTable.id, id));
 
     // Send the MSA contract + welcome email now that they're approved.
@@ -289,9 +332,7 @@ router.post("/admin/billing/subscriptions/:id/approve", requireAdmin, async (req
         const tiers = await db.select().from(pricingTiersTable);
         tierRecord = tiers.find((t: any) => t.slug === sub.planId) || tiers[0];
 
-        const cycle = (sub.billingCycle || "monthly") as "monthly" | "annual";
         const pricePerUser = parseFloat(tierRecord?.startingPrice || sub.amount || "89");
-        const seats = sub.seats || 1;
         const effectiveDate = sub.currentPeriodStart || new Date();
 
         const pdfBuffer = await generateMSAContract({
@@ -366,8 +407,17 @@ router.post("/admin/billing/subscriptions/:id/reject", requireAdmin, async (req:
       return;
     }
 
-    // Cancel the subscription — the trial ends with no charge ever made.
-    await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
+    // Cancel the pre-authorization payment intent — releases the card hold with no charge.
+    if (sub.stripePaymentIntentId) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(sub.stripePaymentIntentId);
+        if (pi.status === "requires_capture") {
+          await stripe.paymentIntents.cancel(sub.stripePaymentIntentId);
+        }
+      } catch (piErr) {
+        console.error("[Billing] PI cancellation failed (non-fatal):", piErr);
+      }
+    }
 
     await db.update(subscriptionsTable)
       .set({ approvalStatus: "rejected", status: "canceled" as any, canceledAt: new Date(), updatedAt: new Date() })
@@ -511,15 +561,38 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       return price.id;
     };
 
+    // Calculate total for first period (unit price × seats).
+    const annualRaw = parseFloat(tier.annualPrice ?? "0");
+    const effectiveAnnual = annualRaw > 0 ? tier.annualPrice : tier.startingPrice;
+    const unitAmountCents = billingCycle === "annual"
+      ? Math.round(parseFloat(effectiveAnnual) * 100)
+      : Math.round(parseFloat(tier.startingPrice) * 100);
+    const totalAmountCents = unitAmountCents * seats;
+    const periodLabel = billingCycle === "annual" ? "Year" : "Month";
+
     const createSession = async (priceId: string) => stripe.checkout.sessions.create({
-      mode: "subscription",
+      // payment mode lets us pre-authorize the charge with capture_method: "manual".
+      // The admin captures on approval; cancels on rejection (no charge).
+      // setup_future_usage saves the card so we can create the recurring subscription on approval.
+      mode: "payment",
       ...(email ? { customer_email: email } : {}),
-      line_items: [{ price: priceId, quantity: seats }],
-      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout" },
-      allow_promotion_codes: true,
-      // Give a 7-day review window — admin approves (ends trial immediately,
-      // billing starts) or rejects (cancels subscription, card never charged).
-      subscription_data: { trial_period_days: 7 },
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          unit_amount: totalAmountCents,
+          product_data: {
+            name: `${tier.name} Plan — First ${periodLabel} (${seats} seat${seats !== 1 ? "s" : ""})`,
+          },
+        },
+        quantity: 1,
+      }],
+      payment_intent_data: {
+        capture_method: "manual",
+        setup_future_usage: "off_session",
+        // Store identifiers so the webhook and approval flow can create the subscription.
+        metadata: { type: "self_checkout", tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), priceId },
+      },
+      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout", priceId },
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing`,
     });
