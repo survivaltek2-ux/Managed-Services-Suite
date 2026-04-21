@@ -466,7 +466,27 @@ export default function Admin() {
                 { key: "stripeProductId", label: "Stripe Product ID (e.g. prod_…) — leave blank to auto-create", type: "text" },
                 { key: "stripeMonthlyPriceId", label: "Stripe Monthly Price ID (e.g. price_…) — leave blank to auto-create", type: "text" },
                 { key: "stripeAnnualPriceId", label: "Stripe Annual Price ID (e.g. price_…) — leave blank to auto-create", type: "text" },
-              ]} columns={["name", "startingPrice", "mostPopular", "active"]} />}
+              ]} columns={["name", "startingPrice", "mostPopular", "active", "stripe"]}
+              columnLabels={{ stripe: "Stripe" }}
+              customCells={{
+                stripe: (item) => item.stripeProductId
+                  ? (
+                    <a
+                      href={`https://dashboard.stripe.com/products/${encodeURIComponent(item.stripeProductId)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={item.stripeProductId}
+                      className="inline-flex items-center gap-1"
+                    >
+                      <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 cursor-pointer text-white gap-1">
+                        <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm3.43 11.57c-.18.1-.42.05-.52-.13L8 6.93l-2.91 4.51c-.1.18-.34.23-.52.13-.18-.1-.23-.34-.13-.52L7.5 6l-2.5-.5c-.2-.04-.33-.23-.29-.43.04-.2.23-.33.43-.29L8 5.3l2.86-.52c.2-.04.39.09.43.29.04.2-.09.39-.29.43L8.5 6l3.06 5.05c.1.18.05.42-.13.52z"/></svg>
+                        Linked
+                      </Badge>
+                    </a>
+                  )
+                  : <Badge variant="secondary" className="text-muted-foreground">Unlinked</Badge>
+              }}
+              />}
               {activeTab === "industries" && <CrudTab items={data.industries || []} refresh={() => fetchData("industries")} headers={headers} entity="industries" fields={[
                 { key: "name", label: "Name (e.g. Healthcare)", type: "text", required: true },
                 { key: "slug", label: "Slug (auto if blank, e.g. healthcare)", type: "text" },
@@ -788,9 +808,11 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
 
 interface FieldDef { key: string; label: string; type: "text" | "textarea" | "number" | "checkbox" | "features" | "select" | "json"; required?: boolean; options?: string[] }
 
-function CrudTab({ items, refresh, headers, entity, fields, columns }: {
+function CrudTab({ items, refresh, headers, entity, fields, columns, customCells, columnLabels }: {
   items: any[]; refresh: () => void; headers: () => any; entity: string;
   fields: FieldDef[]; columns: string[];
+  customCells?: Record<string, (item: any) => React.ReactNode>;
+  columnLabels?: Record<string, string>;
 }) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -867,7 +889,7 @@ function CrudTab({ items, refresh, headers, entity, fields, columns }: {
           <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase">
               <tr>
-                {columns.map(c => <th key={c} className="px-5 py-3 text-left">{c}</th>)}
+                {columns.map(c => <th key={c} className="px-5 py-3 text-left">{columnLabels?.[c] ?? c}</th>)}
                 <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -876,8 +898,11 @@ function CrudTab({ items, refresh, headers, entity, fields, columns }: {
                 <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50">
                   {columns.map(c => (
                     <td key={c} className="px-5 py-3">
-                      {typeof item[c] === "boolean" ? <Badge variant={item[c] ? "default" : "secondary"}>{item[c] ? "Yes" : "No"}</Badge>
-                       : String(item[c] ?? "").slice(0, 60)}
+                      {customCells?.[c]
+                        ? customCells[c](item)
+                        : typeof item[c] === "boolean"
+                          ? <Badge variant={item[c] ? "default" : "secondary"}>{item[c] ? "Yes" : "No"}</Badge>
+                          : String(item[c] ?? "").slice(0, 60)}
                     </td>
                   ))}
                   <td className="px-5 py-3 text-right space-x-1">
