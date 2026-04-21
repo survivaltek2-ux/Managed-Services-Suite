@@ -8,6 +8,7 @@ import { ChatWidget } from "@/components/ChatWidget";
 import { BookingInline } from "@/components/Booking";
 
 const SITE_ORIGIN = "https://siebertservices.com";
+const SITE_NAME = "Siebert Services";
 
 const ROUTE_LABELS: Record<string, string> = {
   "": "Home",
@@ -106,8 +107,60 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return SERVICE_ROUTES[firstSeg] ?? null;
   }, [location, isAppShell]);
 
+  const pageMeta = useMemo(() => {
+    const base = { title: SITE_NAME, description: "Hudson Valley managed IT services, cybersecurity, cloud, and vendor reselling." };
+    const entries: Record<string, { title: string; description: string }> = {
+      "/": { title: "Managed IT Services in Hudson Valley | Siebert Services", description: "Managed IT, cybersecurity, cloud, and vendor reselling for growing businesses in the Hudson Valley and New York metro." },
+      "/services": { title: "Managed IT Services | Siebert Services", description: "Explore managed IT, cybersecurity, cloud, networking, and support services for SMB and mid-market teams." },
+      "/pricing": { title: "Managed IT Pricing | Siebert Services", description: "Transparent managed IT pricing with monthly and annual plans plus seat-based checkout." },
+      "/contact": { title: "Contact Siebert Services", description: "Talk to Siebert Services about managed IT, security, cloud, and communications solutions." },
+      "/quote": { title: "Request a Quote | Siebert Services", description: "Get a custom quote for managed IT, cybersecurity, or vendor services." },
+      "/about": { title: "About Siebert Services", description: "Learn about Siebert Services and our Hudson Valley managed IT team." },
+      "/blog": { title: "IT Support Blog | Siebert Services", description: "Read managed IT, cybersecurity, and business technology insights from Siebert Services." },
+      "/resources": { title: "IT Resources | Siebert Services", description: "Free guides and tools for IT, cybersecurity, compliance, and business technology planning." },
+      "/internet-plans": { title: "Business Internet Plans | Siebert Services", description: "Compare business internet providers and plans available in your area." },
+    };
+
+    return (entries[location] || serviceMeta) ? {
+      title: serviceMeta ? `${serviceMeta.name} | Siebert Services` : base.title,
+      description: serviceMeta?.description || base.description,
+    } : base;
+  }, [location, serviceMeta]);
+
+  useEffect(() => {
+    document.title = pageMeta.title;
+    const setMeta = (selector: string, content: string) => {
+      let el = document.head.querySelector(selector) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        if (selector.includes('name="')) {
+          el.setAttribute("name", selector.match(/name=\"([^\"]+)\"/)?.[1] || "");
+        }
+        if (selector.includes('property="')) {
+          el.setAttribute("property", selector.match(/property=\"([^\"]+)\"/)?.[1] || "");
+        }
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+    setMeta('meta[name="description"]', pageMeta.description);
+    setMeta('meta[property="og:title"]', pageMeta.title);
+    setMeta('meta[property="og:description"]', pageMeta.description);
+    setMeta('meta[property="twitter:title"]', pageMeta.title);
+    setMeta('meta[property="twitter:description"]', pageMeta.description);
+    let canonical = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    canonical.href = `${SITE_ORIGIN}${location === "/" ? "" : location}`;
+    document.documentElement.lang = "en";
+  }, [location, pageMeta]);
+
   return (
     <div className="min-h-screen flex flex-col font-sans">
+      <link rel="canonical" href={`${SITE_ORIGIN}${location === "/" ? "" : location}`} />
       <SchemaTag id="schema-org" type="Organization" />
       {breadcrumbs && (
         <SchemaTag id="schema-breadcrumb-global" type="BreadcrumbList" crumbs={breadcrumbs} />
