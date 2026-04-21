@@ -1322,7 +1322,31 @@ router.get("/admin/partner/commissions", requireAdmin, async (_req, res) => {
     }).from(partnerCommissionsTable)
       .leftJoin(partnersTable, eq(partnerCommissionsTable.partnerId, partnersTable.id))
       .orderBy(desc(partnerCommissionsTable.createdAt));
-    res.json(commissions);
+
+    const payoutsEnabledMap: Record<string, boolean> = {};
+    if (isStripeConfigured()) {
+      const uniqueAccountIds = [...new Set(
+        commissions.map(c => c.stripeConnectAccountId).filter(Boolean) as string[]
+      )];
+      const stripe = getStripe();
+      await Promise.all(uniqueAccountIds.map(async (accountId) => {
+        try {
+          const account = await stripe.accounts.retrieve(accountId);
+          payoutsEnabledMap[accountId] = account.payouts_enabled ?? false;
+        } catch {
+          payoutsEnabledMap[accountId] = false;
+        }
+      }));
+    }
+
+    const result = commissions.map(c => ({
+      ...c,
+      stripePayoutsEnabled: c.stripeConnectAccountId
+        ? (payoutsEnabledMap[c.stripeConnectAccountId] ?? null)
+        : null,
+    }));
+
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to load commissions" });

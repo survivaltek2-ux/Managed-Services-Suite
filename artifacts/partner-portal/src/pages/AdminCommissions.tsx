@@ -230,7 +230,17 @@ export default function AdminCommissions() {
                           <td className="px-5 py-3">
                             <div className="font-medium flex items-center gap-1.5">
                               {c.partnerCompany || "—"}
-                              {c.stripeConnectAccountId && (
+                              {c.stripeConnectAccountId && c.stripePayoutsEnabled === true && (
+                                <span title="Stripe payouts enabled — ready to receive transfers" className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[10px] font-medium rounded bg-green-100 text-green-700">
+                                  <Check className="w-2.5 h-2.5" /> Stripe
+                                </span>
+                              )}
+                              {c.stripeConnectAccountId && c.stripePayoutsEnabled === false && (
+                                <span title="Stripe account not yet verified — payouts disabled" className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[10px] font-medium rounded bg-amber-100 text-amber-700">
+                                  <AlertTriangle className="w-2.5 h-2.5" /> Stripe
+                                </span>
+                              )}
+                              {c.stripeConnectAccountId && c.stripePayoutsEnabled === null && (
                                 <span title="Stripe Connect enabled" className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[10px] font-medium rounded bg-violet-100 text-violet-700">
                                   <Zap className="w-2.5 h-2.5" /> Stripe
                                 </span>
