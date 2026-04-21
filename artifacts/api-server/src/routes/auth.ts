@@ -1,11 +1,18 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { db, usersTable } from "@workspace/db";
 import { loginCodesTable, partnersTable } from "@workspace/db/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { generateToken, requireAuth, AuthRequest } from "../middlewares/auth.js";
 import { Response } from "express";
-import { sendLoginCode, sendUserRegistrationNotification } from "../lib/email.js";
+import { sendLoginCode, sendUserRegistrationNotification, sendPasswordResetEmail } from "../lib/email.js";
+
+function getAppBaseUrl(): string {
+  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || "";
+  const m = redirectUri.match(/^(https?:\/\/[^/]+)/);
+  return m ? m[1] : "https://siebertrservices.com";
+}
 
 const router: IRouter = Router();
 
@@ -195,6 +202,62 @@ router.post("/auth/request-code", async (req, res) => {
   } catch (err) {
     console.error("request-code error:", err);
     res.status(500).json({ message: "Failed to send code" });
+  }
+});
+
+router.post("/auth/forgot-password", async (req, res) => {
+  try {
+    const { email: rawEmail } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    if (!email) {
+      res.status(400).json({ error: "validation_error", message: "email is required" });
+      return;
+    }
+    // Respond immediately to prevent email enumeration
+    res.json({ success: true, message: "If an account exists for this email, a reset link has been sent." });
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (!user) return;
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    await db.update(usersTable).set({ resetToken: token, resetTokenExpires: expires }).where(eq(usersTable.id, user.id));
+
+    const resetUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
+    sendPasswordResetEmail(user.email, user.name, resetUrl).catch(err =>
+      console.error("[Email] Password reset email error:", err)
+    );
+  } catch (err) {
+    console.error("Forgot password error:", err);
+  }
+});
+
+router.post("/auth/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      res.status(400).json({ error: "validation_error", message: "token and password are required" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "validation_error", message: "Password must be at least 8 characters" });
+      return;
+    }
+    const now = new Date();
+    const [user] = await db.select().from(usersTable)
+      .where(and(eq(usersTable.resetToken, token), gt(usersTable.resetTokenExpires, now)))
+      .limit(1);
+    if (!user) {
+      res.status(400).json({ error: "invalid_token", message: "Reset link is invalid or has expired. Please request a new one." });
+      return;
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.update(usersTable).set({ password: hashedPassword, resetToken: null, resetTokenExpires: null })
+      .where(eq(usersTable.id, user.id));
+    res.json({ success: true, message: "Password reset successfully. You can now sign in." });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to reset password" });
   }
 });
 

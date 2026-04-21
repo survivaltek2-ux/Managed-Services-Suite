@@ -15,6 +15,8 @@ export const usersTable = pgTable("users", {
   ssoProvider: text("sso_provider"),
   ssoId: text("sso_id"),
   stripeCustomerId: text("stripe_customer_id"),
+  resetToken: text("reset_token"),
+  resetTokenExpires: timestamp("reset_token_expires"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

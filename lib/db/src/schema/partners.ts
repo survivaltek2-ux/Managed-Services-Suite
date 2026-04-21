@@ -43,6 +43,8 @@ export const partnersTable = pgTable("partners", {
   stripeConnectAccountId: text("stripe_connect_account_id"),
   lastStripeReminderSentAt: timestamp("last_stripe_reminder_sent_at"),
   approvedAt: timestamp("approved_at"),
+  resetToken: text("reset_token"),
+  resetTokenExpires: timestamp("reset_token_expires"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

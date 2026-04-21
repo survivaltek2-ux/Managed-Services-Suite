@@ -1,13 +1,20 @@
 import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable } from "@workspace/db";
-import { eq, and, desc, sql, count, sum, asc, isNull, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, asc, isNull, inArray, gt } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
-import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder } from "../lib/email.js";
+import { sendDealSubmittedNotification, sendLeadSubmittedNotification, sendTicketSubmittedNotification, sendTrainingRequestNotification, sendPartnerRegistrationNotification, sendPartnerApprovalNotification, sendPartnerTierChangeNotification, sendStripeConnectReminder, sendPasswordResetEmail } from "../lib/email.js";
 import { pushDeal, type TsdId } from "../lib/tsd-adapter.js";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
+
+function getAppBaseUrl(): string {
+  const redirectUri = process.env.MICROSOFT_REDIRECT_URI || "";
+  const m = redirectUri.match(/^(https?:\/\/[^/]+)/);
+  return m ? m[1] : "https://siebertrservices.com";
+}
 
 const router: IRouter = Router();
 
@@ -173,6 +180,64 @@ router.post("/partner/auth/change-password", requirePartnerAuth, async (req: Par
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to change password" });
+  }
+});
+
+router.post("/partner/auth/forgot-password", async (req, res) => {
+  try {
+    const { email: rawEmail } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    if (!email) {
+      res.status(400).json({ error: "validation_error", message: "email is required" });
+      return;
+    }
+    // Respond immediately to prevent email enumeration
+    res.json({ success: true, message: "If a partner account exists for this email, a reset link has been sent." });
+
+    const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.email, email)).limit(1);
+    if (!partner) return;
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    await db.update(partnersTable).set({ resetToken: token, resetTokenExpires: expires, updatedAt: new Date() })
+      .where(eq(partnersTable.id, partner.id));
+
+    const resetUrl = `${getAppBaseUrl()}/partners/reset-password?token=${token}`;
+    sendPasswordResetEmail(partner.email, partner.contactName, resetUrl).catch(err =>
+      console.error("[Email] Partner password reset email error:", err)
+    );
+  } catch (err) {
+    console.error("Partner forgot password error:", err);
+  }
+});
+
+router.post("/partner/auth/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      res.status(400).json({ error: "validation_error", message: "token and password are required" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "validation_error", message: "Password must be at least 8 characters" });
+      return;
+    }
+    const now = new Date();
+    const [partner] = await db.select().from(partnersTable)
+      .where(and(eq(partnersTable.resetToken, token), gt(partnersTable.resetTokenExpires, now)))
+      .limit(1);
+    if (!partner) {
+      res.status(400).json({ error: "invalid_token", message: "Reset link is invalid or has expired. Please request a new one." });
+      return;
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.update(partnersTable)
+      .set({ password: hashedPassword, resetToken: null, resetTokenExpires: null, updatedAt: new Date() })
+      .where(eq(partnersTable.id, partner.id));
+    res.json({ success: true, message: "Password reset successfully. You can now sign in." });
+  } catch (err) {
+    console.error("Partner reset password error:", err);
+    res.status(500).json({ error: "server_error", message: "Failed to reset password" });
   }
 });
 

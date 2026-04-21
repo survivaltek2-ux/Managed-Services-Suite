@@ -62,6 +62,7 @@ import PrintableHipaa from "./pages/resources/PrintableHipaa";
 import PrintableBuyersGuide from "./pages/resources/PrintableBuyersGuide";
 import { ExitIntentPopup } from "@/components/leadMagnets";
 import Welcome from "./pages/Welcome";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +98,7 @@ function PublicRouter() {
         {/* Partner programs */}
         <Route path="/zoom" component={ZoomPartner} />
         <Route path="/portal" component={Portal} />
+        <Route path="/reset-password" component={ResetPassword} />
         <Route path="/recommended" component={AffiliateRecommendations} />
 
         {/* Vendor partner pages */}

@@ -36,10 +36,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [ssoLoading, setSsoLoading] = useState(false);
-  const [mode, setMode] = useState<"password" | "code">("password");
+  const [mode, setMode] = useState<"password" | "code" | "forgot">("password");
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
   const [codeLoading, setCodeLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -124,11 +126,31 @@ export default function Login() {
   };
 
 
-  const switchMode = (m: "password" | "code") => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) { setError("Please enter your email address."); return; }
+    setError("");
+    setForgotLoading(true);
+    try {
+      await fetch("/api/partner/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      setForgotSent(true);
+    } catch {
+      setError("Failed to send reset link. Please try again.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const switchMode = (m: "password" | "code" | "forgot") => {
     setMode(m);
     setError("");
     setCodeSent(false);
     setCode("");
+    setForgotSent(false);
   };
 
   return (
@@ -143,22 +165,24 @@ export default function Login() {
           <h2 className="text-2xl font-display font-bold text-center text-foreground mb-2">Partner Login</h2>
           <p className="text-center text-muted-foreground mb-6">Welcome back to the portal.</p>
 
-          <div className="flex rounded-xl border border-border overflow-hidden mb-6">
-            <button
-              type="button"
-              onClick={() => switchMode("password")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${mode === "password" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
-            >
-              <KeyRound className="w-4 h-4" /> Password
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode("code")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${mode === "code" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
-            >
-              <Mail className="w-4 h-4" /> Email Code
-            </button>
-          </div>
+          {mode !== "forgot" && (
+            <div className="flex rounded-xl border border-border overflow-hidden mb-6">
+              <button
+                type="button"
+                onClick={() => switchMode("password")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${mode === "password" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
+              >
+                <KeyRound className="w-4 h-4" /> Password
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode("code")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${mode === "code" ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
+              >
+                <Mail className="w-4 h-4" /> Email Code
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2.5 bg-destructive/10 text-destructive text-sm p-3.5 rounded-xl mb-4 border border-destructive/20 font-medium">
@@ -175,7 +199,55 @@ export default function Login() {
             </div>
           )}
 
-          {mode === "password" ? (
+          {mode === "forgot" ? (
+            forgotSent ? (
+              <div className="text-center space-y-4 py-2">
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-5">
+                  <Mail className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                  <p className="font-semibold text-foreground mb-1">Check your email</p>
+                  <p className="text-sm text-muted-foreground">
+                    If a partner account exists for <strong>{email}</strong>, we've sent a reset link. Check your inbox (and spam folder).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => switchMode("password")}
+                  className="text-sm text-primary font-semibold hover:underline"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Enter your account email and we'll send you a link to reset your password. The link expires in 1 hour.
+                </p>
+                <form onSubmit={handleForgotPassword} className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground ml-1">Work Email</label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="you@company.com"
+                      className="bg-slate-50 dark:bg-slate-950"
+                    />
+                  </div>
+                  <Button type="submit" className="w-full h-12 text-base rounded-xl" disabled={forgotLoading}>
+                    {forgotLoading ? "Sending..." : "Send Reset Link"} <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </form>
+                <button
+                  type="button"
+                  onClick={() => switchMode("password")}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors mt-4 text-center"
+                >
+                  Back to Sign In
+                </button>
+              </>
+            )
+          ) : mode === "password" ? (
             <>
               <div className="flex flex-col gap-3 mb-6">
                 <button
@@ -211,6 +283,13 @@ export default function Login() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center ml-1">
                     <label className="text-sm font-semibold text-foreground">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot")}
+                      className="text-xs text-primary font-semibold hover:underline"
+                    >
+                      Forgot password?
+                    </button>
                   </div>
                   <Input
                     type="password"

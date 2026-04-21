@@ -34,6 +34,12 @@ async function runStartupMigrations() {
   await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS stripe_connect_account_id text`);
   await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS last_stripe_reminder_sent_at timestamp`);
   await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS approved_at timestamp`);
+  await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS reset_token text`);
+  await db.execute(sql`ALTER TABLE partners ADD COLUMN IF NOT EXISTS reset_token_expires timestamp`);
+
+  // ── users — reset token ───────────────────────────────────────────────────
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token text`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires timestamp`);
 
   // ── partner_commissions — Stripe / payout columns ─────────────────────────
   await db.execute(sql`ALTER TABLE partner_commissions ADD COLUMN IF NOT EXISTS stripe_transfer_id text`);

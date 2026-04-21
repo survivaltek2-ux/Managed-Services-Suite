@@ -37,6 +37,7 @@ import ServiceAvailability from "./pages/ServiceAvailability";
 import Vivint from "./pages/Vivint";
 import Billing from "./pages/Billing";
 import AdminBilling from "./pages/AdminBilling";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/not-found";
 
 import { useAuth } from "./hooks/use-auth";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/" component={PublicHome} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/reset-password" component={ResetPassword} />
       
       {/* Protected Portal Routes */}
       <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>

@@ -407,7 +407,14 @@ export default function Portal() {
                     <Input type="email" required value={email} onChange={e => setEmail(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Password</Label>
+                    <div className="flex justify-between items-center">
+                      <Label>Password</Label>
+                      {!isRegistering && (
+                        <a href={`${API_BASE}/reset-password`} className="text-xs text-primary font-semibold hover:underline">
+                          Forgot password?
+                        </a>
+                      )}
+                    </div>
                     <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} />
                   </div>
                   <Button type="submit" className="w-full mt-6 h-12 text-base shadow-primary/20 shadow-lg" disabled={loginMutation.isPending || registerMutation.isPending}>
