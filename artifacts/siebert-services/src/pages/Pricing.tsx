@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText, Download, Building2, Laptop, ShieldCheck, Cloud, Mail, Wifi, HardDrive, User } from "lucide-react";
@@ -131,26 +131,6 @@ const FALLBACK_TIERS: PricingTier[] = [
   },
 ];
 
-const ALL_FEATURES = [
-  { key: "Business-hours help desk (M–F 8–5)", in: ["consumer", "essentials", "business", "enterprise"] },
-  { key: "Extended-hours help desk (7am–8pm)", in: ["business", "enterprise"] },
-  { key: "24/7/365 help desk + emergency line", in: ["enterprise"] },
-  { key: "Remote monitoring & patching", in: ["consumer", "essentials", "business", "enterprise"] },
-  { key: "Endpoint antivirus", in: ["consumer", "essentials", "business", "enterprise"] },
-  { key: "Endpoint Detection & Response (EDR)", in: ["business", "enterprise"] },
-  { key: "Managed SOC monitoring", in: ["enterprise"] },
-  { key: "Microsoft 365 administration", in: ["consumer", "essentials", "business", "enterprise"] },
-  { key: "MFA / Conditional Access rollout", in: ["business", "enterprise"] },
-  { key: "Backup & disaster-recovery monitoring", in: ["business", "enterprise"] },
-  { key: "Immutable backup + tested restores", in: ["enterprise"] },
-  { key: "Compliance program management", in: ["enterprise"] },
-  { key: "Quarterly health check", in: ["essentials"] },
-  { key: "Quarterly business reviews (vCIO)", in: ["business", "enterprise"] },
-  { key: "Named vCIO + monthly strategy", in: ["enterprise"] },
-  { key: "On-site dispatch (4 hrs / month, New York only)", in: ["business"] },
-  { key: "Unlimited on-site dispatch (New York only)", in: ["enterprise"] },
-  { key: "Dedicated account team", in: ["enterprise"] },
-];
 
 type BillingCycle = "monthly" | "annual";
 type CustomerType = "business" | "consumer";
@@ -279,7 +259,30 @@ export default function Pricing() {
   }, []);
 
   const showTiers = loaded ? tiers : FALLBACK_TIERS;
-  const sorted = [...showTiers].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const sorted = useMemo(
+    () => [...(loaded ? tiers : FALLBACK_TIERS)].sort((a, b) => a.sortOrder - b.sortOrder),
+    [tiers, loaded]
+  );
+
+  const dynamicFeatures = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: { key: string; in: string[] }[] = [];
+    // Union of features + excludedFeatures from all tiers, in encounter order
+    for (const tier of sorted) {
+      for (const f of [...tier.features, ...tier.excludedFeatures]) {
+        if (!seen.has(f)) {
+          seen.add(f);
+          rows.push({
+            key: f,
+            // A tier includes this feature if it appears in their features array
+            in: sorted.filter((t) => t.features.includes(f)).map((t) => t.slug),
+          });
+        }
+      }
+    }
+    return rows;
+  }, [sorted]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -668,7 +671,7 @@ export default function Pricing() {
                 </tr>
               </thead>
               <tbody>
-                {ALL_FEATURES.map((row, i) => (
+                {dynamicFeatures.map((row, i) => (
                   <tr key={row.key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}>
                     <td className="px-6 py-3.5 text-sm text-navy font-medium">{row.key}</td>
                     {sorted.map((t) => {
@@ -713,7 +716,7 @@ export default function Pricing() {
                   {isOpen && (
                     <div className="px-5 pb-5 border-t border-border/60 pt-4">
                       <ul className="space-y-2">
-                        {ALL_FEATURES.map((row) => {
+                        {dynamicFeatures.map((row) => {
                           const included = row.in.includes(tier.slug);
                           return (
                             <li key={row.key} className="flex items-start gap-2.5 text-sm">
