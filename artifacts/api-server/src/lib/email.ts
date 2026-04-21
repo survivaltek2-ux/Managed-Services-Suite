@@ -9,12 +9,15 @@ function esc(str: string | null | undefined): string {
 
 const EMAIL_KEYS = [
   "smtp_from_email", "smtp_from_name", "notification_email",
+  "receipt_email_enabled", "receipt_email_intro",
 ];
 
 interface EmailConfig {
   fromEmail: string;
   fromName: string;
   notificationEmail: string;
+  receiptEmailEnabled: boolean;
+  receiptEmailIntro: string;
 }
 
 let _configCache: EmailConfig | null = null;
@@ -29,6 +32,8 @@ async function loadEmailConfig(): Promise<EmailConfig> {
     fromEmail: process.env.SMTP_FROM_EMAIL || "notifications@siebertrservices.com",
     fromName: process.env.SMTP_FROM_NAME || "Siebert Services",
     notificationEmail: process.env.NOTIFICATION_EMAIL || "sales@siebertrservices.com",
+    receiptEmailEnabled: true,
+    receiptEmailIntro: "",
   };
 
   try {
@@ -40,6 +45,8 @@ async function loadEmailConfig(): Promise<EmailConfig> {
       fromEmail: map["smtp_from_email"] || envDefaults.fromEmail,
       fromName: map["smtp_from_name"] || envDefaults.fromName,
       notificationEmail: map["notification_email"] || envDefaults.notificationEmail,
+      receiptEmailEnabled: map["receipt_email_enabled"] !== "false",
+      receiptEmailIntro: map["receipt_email_intro"] || "",
     };
   } catch {
     _configCache = envDefaults;
@@ -1362,4 +1369,87 @@ export async function sendStripeConnectReminder(partner: {
   `;
 
   return sendEmail(partner.email, "Action Required: Connect Your Stripe Account to Receive Payouts", html);
+}
+
+export async function sendPaymentReceiptEmail(invoice: {
+  customerEmail: string;
+  customerName?: string | null;
+  amountPaid: number;
+  currency: string;
+  invoiceNumber?: string | null;
+  description?: string | null;
+  periodStart?: Date | null;
+  periodEnd?: Date | null;
+  hostedInvoiceUrl?: string | null;
+  invoicePdf?: string | null;
+}): Promise<boolean> {
+  const cfg = await loadEmailConfig();
+
+  if (!cfg.receiptEmailEnabled) {
+    console.log("[Email] Receipt emails disabled — skipping receipt send");
+    return false;
+  }
+
+  const fmt = (n: number, currency: string) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(n / 100);
+
+  const amount = fmt(invoice.amountPaid, invoice.currency);
+  const dateLine = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const periodLine =
+    invoice.periodStart && invoice.periodEnd
+      ? `${invoice.periodStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${invoice.periodEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+      : null;
+
+  const greeting = invoice.customerName ? `Hi ${esc(invoice.customerName)},` : "Hi,";
+  const introText = cfg.receiptEmailIntro ||
+    "Thank you for your payment. Your invoice has been paid and your services are active. A summary is below for your records.";
+
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">Payment Receipt</h1>
+        <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 13px;">Siebert Services</p>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">${greeting}</p>
+        <p style="font-size: 14px; margin: 0 0 20px; color: #444;">${esc(introText)}</p>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f9fafb; border-radius: 6px; margin-bottom: 20px;">
+          <tr>
+            <td style="padding: 10px 14px; color: #706e6b; width: 160px; font-size: 13px;">Amount Paid</td>
+            <td style="padding: 10px 14px; font-weight: 700; font-size: 16px; color: #2e844a;">${esc(amount)}</td>
+          </tr>
+          ${invoice.invoiceNumber ? `<tr><td style="padding: 10px 14px; color: #706e6b; font-size: 13px;">Invoice #</td><td style="padding: 10px 14px;">${esc(invoice.invoiceNumber)}</td></tr>` : ""}
+          <tr><td style="padding: 10px 14px; color: #706e6b; font-size: 13px;">Date</td><td style="padding: 10px 14px;">${esc(dateLine)}</td></tr>
+          ${periodLine ? `<tr><td style="padding: 10px 14px; color: #706e6b; font-size: 13px;">Service Period</td><td style="padding: 10px 14px;">${esc(periodLine)}</td></tr>` : ""}
+          ${invoice.description ? `<tr><td style="padding: 10px 14px; color: #706e6b; font-size: 13px; border-top: 1px solid #e5e5e5;">Description</td><td style="padding: 10px 14px; border-top: 1px solid #e5e5e5;">${esc(invoice.description)}</td></tr>` : ""}
+        </table>
+
+        ${invoice.hostedInvoiceUrl || invoice.invoicePdf ? `
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+          ${invoice.hostedInvoiceUrl ? `<a href="${esc(invoice.hostedInvoiceUrl)}" style="display: inline-block; background: #0176d3; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; text-decoration: none;">View Invoice</a>` : ""}
+          ${invoice.invoicePdf ? `<a href="${esc(invoice.invoicePdf)}" style="display: inline-block; background: #fff; color: #0176d3; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #0176d3;">Download PDF</a>` : ""}
+        </div>
+        ` : ""}
+
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 4px;">Questions about this payment? Contact us:</p>
+        <p style="font-size: 13px; margin: 0;">
+          <a href="mailto:billing@siebertrservices.com" style="color: #0176d3;">billing@siebertrservices.com</a>
+          &nbsp;·&nbsp;
+          <a href="tel:866-484-9180" style="color: #0176d3;">866-484-9180</a>
+        </p>
+        <p style="font-size: 12px; color: #999; margin-top: 24px; border-top: 1px solid #e5e5e5; padding-top: 12px;">
+          — Siebert Services Billing Team
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(
+    invoice.customerEmail,
+    invoice.invoiceNumber
+      ? `Payment Receipt — Invoice #${invoice.invoiceNumber}`
+      : `Payment Receipt — ${amount} Paid`,
+    html
+  );
 }

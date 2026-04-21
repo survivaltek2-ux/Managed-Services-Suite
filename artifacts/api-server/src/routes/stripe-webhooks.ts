@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, invoicesTable, subscriptionsTable, partnerCommissionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { STRIPE_WEBHOOK_SECRET, isStripeConfigured, getStripe } from "../lib/stripe.js";
+import { sendPaymentReceiptEmail } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -93,6 +94,34 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
             }).where(eq(invoicesTable.stripePaymentIntentId, stripeInvoice.payment_intent));
             console.log(`[Stripe Webhook] Invoice paid via payment_intent ${stripeInvoice.payment_intent}`);
           }
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const stripeInvoice = event.data.object as any;
+        const customerEmail: string | null = stripeInvoice.customer_email || null;
+
+        if (customerEmail && stripeInvoice.amount_paid > 0) {
+          try {
+            await sendPaymentReceiptEmail({
+              customerEmail,
+              customerName: stripeInvoice.customer_name || null,
+              amountPaid: stripeInvoice.amount_paid,
+              currency: stripeInvoice.currency || "usd",
+              invoiceNumber: stripeInvoice.number || null,
+              description: stripeInvoice.description || stripeInvoice.lines?.data?.[0]?.description || null,
+              periodStart: stripeInvoice.period_start ? new Date(stripeInvoice.period_start * 1000) : null,
+              periodEnd: stripeInvoice.period_end ? new Date(stripeInvoice.period_end * 1000) : null,
+              hostedInvoiceUrl: stripeInvoice.hosted_invoice_url || null,
+              invoicePdf: stripeInvoice.invoice_pdf || null,
+            });
+            console.log(`[Stripe Webhook] Receipt sent to ${customerEmail} for invoice ${stripeInvoice.id}`);
+          } catch (emailErr) {
+            console.error("[Stripe Webhook] Failed to send receipt email:", emailErr);
+          }
+        } else {
+          console.log(`[Stripe Webhook] invoice.payment_succeeded — no customer email or zero amount, skipping receipt`);
         }
         break;
       }

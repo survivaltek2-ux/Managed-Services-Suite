@@ -686,6 +686,7 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
   };
 
   const textareas = ["hero_description", "about_story", "zoom_partner_description"];
+  const hiddenFromSiteContent = new Set(["receipt_email_enabled", "receipt_email_intro"]);
 
   return (
     <div className="space-y-6">
@@ -782,11 +783,46 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
 
       <Card>
         <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Mail className="w-4 h-4" /> Payment Receipt Emails</CardTitle>
+          <p className="text-xs text-muted-foreground">When a Stripe invoice is paid, an automatic receipt is sent to the client. Configure that email here.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="receipt_email_enabled"
+              checked={formData["receipt_email_enabled"] !== "false"}
+              onChange={e => setFormData(p => ({ ...p, receipt_email_enabled: e.target.checked ? "true" : "false" }))}
+              className="h-4 w-4 rounded border-gray-300 accent-primary"
+            />
+            <Label htmlFor="receipt_email_enabled" className="text-sm cursor-pointer">
+              Send receipt email automatically when a Stripe invoice is paid
+            </Label>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Receipt Email Intro Message <span className="text-muted-foreground font-normal">(optional — leave blank to use the default)</span></Label>
+            <Textarea
+              value={formData["receipt_email_intro"] || ""}
+              onChange={e => setFormData(p => ({ ...p, receipt_email_intro: e.target.value }))}
+              placeholder="Thank you for your payment. Your invoice has been paid and your services are active. A summary is below for your records."
+              className="min-h-[72px]"
+            />
+          </div>
+          <div className="pt-1">
+            <Button onClick={handleSave} disabled={saving} size="sm">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Save Receipt Settings
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Settings className="w-4 h-4" /> Site Content</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Object.entries(formData).map(([key, value]) => (
+            {Object.entries(formData).filter(([key]) => !hiddenFromSiteContent.has(key)).map(([key, value]) => (
               <div key={key} className={textareas.includes(key) ? "md:col-span-2 space-y-1" : "space-y-1"}>
                 <Label className="text-xs capitalize">{key.replace(/_/g, " ")}</Label>
                 {textareas.includes(key)
