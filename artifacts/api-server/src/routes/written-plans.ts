@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers, partnersTable } from "@workspace/db";
-import { eq, desc, and, lt, gt, inArray } from "drizzle-orm";
+import { eq, desc, and, lt, gt, inArray, sql } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import {
   sendPlanReadyEmail,
@@ -513,7 +513,7 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
     if (plan.expiresAt && plan.expiresAt < new Date()) {
       res.status(400).json({ error: "expired" }); return;
     }
-    if (["approved", "declined"].includes(plan.status)) {
+    if (["approved", "declined", "call_requested"].includes(plan.status)) {
       res.status(400).json({ error: "already_responded" }); return;
     }
     const [updated] = await db.update(writtenPlansTable).set({
@@ -551,7 +551,7 @@ router.post("/public/plan-review/:token/decline", async (req: Request, res: Resp
     if (plan.expiresAt && plan.expiresAt < new Date()) {
       res.status(400).json({ error: "expired" }); return;
     }
-    if (["approved", "declined"].includes(plan.status)) {
+    if (["approved", "declined", "call_requested"].includes(plan.status)) {
       res.status(400).json({ error: "already_responded" }); return;
     }
     await db.update(writtenPlansTable).set({
@@ -580,7 +580,7 @@ router.post("/public/plan-review/:token/request-call", async (req: Request, res:
     if (plan.expiresAt && plan.expiresAt < new Date()) {
       res.status(400).json({ error: "expired" }); return;
     }
-    if (["approved", "declined"].includes(plan.status)) {
+    if (["approved", "declined", "call_requested"].includes(plan.status)) {
       res.status(400).json({ error: "already_responded" }); return;
     }
     await db.update(writtenPlansTable).set({ status: "call_requested", updatedAt: new Date() })
@@ -614,7 +614,26 @@ router.get("/public/plan-review/:token/pdf", async (req: Request, res: Response)
 
 // ─── Reminder Cron ───────────────────────────────────────────────────────────
 
+const REMINDER_ADVISORY_LOCK_ID = 202604211; // stable integer for pg advisory lock
+
 export async function sendPlanExpiryReminders() {
+  try {
+    // Acquire a PostgreSQL advisory lock so only one instance runs reminders at a time
+    const [lockRow] = await db.execute<{ acquired: boolean }>(
+      sql`SELECT pg_try_advisory_lock(${REMINDER_ADVISORY_LOCK_ID}) AS acquired`
+    );
+    if (!lockRow?.acquired) return;
+    try {
+      await runReminderBatch();
+    } finally {
+      await db.execute(sql`SELECT pg_advisory_unlock(${REMINDER_ADVISORY_LOCK_ID})`);
+    }
+  } catch (err) {
+    console.error("[WrittenPlans] reminder cron error:", err);
+  }
+}
+
+async function runReminderBatch() {
   try {
     const now = new Date();
     const threeDaysOut = new Date(Date.now() + 3 * 86400000);
