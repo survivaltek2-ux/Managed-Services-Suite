@@ -3,7 +3,7 @@ import { db, invoicesTable, subscriptionsTable, partnersTable, usersTable, prici
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth.js";
 import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY } from "../lib/stripe.js";
-import { sendContractEmail } from "../lib/email.js";
+import { sendContractEmail, sendSubscriptionPendingEmail, sendSubscriptionApprovedEmail, sendSubscriptionRejectedEmail } from "../lib/email.js";
 import { generateMSAContract } from "../lib/contract.js";
 
 const router: IRouter = Router();
@@ -243,6 +243,172 @@ router.put("/admin/billing/subscriptions/:id/cancel", requireAdmin, async (req: 
   }
 });
 
+// ─── Pending signups list ────────────────────────────────────────────────────
+
+router.get("/admin/billing/pending-signups", requireAdmin, async (_req, res) => {
+  try {
+    const pending = await db.select().from(subscriptionsTable)
+      .where(eq(subscriptionsTable.approvalStatus, "pending"))
+      .orderBy(desc(subscriptionsTable.createdAt));
+    res.json(pending);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ─── Approve a pending signup (capture pre-auth, send contract) ──────────────
+
+router.post("/admin/billing/subscriptions/:id/approve", requireAdmin, async (req: any, res) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const id = parseInt(req.params.id);
+
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    if (!sub) { res.status(404).json({ error: "not_found" }); return; }
+    if (sub.approvalStatus !== "pending") {
+      res.status(400).json({ error: "not_pending", message: "Subscription is not in pending approval state." });
+      return;
+    }
+
+    const paymentIntentId = sub.stripePaymentIntentId;
+    if (!paymentIntentId) {
+      res.status(400).json({ error: "no_payment_intent", message: "No pre-authorization payment intent found." });
+      return;
+    }
+
+    // Capture the pre-authorization — this actually charges the customer's card.
+    await stripe.paymentIntents.capture(paymentIntentId);
+
+    // Mark approved in the database.
+    await db.update(subscriptionsTable)
+      .set({ approvalStatus: "approved", status: "active" as any, updatedAt: new Date() })
+      .where(eq(subscriptionsTable.id, id));
+
+    // Send the MSA contract + welcome email now that they're approved.
+    try {
+      const customerEmail = sub.customerEmail || "";
+      const customerName = sub.customerName || "Valued Customer";
+      if (customerEmail) {
+        let tierRecord: any = null;
+        const tiers = await db.select().from(pricingTiersTable);
+        tierRecord = tiers.find((t: any) => t.slug === sub.planId) || tiers[0];
+
+        const cycle = (sub.billingCycle || "monthly") as "monthly" | "annual";
+        const pricePerUser = parseFloat(tierRecord?.startingPrice || sub.amount || "89");
+        const seats = sub.seats || 1;
+        const effectiveDate = sub.currentPeriodStart || new Date();
+
+        const pdfBuffer = await generateMSAContract({
+          customerName,
+          customerEmail,
+          companyName: customerName,
+          planName: sub.planName || "Managed Services",
+          planSlug: sub.planId || "essentials",
+          billingCycle: cycle,
+          pricePerUser,
+          seats,
+          subscriptionId: sub.stripeSubscriptionId,
+          effectiveDate,
+        });
+
+        await sendContractEmail({
+          customerName,
+          customerEmail,
+          companyName: customerName,
+          planName: sub.planName || "Managed Services",
+          billingCycle: cycle,
+          pricePerUser,
+          seats,
+          subscriptionId: sub.stripeSubscriptionId,
+          effectiveDate,
+          contractPdf: pdfBuffer,
+        });
+
+        // Store the contract in admin documents for records.
+        const refId = sub.stripeSubscriptionId.replace("sub_", "").slice(0, 12).toUpperCase();
+        await db.insert(documentsTable).values({
+          name: `MSA — ${customerName} — ${sub.planName} Plan`,
+          description: `MSA generated on admin approval. Plan: ${sub.planName} (${cycle}), ${seats} seats.`,
+          filename: `Siebert_Services_MSA_${refId}.pdf`,
+          mimeType: "application/pdf",
+          size: pdfBuffer.length,
+          content: pdfBuffer.toString("base64"),
+          category: "contract" as any,
+          uploadedBy: "system",
+          tags: JSON.stringify(["contract", "msa", "auto-generated", sub.planId]),
+          active: true,
+        });
+
+        await sendSubscriptionApprovedEmail({ customerName, customerEmail, planName: sub.planName || "Managed Services", billingCycle: cycle, seats, amount: parseFloat(sub.amount || "0") });
+        console.log(`[Billing] Subscription ${sub.stripeSubscriptionId} approved — contract sent to ${customerEmail}`);
+      }
+    } catch (emailErr) {
+      console.error("[Billing] Approval email/contract failed (non-fatal):", emailErr);
+    }
+
+    const [updated] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    res.json({ subscription: updated, message: "Subscription approved and customer notified." });
+  } catch (err: any) {
+    console.error("[Stripe] Approve subscription error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
+// ─── Reject a pending signup (cancel pre-auth + subscription) ────────────────
+
+router.post("/admin/billing/subscriptions/:id/reject", requireAdmin, async (req: any, res) => {
+  if (!isStripeConfigured()) return stripeNotConfiguredError(res);
+  try {
+    const stripe = getStripe();
+    const id = parseInt(req.params.id);
+    const { reason = "" } = req.body;
+
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    if (!sub) { res.status(404).json({ error: "not_found" }); return; }
+    if (sub.approvalStatus !== "pending") {
+      res.status(400).json({ error: "not_pending", message: "Subscription is not in pending approval state." });
+      return;
+    }
+
+    // Cancel the subscription — this also releases the pre-authorized hold on the card.
+    await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
+
+    // If the payment intent is still in requires_capture state, cancel it explicitly.
+    if (sub.stripePaymentIntentId) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(sub.stripePaymentIntentId);
+        if (pi.status === "requires_capture") {
+          await stripe.paymentIntents.cancel(sub.stripePaymentIntentId);
+        }
+      } catch { /* Payment intent may already be cancelled */ }
+    }
+
+    await db.update(subscriptionsTable)
+      .set({ approvalStatus: "rejected", status: "canceled" as any, canceledAt: new Date(), updatedAt: new Date() })
+      .where(eq(subscriptionsTable.id, id));
+
+    // Notify the customer.
+    try {
+      const customerEmail = sub.customerEmail || "";
+      const customerName = sub.customerName || "Valued Customer";
+      if (customerEmail) {
+        await sendSubscriptionRejectedEmail({ customerName, customerEmail, planName: sub.planName || "Managed Services", reason });
+        console.log(`[Billing] Subscription ${sub.stripeSubscriptionId} rejected — customer notified at ${customerEmail}`);
+      }
+    } catch (emailErr) {
+      console.error("[Billing] Rejection email failed (non-fatal):", emailErr);
+    }
+
+    const [updated] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id));
+    res.json({ subscription: updated, message: "Subscription rejected and pre-authorization released." });
+  } catch (err: any) {
+    console.error("[Stripe] Reject subscription error:", err);
+    res.status(500).json({ error: "stripe_error", message: err.message });
+  }
+});
+
 router.get("/admin/billing/subscriptions", requireAdmin, async (_req, res) => {
   try {
     const subs = await db.select().from(subscriptionsTable).orderBy(desc(subscriptionsTable.createdAt));
@@ -367,6 +533,9 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       line_items: [{ price: priceId, quantity: seats }],
       metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout" },
       allow_promotion_codes: true,
+      // Pre-authorize the first payment without capturing — the admin must
+      // approve the signup before funds are captured from the customer's card.
+      payment_intent_data: { capture_method: "manual" },
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing`,
     });

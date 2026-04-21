@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus } from "lucide-react";
+import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus, Clock, ShieldCheck, ShieldX, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -49,6 +49,11 @@ export default function AdminBilling() {
   const [subForm, setSubForm] = useState({ userId: "", partnerId: "", tierId: "", billingCycle: "monthly" });
   const [creatingSubscription, setCreatingSubscription] = useState(false);
   const [tiers, setTiers] = useState<any[]>([]);
+  const [pendingSignups, setPendingSignups] = useState<any[]>([]);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectDialogId, setRejectDialogId] = useState<number | null>(null);
 
   const headers = getAuthHeaders();
   const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -57,12 +62,14 @@ export default function AdminBilling() {
   const load = async () => {
     setLoading(true);
     try {
-      const [statsRes, tiersRes] = await Promise.all([
+      const [statsRes, tiersRes, pendingRes] = await Promise.all([
         fetch("/api/admin/billing/stats", { headers }),
         fetch("/api/cms/pricing-tiers"),
+        fetch("/api/admin/billing/pending-signups", { headers }),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (tiersRes.ok) setTiers(await tiersRes.json());
+      if (pendingRes.ok) setPendingSignups(await pendingRes.json());
     } catch {
       toast({ title: "Failed to load billing data", variant: "destructive" });
     } finally {
@@ -71,6 +78,47 @@ export default function AdminBilling() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const approveSignup = async (id: number) => {
+    setApprovingId(id);
+    try {
+      const res = await fetch(`/api/admin/billing/subscriptions/${id}/approve`, { method: "POST", headers });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: "Signup approved — card charged and contract sent" });
+        load();
+      } else {
+        toast({ title: data.message || "Failed to approve signup", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error approving signup", variant: "destructive" });
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const rejectSignup = async (id: number) => {
+    setRejectingId(id);
+    try {
+      const res = await fetch(`/api/admin/billing/subscriptions/${id}/reject`, {
+        method: "POST", headers,
+        body: JSON.stringify({ reason: rejectReason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({ title: "Signup rejected — pre-authorization released" });
+        setRejectDialogId(null);
+        setRejectReason("");
+        load();
+      } else {
+        toast({ title: data.message || "Failed to reject signup", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error rejecting signup", variant: "destructive" });
+    } finally {
+      setRejectingId(null);
+    }
+  };
 
   const createSubscription = async () => {
     setCreatingSubscription(true);
@@ -139,6 +187,80 @@ export default function AdminBilling() {
               <Plus className="w-4 h-4 mr-1" /> New Subscription
             </Button>
           </div>
+
+          {/* Pending Signups Alert */}
+          {pendingSignups.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                  <Clock className="w-4 h-4" />
+                  Pending Signups — Action Required ({pendingSignups.length})
+                </CardTitle>
+                <p className="text-xs text-orange-700 mt-0.5">
+                  These customers completed checkout. Their cards have a pre-authorization hold — no charge until you approve.
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-orange-200 bg-orange-100/60">
+                        <th className="px-4 py-2.5 text-left text-orange-900">Customer</th>
+                        <th className="px-4 py-2.5 text-left text-orange-900">Plan</th>
+                        <th className="px-4 py-2.5 text-left text-orange-900">Seats</th>
+                        <th className="px-4 py-2.5 text-right text-orange-900">Pre-Auth Amount</th>
+                        <th className="px-4 py-2.5 text-left text-orange-900">Signed Up</th>
+                        <th className="px-4 py-2.5 text-right text-orange-900">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingSignups.map((s: any) => (
+                        <tr key={s.id} className="border-b border-orange-100 last:border-0 hover:bg-orange-100/40">
+                          <td className="px-4 py-3">
+                            <p className="font-medium">{s.customerName || "—"}</p>
+                            <p className="text-xs text-muted-foreground">{s.customerEmail || "—"}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium capitalize">{s.planName}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p>
+                          </td>
+                          <td className="px-4 py-3">{s.seats ?? "—"}</td>
+                          <td className="px-4 py-3 text-right font-medium">
+                            {s.amount ? fmt(parseFloat(s.amount) * (s.seats || 1)) : "—"}
+                            <p className="text-xs font-normal text-muted-foreground">on hold</p>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(s.createdAt)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => approveSignup(s.id)}
+                                disabled={approvingId === s.id || rejectingId === s.id}
+                              >
+                                {approvingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1 border-red-300 text-red-600 hover:bg-red-50"
+                                onClick={() => { setRejectDialogId(s.id); setRejectReason(""); }}
+                                disabled={approvingId === s.id || rejectingId === s.id}
+                              >
+                                <ShieldX className="w-3 h-3" />
+                                Reject
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -273,6 +395,38 @@ export default function AdminBilling() {
           )}
         </div>
       </div>
+
+      {/* Reject Signup Dialog */}
+      <Dialog open={rejectDialogId !== null} onOpenChange={open => { if (!open) { setRejectDialogId(null); setRejectReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reject Signup Application</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              The customer's pre-authorization hold will be released and no charge will be made. They will receive an email notification.
+            </p>
+            <div>
+              <Label>Reason (optional — included in customer email)</Label>
+              <Input
+                className="mt-1"
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="e.g. Service not available in your area"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialogId(null); setRejectReason(""); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => rejectDialogId !== null && rejectSignup(rejectDialogId)}
+              disabled={rejectingId !== null}
+            >
+              {rejectingId !== null ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ShieldX className="w-4 h-4 mr-1" />}
+              Reject & Release Hold
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={createSubOpen} onOpenChange={setCreateSubOpen}>
         <DialogContent>

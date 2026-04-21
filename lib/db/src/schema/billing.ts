@@ -21,6 +21,12 @@ export const subscriptionsTable = pgTable("subscriptions", {
   canceledAt: timestamp("canceled_at"),
   billingCycle: text("billing_cycle").notNull().default("monthly"),
   amount: decimal("amount", { precision: 12, scale: 2 }),
+  // Pre-authorization / approval flow
+  approvalStatus: text("approval_status").notNull().default("approved"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  customerEmail: text("customer_email"),
+  customerName: text("customer_name"),
+  seats: integer("seats"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

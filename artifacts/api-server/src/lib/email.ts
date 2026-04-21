@@ -1936,3 +1936,120 @@ export async function sendEsignNotification(params: {
 
   return sendEmail(to, subject, html);
 }
+
+// ─── Subscription approval flow emails ───────────────────────────────────────
+
+export async function sendSubscriptionPendingEmail(params: {
+  customerName: string;
+  customerEmail: string;
+  planName: string;
+  billingCycle: "monthly" | "annual";
+  seats: number;
+}): Promise<boolean> {
+  const { customerName, customerEmail, planName, billingCycle, seats } = params;
+  const billingLabel = billingCycle === "annual" ? "Annual" : "Monthly";
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #032d60; padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Signup Received — Under Review</h1>
+        <p style="color: #7ec8e3; margin: 6px 0 0; font-size: 13px;">Siebert Services LLC</p>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 28px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 15px; margin: 0 0 16px;">Hi ${esc(customerName)},</p>
+        <p style="font-size: 14px; color: #333; margin: 0 0 16px;">
+          Thank you for signing up for Siebert Services! We've received your request and our team is reviewing your account.
+        </p>
+        <p style="font-size: 14px; color: #333; margin: 0 0 20px;">
+          <strong>Your card has not been charged yet.</strong> We've placed a temporary authorization hold on your payment method to reserve your spot. This hold will be released if your account is not approved, or converted to a charge once our team approves your application — typically within 1 business day.
+        </p>
+        <div style="background: #f5f7fa; border-left: 4px solid #0176d3; padding: 16px 20px; border-radius: 0 4px 4px 0; margin: 0 0 24px;">
+          <p style="margin: 0 0 8px; font-size: 13px; color: #555; font-weight: bold; text-transform: uppercase;">Your Selected Plan</p>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr><td style="padding: 4px 0; color: #777; width: 45%;">Plan</td><td style="color: #222; font-weight: 600;">${esc(planName)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Billing</td><td style="color: #222; font-weight: 600;">${esc(billingLabel)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Seats</td><td style="color: #222; font-weight: 600;">${seats}</td></tr>
+          </table>
+        </div>
+        <p style="font-size: 13px; color: #777;">
+          Questions? Email us at <a href="mailto:hello@siebertrservices.com" style="color: #0176d3;">hello@siebertrservices.com</a>
+        </p>
+      </div>
+    </div>`;
+  return sendEmail(customerEmail, "Your Siebert Services signup is under review", html);
+}
+
+export async function sendSubscriptionApprovedEmail(params: {
+  customerName: string;
+  customerEmail: string;
+  planName: string;
+  billingCycle: "monthly" | "annual";
+  seats: number;
+  amount: number;
+}): Promise<boolean> {
+  const { customerName, customerEmail, planName, billingCycle, seats, amount } = params;
+  const billingLabel = billingCycle === "annual" ? "Annual" : "Monthly";
+  const intervalLabel = billingCycle === "annual" ? "year" : "month";
+  const totalStr = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount * seats);
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #032d60; padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Your Account is Approved!</h1>
+        <p style="color: #7ec8e3; margin: 6px 0 0; font-size: 13px;">Siebert Services LLC</p>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 28px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 15px; margin: 0 0 16px;">Hi ${esc(customerName)},</p>
+        <p style="font-size: 14px; color: #333; margin: 0 0 16px;">
+          Great news — your Siebert Services account has been approved and your subscription is now active! Your first payment has been processed and your Managed Services Agreement is attached.
+        </p>
+        <div style="background: #f0faf5; border-left: 4px solid #10b981; padding: 16px 20px; border-radius: 0 4px 4px 0; margin: 0 0 24px;">
+          <p style="margin: 0 0 8px; font-size: 13px; color: #555; font-weight: bold; text-transform: uppercase;">Subscription Details</p>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr><td style="padding: 4px 0; color: #777; width: 45%;">Plan</td><td style="color: #222; font-weight: 600;">${esc(planName)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Billing</td><td style="color: #222; font-weight: 600;">${esc(billingLabel)}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Seats</td><td style="color: #222; font-weight: 600;">${seats}</td></tr>
+            <tr><td style="padding: 4px 0; color: #777;">Amount Charged</td><td style="color: #222; font-weight: 600;">${esc(totalStr)} / ${esc(intervalLabel)}</td></tr>
+          </table>
+        </div>
+        <p style="font-size: 14px; color: #333; margin: 0 0 16px;">
+          Our team will reach out within 1–2 business days to schedule your onboarding kickoff and get your services activated.
+        </p>
+        <p style="font-size: 13px; color: #777;">
+          Questions? Email us at <a href="mailto:hello@siebertrservices.com" style="color: #0176d3;">hello@siebertrservices.com</a>
+        </p>
+      </div>
+    </div>`;
+  return sendEmail(customerEmail, "You're approved! Your Siebert Services subscription is active", html);
+}
+
+export async function sendSubscriptionRejectedEmail(params: {
+  customerName: string;
+  customerEmail: string;
+  planName: string;
+  reason?: string;
+}): Promise<boolean> {
+  const { customerName, customerEmail, planName, reason } = params;
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #032d60; padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Regarding Your Siebert Services Application</h1>
+        <p style="color: #7ec8e3; margin: 6px 0 0; font-size: 13px;">Siebert Services LLC</p>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 28px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 15px; margin: 0 0 16px;">Hi ${esc(customerName)},</p>
+        <p style="font-size: 14px; color: #333; margin: 0 0 16px;">
+          Thank you for your interest in the Siebert Services ${esc(planName)} plan. After reviewing your application, we're unable to proceed with your account at this time.
+        </p>
+        ${reason ? `<p style="font-size: 14px; color: #555; margin: 0 0 16px;"><strong>Note:</strong> ${esc(reason)}</p>` : ""}
+        <p style="font-size: 14px; color: #333; margin: 0 0 16px;">
+          <strong>No charge has been made</strong> — the authorization hold on your payment method has been fully released.
+        </p>
+        <p style="font-size: 14px; color: #333; margin: 0 0 24px;">
+          If you have questions or believe this decision was made in error, please reach out to us directly.
+        </p>
+        <p style="font-size: 13px; color: #777;">
+          Contact us at <a href="mailto:hello@siebertrservices.com" style="color: #0176d3;">hello@siebertrservices.com</a>
+        </p>
+      </div>
+    </div>`;
+  return sendEmail(customerEmail, "Update on your Siebert Services application", html);
+}

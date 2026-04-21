@@ -71,8 +71,34 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
         if (type === "self_checkout") {
           const stripeSubscriptionId = session.subscription;
           if (stripeSubscriptionId) {
-            const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+            // Retrieve subscription with the latest invoice expanded so we can
+            // get the pre-authorization payment intent ID for admin capture later.
+            const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId, {
+              expand: ["latest_invoice.payment_intent"],
+            });
             const { tierId, planSlug, billingCycle, seats: seatsStr } = session.metadata || {};
+
+            const customerEmail: string = session.customer_details?.email || session.customer_email || "";
+            const customerName: string = session.customer_details?.name || "Valued Customer";
+            const seats: number = parseInt(seatsStr || "3", 10) || 3;
+
+            // Extract the pre-auth payment intent ID from the first invoice.
+            const latestInvoice = (subscription as any).latest_invoice;
+            const paymentIntentId: string | null =
+              (typeof latestInvoice === "object" ? latestInvoice?.payment_intent?.id : null)
+              || null;
+
+            let tierRecord: any = null;
+            if (tierId) {
+              const [t] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, parseInt(tierId)));
+              tierRecord = t;
+            }
+            if (!tierRecord && planSlug) {
+              const rows = await db.select().from(pricingTiersTable);
+              tierRecord = rows.find((r: any) => r.slug === planSlug) || null;
+            }
+            const resolvedPlanName: string = tierRecord?.name || (planSlug ? planSlug.charAt(0).toUpperCase() + planSlug.slice(1) : "Managed Services");
+
             const existing = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.stripeSubscriptionId, stripeSubscriptionId));
             if (existing.length === 0) {
               await db.insert(subscriptionsTable).values({
@@ -81,93 +107,42 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
                 stripePriceId: (subscription.items.data[0]?.price?.id) || "",
                 stripeProductId: (subscription.items.data[0]?.price?.product as string) || null,
                 planId: planSlug || "unknown",
-                planName: planSlug || "unknown",
+                planName: resolvedPlanName,
+                // Subscription stays in `incomplete` status until admin approves
+                // and the pre-auth payment intent is captured.
                 status: subscription.status as any,
                 currentPeriodStart: new Date(((subscription as any).current_period_start as number) * 1000),
                 currentPeriodEnd: new Date(((subscription as any).current_period_end as number) * 1000),
                 cancelAtPeriodEnd: (subscription as any).cancel_at_period_end ?? false,
                 billingCycle: billingCycle || "monthly",
                 amount: String((subscription.items.data[0]?.price?.unit_amount || 0) / 100),
+                // Approval flow fields
+                approvalStatus: "pending",
+                stripePaymentIntentId: paymentIntentId,
+                customerEmail,
+                customerName,
+                seats,
               });
             }
 
-            // Generate and send contract
+            // Notify the customer that their signup is under review.
+            // The MSA contract is NOT sent here — it is sent on admin approval.
             try {
-              const customerEmail: string =
-                session.customer_details?.email || session.customer_email || "";
-              const customerName: string =
-                session.customer_details?.name || "Valued Customer";
-              const companyName: string =
-                session.customer_details?.name || customerName;
-
-              let tierRecord: any = null;
-              if (tierId) {
-                const [t] = await db.select().from(pricingTiersTable).where(eq(pricingTiersTable.id, parseInt(tierId)));
-                tierRecord = t;
-              }
-              if (!tierRecord && planSlug) {
-                const rows = await db.select().from(pricingTiersTable);
-                tierRecord = rows.find((r: any) => r.slug === planSlug) || null;
-              }
-
-              const resolvedPlanName: string = tierRecord?.name || (planSlug ? planSlug.charAt(0).toUpperCase() + planSlug.slice(1) : "Managed Services");
-              const resolvedPlanSlug: string = tierRecord?.slug || planSlug || "essentials";
-              const cycle = (billingCycle || "monthly") as "monthly" | "annual";
-              const pricePerUser: number = cycle === "annual"
-                ? parseFloat(tierRecord?.annualPrice || "0") || parseFloat(tierRecord?.startingPrice || "89")
-                : parseFloat(tierRecord?.startingPrice || "89");
-              const seats: number = parseInt(seatsStr || "3", 10) || 3;
-              const effectiveDate = new Date(((subscription as any).current_period_start as number) * 1000);
-
               if (customerEmail) {
-                const pdfBuffer = await generateMSAContract({
+                const { sendSubscriptionPendingEmail } = await import("../lib/email.js");
+                await sendSubscriptionPendingEmail({
                   customerName,
                   customerEmail,
-                  companyName,
                   planName: resolvedPlanName,
-                  planSlug: resolvedPlanSlug,
-                  billingCycle: cycle,
-                  pricePerUser,
+                  billingCycle: (billingCycle || "monthly") as "monthly" | "annual",
                   seats,
-                  subscriptionId: stripeSubscriptionId,
-                  effectiveDate,
                 });
-
-                await sendContractEmail({
-                  customerName,
-                  customerEmail,
-                  companyName,
-                  planName: resolvedPlanName,
-                  billingCycle: cycle,
-                  pricePerUser,
-                  seats,
-                  subscriptionId: stripeSubscriptionId,
-                  effectiveDate,
-                  contractPdf: pdfBuffer,
-                });
-
-                // Store contract in documents table for admin records
-                const refId = stripeSubscriptionId.replace("sub_", "").slice(0, 12).toUpperCase();
-                await db.insert(documentsTable).values({
-                  name: `MSA — ${companyName || customerName} — ${resolvedPlanName} Plan`,
-                  description: `Managed Services Agreement generated on subscription. Plan: ${resolvedPlanName} (${cycle}), ${seats} seats, effective ${effectiveDate.toISOString().slice(0, 10)}.`,
-                  filename: `Siebert_Services_MSA_${refId}.pdf`,
-                  mimeType: "application/pdf",
-                  size: pdfBuffer.length,
-                  content: pdfBuffer.toString("base64"),
-                  category: "contract" as any,
-                  uploadedBy: "system",
-                  tags: JSON.stringify(["contract", "msa", "auto-generated", resolvedPlanSlug]),
-                  active: true,
-                });
-
-                console.log(`[Stripe Webhook] Contract generated and sent to ${customerEmail} for subscription ${stripeSubscriptionId}`);
-              } else {
-                console.warn(`[Stripe Webhook] No customer email on session ${session.id} — contract not sent`);
               }
-            } catch (contractErr) {
-              console.error("[Stripe Webhook] Contract generation failed (non-fatal):", contractErr);
+            } catch (emailErr) {
+              console.error("[Stripe Webhook] Pending review email failed (non-fatal):", emailErr);
             }
+
+            console.log(`[Stripe Webhook] Self-checkout complete for ${customerEmail} — subscription ${stripeSubscriptionId} is PENDING admin approval. Pre-auth PI: ${paymentIntentId}`);
           }
         }
         break;
