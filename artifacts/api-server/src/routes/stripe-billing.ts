@@ -753,8 +753,25 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
     const tierId = req.params.tierId;
     const { billingCycle: rawBilling, email, seatQuantity = 1, customerType = "business" } = req.body || {};
 
-    // Validate billing cycle.
-    const billingCycle: "monthly" | "annual" = rawBilling === "annual" ? "annual" : "monthly";
+    // Validate billing cycle. We accept only "monthly" or "annual" (or
+    // undefined → defaults to "monthly"). Any other value is a sign the
+    // client/page state is corrupt; reject with a stable error code so the
+    // inline error UI surfaces it instead of silently charging at the
+    // wrong cadence.
+    let billingCycle: "monthly" | "annual";
+    if (rawBilling === undefined || rawBilling === null || rawBilling === "monthly") {
+      billingCycle = "monthly";
+    } else if (rawBilling === "annual") {
+      billingCycle = "annual";
+    } else {
+      ctx.billingCycle = rawBilling;
+      logCheckoutAttempt({ ...ctx, outcome: "invalid_billing_cycle" });
+      res.status(400).json({
+        error: "invalid_billing_cycle",
+        message: "Billing cycle must be either monthly or annual.",
+      });
+      return;
+    }
     const safeCustomerType: "business" | "consumer" = customerType === "consumer" ? "consumer" : "business";
     ctx.billingCycle = billingCycle;
     ctx.customerType = safeCustomerType;
