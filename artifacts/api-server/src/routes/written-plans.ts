@@ -717,6 +717,8 @@ async function runReminderBatch() {
 
 export function startPlanReminderScheduler(): void {
   const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+  // Run immediately on boot so near-expiry reminders aren't delayed by the first interval
+  sendPlanExpiryReminders();
   setInterval(() => { sendPlanExpiryReminders(); }, INTERVAL_MS);
   console.log("[WrittenPlans] Expiry reminder scheduler started (interval: 6h)");
 }
