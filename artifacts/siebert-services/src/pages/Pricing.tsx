@@ -150,8 +150,11 @@ export default function Pricing() {
   };
 
   const getUnitPrice = (tier: PricingTier): number => {
-    const p = priceFor(tier);
-    return Number(p.price) || Number(tier.startingPrice) || 0;
+    if (billing === "annual") {
+      const annual = Number((tier.annualPrice ?? "").trim());
+      if (Number.isFinite(annual) && annual > 0) return annual;
+    }
+    return Number(tier.startingPrice) || 0;
   };
 
   const formatTotal = (value: number): string =>
