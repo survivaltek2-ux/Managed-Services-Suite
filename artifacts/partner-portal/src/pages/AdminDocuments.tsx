@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Upload, Download, Trash2, Loader2, FileSignature, Plus, Minus, CheckCircle2, Eye, XCircle, AlertTriangle, Clock } from "lucide-react";
+import { Search, Upload, Download, Trash2, Loader2, FileSignature, Plus, Minus, CheckCircle2, Eye, XCircle, AlertTriangle, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,18 +22,38 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   expired:   { label: "Expired",            color: "bg-gray-100 text-gray-600",    icon: AlertTriangle },
 };
 
-function EnvelopeStatusBadge({ envelope, onNavigate }: { envelope: { id: number; status: string }; onNavigate: () => void }) {
+function EnvelopeStatusBadge({
+  envelope,
+  onNavigate,
+  onRefresh,
+  refreshing,
+}: {
+  envelope: { id: number; status: string };
+  onNavigate: () => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+}) {
   const cfg = STATUS_CONFIG[envelope.status] || { label: envelope.status, color: "bg-gray-100 text-gray-600", icon: Clock };
   const Icon = cfg.icon;
   return (
-    <button
-      onClick={onNavigate}
-      title="View envelope details"
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${cfg.color}`}
-    >
-      <Icon className="w-3 h-3" />
-      {cfg.label}
-    </button>
+    <span className="inline-flex items-center gap-1">
+      <button
+        onClick={onNavigate}
+        title="View envelope details"
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${cfg.color}`}
+      >
+        <Icon className="w-3 h-3" />
+        {cfg.label}
+      </button>
+      <button
+        onClick={e => { e.stopPropagation(); onRefresh(); }}
+        title="Refresh envelope status"
+        disabled={refreshing}
+        className="inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40"
+      >
+        <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
+      </button>
+    </span>
   );
 }
 
@@ -59,6 +79,63 @@ export default function AdminDocuments() {
   const [form, setForm] = useState({ name: "", description: "", category: "other", partnerId: "" });
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Envelope refresh state
+  const [refreshingEnvelopes, setRefreshingEnvelopes] = useState<Set<number>>(new Set());
+  const [refreshingAll, setRefreshingAll] = useState(false);
+
+  const refreshEnvelope = async (envelopeId: number) => {
+    setRefreshingEnvelopes(prev => new Set(prev).add(envelopeId));
+    try {
+      const res = await fetch(`/api/admin/esign/envelopes/${envelopeId}/refresh`, { method: "POST", headers });
+      if (res.ok) {
+        const data = await res.json();
+        setDocuments(prev => prev.map(doc =>
+          doc.envelope?.id === envelopeId
+            ? { ...doc, envelope: { ...doc.envelope, status: data.status } }
+            : doc
+        ));
+      } else {
+        toast({ title: "Failed to refresh envelope status", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to refresh envelope status", variant: "destructive" });
+    } finally {
+      setRefreshingEnvelopes(prev => { const next = new Set(prev); next.delete(envelopeId); return next; });
+    }
+  };
+
+  const refreshAll = async () => {
+    const envelopeDocs = filtered.filter((d: any) => d.envelope);
+    if (envelopeDocs.length === 0) return;
+    setRefreshingAll(true);
+    let succeeded = 0;
+    let failed = 0;
+    for (const doc of envelopeDocs) {
+      try {
+        const res = await fetch(`/api/admin/esign/envelopes/${doc.envelope.id}/refresh`, { method: "POST", headers });
+        if (res.ok) {
+          const data = await res.json();
+          setDocuments(prev => prev.map((d: any) =>
+            d.envelope?.id === doc.envelope.id
+              ? { ...d, envelope: { ...d.envelope, status: data.status } }
+              : d
+          ));
+          succeeded++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+    setRefreshingAll(false);
+    if (failed === 0) {
+      toast({ title: `Refreshed ${succeeded} envelope${succeeded !== 1 ? "s" : ""}` });
+    } else {
+      toast({ title: `Refreshed ${succeeded}, failed ${failed}`, variant: "destructive" });
+    }
+  };
 
   // E-sign state
   const [esignOpen, setEsignOpen] = useState(false);
@@ -341,7 +418,22 @@ export default function AdminDocuments() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="px-5 py-3 text-left">Name</th>
+                        <th className="px-5 py-3 text-left">
+                          <span className="flex items-center gap-2">
+                            Name
+                            {filtered.some((d: any) => d.envelope) && (
+                              <button
+                                onClick={refreshAll}
+                                disabled={refreshingAll}
+                                title="Refresh all envelope statuses"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40"
+                              >
+                                <RefreshCw className={`w-3 h-3 ${refreshingAll ? "animate-spin" : ""}`} />
+                                Refresh All
+                              </button>
+                            )}
+                          </span>
+                        </th>
                         <th className="px-5 py-3 text-left">Category</th>
                         <th className="px-5 py-3 text-left">Partner</th>
                         <th className="px-5 py-3 text-left">Uploaded By</th>
@@ -361,6 +453,8 @@ export default function AdminDocuments() {
                                 <EnvelopeStatusBadge
                                   envelope={doc.envelope}
                                   onNavigate={() => navigate(`/admin/esign?envelope=${doc.envelope.id}`)}
+                                  onRefresh={() => refreshEnvelope(doc.envelope.id)}
+                                  refreshing={refreshingEnvelopes.has(doc.envelope.id)}
                                 />
                               </div>
                             )}
