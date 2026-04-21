@@ -482,7 +482,11 @@ export default function Admin() {
                           href={`https://dashboard.stripe.com/products/${encodeURIComponent(item.stripeProductId)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          title={item.stripeProductId}
+                          title={[
+                            `Product: ${item.stripeProductId}`,
+                            `Monthly price: ${hasMonthly ? item.stripeMonthlyPriceId : "not linked"}`,
+                            `Annual price: ${hasAnnual ? item.stripeAnnualPriceId : "not linked"}`,
+                          ].join("\n")}
                           className="inline-flex items-center gap-1"
                         >
                           <Badge variant="default" className={`cursor-pointer text-white gap-1 ${pricesIncomplete ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-600 hover:bg-emerald-700"}`}>
