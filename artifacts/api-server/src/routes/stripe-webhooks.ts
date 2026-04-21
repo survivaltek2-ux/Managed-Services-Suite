@@ -72,7 +72,8 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
           // Checkout is in `payment` mode — session.payment_intent holds the pre-auth PI.
           // There is no subscription yet; it is created on admin approval.
           const paymentIntentId: string = session.payment_intent || "";
-          const { tierId, planSlug, billingCycle, seats: seatsStr, priceId } = session.metadata || {};
+          const { tierId, planSlug, billingCycle, seats: seatsStr, priceId, customerType: rawCustomerType } = session.metadata || {};
+          const customerType: "business" | "consumer" = rawCustomerType === "consumer" ? "consumer" : "business";
 
           const customerEmail: string = session.customer_details?.email || session.customer_email || "";
           const customerName: string = session.customer_details?.name || "Valued Customer";
@@ -124,6 +125,7 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
               customerEmail,
               customerName,
               seats,
+              customerType,
             });
           }
 

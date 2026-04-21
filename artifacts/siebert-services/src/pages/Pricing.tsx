@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText, Download } from "lucide-react";
+import { Check, X, Sparkles, ArrowRight, ChevronDown, MessageSquare, FileText, Download, Building2, User } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
 import { SchemaTag } from "@/components/SchemaTag";
 
@@ -111,6 +111,7 @@ const ALL_FEATURES = [
 ];
 
 type BillingCycle = "monthly" | "annual";
+type CustomerType = "business" | "consumer";
 const BILLING_STORAGE_KEY = "pricing_billing_cycle";
 
 export default function Pricing() {
@@ -118,6 +119,7 @@ export default function Pricing() {
   const [loaded, setLoaded] = useState(false);
   const [openMobileTier, setOpenMobileTier] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingCycle>("monthly");
+  const [customerType, setCustomerType] = useState<CustomerType>("business");
   const [, setLocation] = useLocation();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [seatCounts, setSeatCounts] = useState<Record<string, number>>({
@@ -184,7 +186,7 @@ export default function Pricing() {
       const res = await fetch(`/api/checkout/${encodeURIComponent(slug)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billingCycle: billing, seatQuantity }),
+        body: JSON.stringify({ billingCycle: billing, seatQuantity, customerType }),
       });
       const data = await res.json();
       if (data.url) {
@@ -259,6 +261,55 @@ export default function Pricing() {
       {/* TIER CARDS */}
       <section className="py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+          {/* Customer type selector */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex flex-col items-center gap-3">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Who is this for?</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCustomerType("business")}
+                  data-testid="customer-type-business"
+                  className={
+                    "flex items-center gap-3 px-5 py-3.5 rounded-xl border-2 text-sm font-semibold transition-all " +
+                    (customerType === "business"
+                      ? "border-primary bg-primary/5 text-navy shadow-sm"
+                      : "border-border/60 text-muted-foreground hover:border-primary/40 hover:text-navy")
+                  }
+                >
+                  <Building2 className={`w-5 h-5 shrink-0 ${customerType === "business" ? "text-primary" : "text-muted-foreground"}`} />
+                  <div className="text-left">
+                    <div className="font-bold">Business</div>
+                    <div className="text-xs font-normal text-muted-foreground leading-tight">Company or organization</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerType("consumer")}
+                  data-testid="customer-type-consumer"
+                  className={
+                    "flex items-center gap-3 px-5 py-3.5 rounded-xl border-2 text-sm font-semibold transition-all " +
+                    (customerType === "consumer"
+                      ? "border-teal-500 bg-teal-50 text-teal-900 shadow-sm"
+                      : "border-border/60 text-muted-foreground hover:border-teal-400/40 hover:text-navy")
+                  }
+                >
+                  <User className={`w-5 h-5 shrink-0 ${customerType === "consumer" ? "text-teal-600" : "text-muted-foreground"}`} />
+                  <div className="text-left">
+                    <div className="font-bold">Individual</div>
+                    <div className="text-xs font-normal text-muted-foreground leading-tight">Personal / home use</div>
+                  </div>
+                </button>
+              </div>
+              {customerType === "consumer" && (
+                <p className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 max-w-sm text-center">
+                  Your contract will use plain, consumer-friendly language with a 3-day cooling-off period.
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Billing toggle */}
           <div className="flex justify-center mb-10">
             <div

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth, getAuthHeaders } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus, Clock, ShieldCheck, ShieldX, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, FileText, CreditCard, AlertTriangle, Loader2, Users, CheckCircle, XCircle, Plus, Clock, ShieldCheck, ShieldX, ChevronDown, ChevronUp, Building2, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -17,6 +17,16 @@ interface BillingStats {
   activeSubscriptions: number;
   recentInvoices: any[];
   subscriptions: any[];
+}
+
+function CustomerTypeBadge({ type }: { type?: string }) {
+  const isCons = type === "consumer";
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isCons ? "bg-teal-100 text-teal-800" : "bg-blue-100 text-blue-800"}`}>
+      {isCons ? <User className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}
+      {isCons ? "Individual" : "Business"}
+    </span>
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -206,6 +216,7 @@ export default function AdminBilling() {
                     <thead>
                       <tr className="border-b border-orange-200 bg-orange-100/60">
                         <th className="px-4 py-2.5 text-left text-orange-900">Customer</th>
+                        <th className="px-4 py-2.5 text-left text-orange-900">Type</th>
                         <th className="px-4 py-2.5 text-left text-orange-900">Plan</th>
                         <th className="px-4 py-2.5 text-left text-orange-900">Seats</th>
                         <th className="px-4 py-2.5 text-right text-orange-900">Plan Value</th>
@@ -220,6 +231,7 @@ export default function AdminBilling() {
                             <p className="font-medium">{s.customerName || "—"}</p>
                             <p className="text-xs text-muted-foreground">{s.customerEmail || "—"}</p>
                           </td>
+                          <td className="px-4 py-3"><CustomerTypeBadge type={s.customerType} /></td>
                           <td className="px-4 py-3">
                             <p className="font-medium capitalize">{s.planName}</p>
                             <p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p>
@@ -349,6 +361,7 @@ export default function AdminBilling() {
                         <thead>
                           <tr className="border-b bg-muted/50">
                             <th className="px-4 py-2.5 text-left">Plan</th>
+                            <th className="px-4 py-2.5 text-left">Type</th>
                             <th className="px-4 py-2.5 text-left">Status</th>
                             <th className="px-4 py-2.5 text-right">Amount</th>
                             <th className="px-4 py-2.5 text-left">Renews</th>
@@ -357,13 +370,14 @@ export default function AdminBilling() {
                         </thead>
                         <tbody>
                           {stats.subscriptions.length === 0 ? (
-                            <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-xs">No subscriptions yet</td></tr>
+                            <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-xs">No subscriptions yet</td></tr>
                           ) : stats.subscriptions.map((sub: any) => (
                             <tr key={sub.id} className="border-b last:border-0 hover:bg-muted/30">
                               <td className="px-4 py-2.5">
                                 <p className="font-medium capitalize">{sub.planName}</p>
                                 <p className="text-xs text-muted-foreground capitalize">{sub.billingCycle}</p>
                               </td>
+                              <td className="px-4 py-2.5"><CustomerTypeBadge type={sub.customerType} /></td>
                               <td className="px-4 py-2.5"><StatusBadge status={sub.status} /></td>
                               <td className="px-4 py-2.5 text-right font-medium">{sub.amount ? fmt(parseFloat(sub.amount)) : "—"}</td>
                               <td className="px-4 py-2.5 text-xs text-muted-foreground">{fmtDate(sub.currentPeriodEnd)}</td>

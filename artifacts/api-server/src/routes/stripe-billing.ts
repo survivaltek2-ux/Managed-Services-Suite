@@ -346,6 +346,7 @@ router.post("/admin/billing/subscriptions/:id/approve", requireAdmin, async (req
           seats,
           subscriptionId: sub.stripeSubscriptionId,
           effectiveDate,
+          customerType: (sub.customerType === "consumer" ? "consumer" : "business") as "business" | "consumer",
         });
 
         await sendContractEmail({
@@ -494,8 +495,9 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
   try {
     const stripe = getStripe();
     const tierId = req.params.tierId;
-    const { billingCycle = "monthly", email, seatQuantity = 1 } = req.body;
+    const { billingCycle = "monthly", email, seatQuantity = 1, customerType = "business" } = req.body;
     const seats = Math.max(1, Math.min(500, parseInt(String(seatQuantity), 10) || 1));
+    const safeCustomerType: "business" | "consumer" = customerType === "consumer" ? "consumer" : "business";
 
     let tier: any = null;
     const tierIdStr = String(tierId);
@@ -593,9 +595,9 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
         capture_method: "manual",
         setup_future_usage: "off_session",
         // Store identifiers so the webhook and approval flow can create the subscription.
-        metadata: { type: "self_checkout", tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), priceId },
+        metadata: { type: "self_checkout", tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), priceId, customerType: safeCustomerType },
       },
-      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout", priceId },
+      metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout", priceId, customerType: safeCustomerType },
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing`,
     });

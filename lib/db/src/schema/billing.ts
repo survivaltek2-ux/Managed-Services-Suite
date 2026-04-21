@@ -27,6 +27,8 @@ export const subscriptionsTable = pgTable("subscriptions", {
   customerEmail: text("customer_email"),
   customerName: text("customer_name"),
   seats: integer("seats"),
+  // Customer classification
+  customerType: text("customer_type").default("business"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
