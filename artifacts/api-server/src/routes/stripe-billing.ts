@@ -598,7 +598,9 @@ router.get("/billing/portal", async (req: Request, res: Response) => {
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId!,
-      return_url: `${base}/manage/subscription${token ? `?token=${encodeURIComponent(token)}` : "?managed=1"}`,
+      return_url: token
+        ? `${base}/manage/subscription?token=${encodeURIComponent(token)}`
+        : `${base}/welcome?managed=1`,
     });
     res.json({ url: portalSession.url });
   } catch (err: any) {

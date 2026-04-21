@@ -13,6 +13,7 @@ export default function Welcome() {
 
   const [confirmed, setConfirmed] = useState(false);
   const [manageToken, setManageToken] = useState<string | null>(null);
+  const [tokenFetching, setTokenFetching] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState("");
 
@@ -22,10 +23,12 @@ export default function Welcome() {
     if (sessionId) {
       setConfirmed(true);
       if (isConsumer) {
+        setTokenFetching(true);
         fetch(`/api/billing/manage-token?session_id=${encodeURIComponent(sessionId)}`)
           .then(r => r.ok ? r.json() : null)
           .then(data => { if (data?.token) setManageToken(data.token); })
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => setTokenFetching(false));
       }
     }
   }, [sessionId, isConsumer]);
@@ -40,14 +43,11 @@ export default function Welcome() {
   const planName = planNames[plan.toLowerCase()] || plan || "your plan";
 
   const openPortal = async () => {
-    if (!sessionId) return;
+    if (!manageToken) return;
     setPortalLoading(true);
     setPortalError("");
     try {
-      const param = manageToken
-        ? `token=${encodeURIComponent(manageToken)}`
-        : `session_id=${encodeURIComponent(sessionId)}`;
-      const res = await fetch(`/api/billing/portal?${param}`);
+      const res = await fetch(`/api/billing/portal?token=${encodeURIComponent(manageToken)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Could not open billing portal");
       window.location.href = data.url;
@@ -163,8 +163,13 @@ export default function Welcome() {
                   <p className="text-sm text-teal-700 mb-4">
                     View your plan details, update your payment method, download invoices, or cancel — all without contacting support.
                   </p>
-                  <div className="flex flex-wrap gap-3">
-                    {manageToken && (
+                  {tokenFetching ? (
+                    <div className="flex items-center gap-2 text-sm text-teal-700/70">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading your account…
+                    </div>
+                  ) : manageToken ? (
+                    <div className="flex flex-wrap gap-3">
                       <Button
                         onClick={() => setLocation(`/manage/subscription?token=${encodeURIComponent(manageToken)}`)}
                         className="gap-2 bg-teal-600 hover:bg-teal-700 text-white"
@@ -172,17 +177,21 @@ export default function Welcome() {
                         <CreditCard className="w-4 h-4" />
                         View my plan
                       </Button>
-                    )}
-                    <Button
-                      onClick={openPortal}
-                      disabled={portalLoading}
-                      variant={manageToken ? "outline" : "default"}
-                      className={manageToken ? "gap-2 border-teal-300 text-teal-700 hover:bg-teal-100" : "gap-2 bg-teal-600 hover:bg-teal-700 text-white"}
-                    >
-                      {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-                      {portalLoading ? "Opening…" : "Open billing portal"}
-                    </Button>
-                  </div>
+                      <Button
+                        onClick={openPortal}
+                        disabled={portalLoading}
+                        variant="outline"
+                        className="gap-2 border-teal-300 text-teal-700 hover:bg-teal-100"
+                      >
+                        {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                        {portalLoading ? "Opening…" : "Open billing portal"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-teal-700/70">
+                      Visit your confirmation email for a link to manage your subscription, or <button onClick={() => setLocation("/contact")} className="underline hover:text-teal-900">contact us</button> for assistance.
+                    </p>
+                  )}
                   {portalError && <p className="text-sm text-red-600 mt-3">{portalError}</p>}
                   <p className="text-xs text-teal-600/70 mt-3">
                     You have a 3-day right to cancel for a full refund before services begin.
