@@ -759,7 +759,6 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
     ctx.billingCycle = billingCycle;
     ctx.customerType = safeCustomerType;
 
-    // Seat minimum must match the frontend: 3 for Business, 1 for Consumer.
     // Reject obviously malformed seatQuantity instead of silently coercing.
     const parsedSeats = parseInt(String(seatQuantity), 10);
     if (Number.isNaN(parsedSeats) || parsedSeats < 1 || parsedSeats > 500) {
@@ -767,9 +766,6 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       res.status(400).json({ error: "invalid_seat_quantity", message: "Seat quantity must be between 1 and 500." });
       return;
     }
-    const seatFloor = safeCustomerType === "consumer" ? 1 : 3;
-    const seats = Math.max(seatFloor, Math.min(500, parsedSeats));
-    ctx.seats = seats;
 
     let tier: any = null;
     const tierIdStr = String(tierId);
@@ -793,6 +789,14 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       res.status(400).json({ error: "contact_sales", message: "Enterprise plans require a custom quote. Please contact us." });
       return;
     }
+
+    // Seat minimum is derived from the *resolved tier* — not from the
+    // client-supplied customerType — so a malicious or buggy client
+    // can't request a Business plan with consumer-style seat=1 floor.
+    // Consumer tier = 1 seat minimum; every other paid tier = 3 seats.
+    const seatFloor = tier.slug === "consumer" ? 1 : 3;
+    const seats = Math.max(seatFloor, Math.min(500, parsedSeats));
+    ctx.seats = seats;
 
     // Validate price data BEFORE we hit Stripe so a misconfigured tier
     // surfaces as a clean admin-actionable error rather than a Stripe failure

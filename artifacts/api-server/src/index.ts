@@ -370,6 +370,18 @@ app.listen(port, async () => {
   } catch (err) {
     console.error("[PartnerStack] Startup error:", err);
   }
+  // Resolved public base URL for Stripe success/cancel redirects — logged
+  // at boot so misconfigured PUBLIC_URL / proxy is visible immediately
+  // (request-time logging still happens on the first checkout attempt).
+  const bootBaseUrl =
+    (process.env.PUBLIC_URL || process.env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") ||
+    (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0].trim()}` : "") ||
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "") ||
+    `http://localhost:${process.env.PORT || port}`;
+  console.log(
+    `[Stripe Checkout] Boot-time public base URL = ${bootBaseUrl} (PUBLIC_URL=${process.env.PUBLIC_URL ? "set" : "unset"})`,
+  );
+
   // Stripe key + connectivity health check — surfaces misconfig at boot
   // instead of waiting for a customer to click "Get Started".
   runStripeBootHealthCheck().catch((err) => {
