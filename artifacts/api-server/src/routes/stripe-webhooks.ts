@@ -71,22 +71,12 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
         if (type === "self_checkout") {
           const stripeSubscriptionId = session.subscription;
           if (stripeSubscriptionId) {
-            // Retrieve subscription with the latest invoice expanded so we can
-            // get the pre-authorization payment intent ID for admin capture later.
-            const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId, {
-              expand: ["latest_invoice.payment_intent"],
-            });
+            const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
             const { tierId, planSlug, billingCycle, seats: seatsStr } = session.metadata || {};
 
             const customerEmail: string = session.customer_details?.email || session.customer_email || "";
             const customerName: string = session.customer_details?.name || "Valued Customer";
             const seats: number = parseInt(seatsStr || "3", 10) || 3;
-
-            // Extract the pre-auth payment intent ID from the first invoice.
-            const latestInvoice = (subscription as any).latest_invoice;
-            const paymentIntentId: string | null =
-              (typeof latestInvoice === "object" ? latestInvoice?.payment_intent?.id : null)
-              || null;
 
             let tierRecord: any = null;
             if (tierId) {
@@ -116,9 +106,8 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
                 cancelAtPeriodEnd: (subscription as any).cancel_at_period_end ?? false,
                 billingCycle: billingCycle || "monthly",
                 amount: String((subscription.items.data[0]?.price?.unit_amount || 0) / 100),
-                // Approval flow fields
+                // Approval flow fields — trial period means no charge until admin approves.
                 approvalStatus: "pending",
-                stripePaymentIntentId: paymentIntentId,
                 customerEmail,
                 customerName,
                 seats,

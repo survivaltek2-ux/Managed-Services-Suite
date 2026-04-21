@@ -197,7 +197,7 @@ export default function AdminBilling() {
                   Pending Signups — Action Required ({pendingSignups.length})
                 </CardTitle>
                 <p className="text-xs text-orange-700 mt-0.5">
-                  These customers completed checkout. Their cards have a pre-authorization hold — no charge until you approve.
+                  These customers completed checkout and are in a free review period — their cards have not been charged. Approve to start billing; reject to cancel with no charge.
                 </p>
               </CardHeader>
               <CardContent className="p-0">
@@ -208,7 +208,7 @@ export default function AdminBilling() {
                         <th className="px-4 py-2.5 text-left text-orange-900">Customer</th>
                         <th className="px-4 py-2.5 text-left text-orange-900">Plan</th>
                         <th className="px-4 py-2.5 text-left text-orange-900">Seats</th>
-                        <th className="px-4 py-2.5 text-right text-orange-900">Pre-Auth Amount</th>
+                        <th className="px-4 py-2.5 text-right text-orange-900">Plan Value</th>
                         <th className="px-4 py-2.5 text-left text-orange-900">Signed Up</th>
                         <th className="px-4 py-2.5 text-right text-orange-900">Actions</th>
                       </tr>
@@ -227,7 +227,7 @@ export default function AdminBilling() {
                           <td className="px-4 py-3">{s.seats ?? "—"}</td>
                           <td className="px-4 py-3 text-right font-medium">
                             {s.amount ? fmt(parseFloat(s.amount) * (s.seats || 1)) : "—"}
-                            <p className="text-xs font-normal text-muted-foreground">on hold</p>
+                            <p className="text-xs font-normal text-muted-foreground">per period</p>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(s.createdAt)}</td>
                           <td className="px-4 py-3 text-right">

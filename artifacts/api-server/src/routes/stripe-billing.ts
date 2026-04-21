@@ -272,14 +272,8 @@ router.post("/admin/billing/subscriptions/:id/approve", requireAdmin, async (req
       return;
     }
 
-    const paymentIntentId = sub.stripePaymentIntentId;
-    if (!paymentIntentId) {
-      res.status(400).json({ error: "no_payment_intent", message: "No pre-authorization payment intent found." });
-      return;
-    }
-
-    // Capture the pre-authorization — this actually charges the customer's card.
-    await stripe.paymentIntents.capture(paymentIntentId);
+    // End the trial immediately — this triggers Stripe to invoice and charge the card now.
+    await stripe.subscriptions.update(sub.stripeSubscriptionId, { trial_end: "now" });
 
     // Mark approved in the database.
     await db.update(subscriptionsTable)
@@ -372,18 +366,8 @@ router.post("/admin/billing/subscriptions/:id/reject", requireAdmin, async (req:
       return;
     }
 
-    // Cancel the subscription — this also releases the pre-authorized hold on the card.
+    // Cancel the subscription — the trial ends with no charge ever made.
     await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
-
-    // If the payment intent is still in requires_capture state, cancel it explicitly.
-    if (sub.stripePaymentIntentId) {
-      try {
-        const pi = await stripe.paymentIntents.retrieve(sub.stripePaymentIntentId);
-        if (pi.status === "requires_capture") {
-          await stripe.paymentIntents.cancel(sub.stripePaymentIntentId);
-        }
-      } catch { /* Payment intent may already be cancelled */ }
-    }
 
     await db.update(subscriptionsTable)
       .set({ approvalStatus: "rejected", status: "canceled" as any, canceledAt: new Date(), updatedAt: new Date() })
@@ -533,9 +517,9 @@ router.post("/checkout/:tierId", async (req: Request, res: Response) => {
       line_items: [{ price: priceId, quantity: seats }],
       metadata: { tierId: String(tier.id), planSlug: tier.slug, billingCycle, seats: String(seats), type: "self_checkout" },
       allow_promotion_codes: true,
-      // Pre-authorize the first payment without capturing — the admin must
-      // approve the signup before funds are captured from the customer's card.
-      payment_intent_data: { capture_method: "manual" },
+      // Give a 7-day review window — admin approves (ends trial immediately,
+      // billing starts) or rejects (cancels subscription, card never charged).
+      subscription_data: { trial_period_days: 7 },
       success_url: `${base}/welcome?plan=${encodeURIComponent(tier.slug)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing`,
     });

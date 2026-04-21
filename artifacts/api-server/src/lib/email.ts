@@ -1960,7 +1960,7 @@ export async function sendSubscriptionPendingEmail(params: {
           Thank you for signing up for Siebert Services! We've received your request and our team is reviewing your account.
         </p>
         <p style="font-size: 14px; color: #333; margin: 0 0 20px;">
-          <strong>Your card has not been charged yet.</strong> We've placed a temporary authorization hold on your payment method to reserve your spot. This hold will be released if your account is not approved, or converted to a charge once our team approves your application — typically within 1 business day.
+          <strong>Your card has not been charged yet.</strong> You're in a free review period while our team verifies your account. If approved, your subscription begins immediately. If not approved, the subscription is cancelled and you will never be charged.
         </p>
         <div style="background: #f5f7fa; border-left: 4px solid #0176d3; padding: 16px 20px; border-radius: 0 4px 4px 0; margin: 0 0 24px;">
           <p style="margin: 0 0 8px; font-size: 13px; color: #555; font-weight: bold; text-transform: uppercase;">Your Selected Plan</p>
@@ -2041,7 +2041,7 @@ export async function sendSubscriptionRejectedEmail(params: {
         </p>
         ${reason ? `<p style="font-size: 14px; color: #555; margin: 0 0 16px;"><strong>Note:</strong> ${esc(reason)}</p>` : ""}
         <p style="font-size: 14px; color: #333; margin: 0 0 16px;">
-          <strong>No charge has been made</strong> — the authorization hold on your payment method has been fully released.
+          <strong>No charge has been made</strong> — your subscription has been cancelled and you will not be billed.
         </p>
         <p style="font-size: 14px; color: #333; margin: 0 0 24px;">
           If you have questions or believe this decision was made in error, please reach out to us directly.
