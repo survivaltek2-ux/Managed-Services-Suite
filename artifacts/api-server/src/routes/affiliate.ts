@@ -14,6 +14,7 @@ import {
   CONSUMER_ANTIVIRUS_COMMISSIONS,
   IDENTITY_PROTECTION_COMMISSIONS,
   CLOUD_PRODUCTIVITY_COMMISSIONS,
+  SALES_MARKETING_COMMISSIONS,
   WEB_HOSTING_COMMISSIONS,
 } from "../config/isp-commissions.js";
 
@@ -143,6 +144,7 @@ router.get("/affiliate/programs/live", (_req: Request, res: Response) => {
     ...buildCategory("Consumer Antivirus", CONSUMER_ANTIVIRUS_COMMISSIONS),
     ...buildCategory("Identity Protection", IDENTITY_PROTECTION_COMMISSIONS),
     ...buildCategory("Cloud Productivity", CLOUD_PRODUCTIVITY_COMMISSIONS),
+    ...buildCategory("Sales & Marketing", SALES_MARKETING_COMMISSIONS),
     ...buildCategory("Web Hosting & Domains", WEB_HOSTING_COMMISSIONS),
   ];
 
@@ -180,6 +182,7 @@ router.get("/admin/affiliate/programs", requireAdmin, (_req: Request, res: Respo
     ...buildCategory("Consumer Antivirus", CONSUMER_ANTIVIRUS_COMMISSIONS),
     ...buildCategory("Identity Protection", IDENTITY_PROTECTION_COMMISSIONS),
     ...buildCategory("Cloud Productivity", CLOUD_PRODUCTIVITY_COMMISSIONS),
+    ...buildCategory("Sales & Marketing", SALES_MARKETING_COMMISSIONS),
     ...buildCategory("Web Hosting & Domains", WEB_HOSTING_COMMISSIONS),
   ];
 

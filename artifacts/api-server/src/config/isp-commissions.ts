@@ -558,6 +558,23 @@ export const CLOUD_PRODUCTIVITY_COMMISSIONS: Record<string, CommissionEntry> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SALES & MARKETING
+// B2B SaaS tools for partner programs, affiliate marketing, and sales ops.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const SALES_MARKETING_COMMISSIONS: Record<string, CommissionEntry> = {
+  partnerstack: {
+    rateUsd: 0,
+    commissionType: "negotiated",
+    network: "PartnerStack (direct referral)",
+    affiliateSignupUrl: "https://partnerstack.com/partners-and-publishers",
+    affiliateUrl: "https://try.partnerstack.com/rfyrfhixf3m5",
+    notes:
+      "The leading B2B SaaS partner-management platform (PRM) for running affiliate, referral, and co-sell programs at scale. Trusted by 600+ companies including monday.com and Formstack.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // WEB HOSTING & DOMAINS
 // High flat commissions; good for residential/small business clients.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,6 +664,7 @@ export function getAllServicePrograms(): Array<CommissionEntry & { slug: string;
   addCategory(CONSUMER_ANTIVIRUS_COMMISSIONS, "Consumer Antivirus");
   addCategory(IDENTITY_PROTECTION_COMMISSIONS, "Identity Protection");
   addCategory(CLOUD_PRODUCTIVITY_COMMISSIONS, "Cloud Productivity");
+  addCategory(SALES_MARKETING_COMMISSIONS, "Sales & Marketing");
   addCategory(WEB_HOSTING_COMMISSIONS, "Web Hosting & Domains");
 
   return entries.sort((a, b) => b.rateUsd - a.rateUsd);

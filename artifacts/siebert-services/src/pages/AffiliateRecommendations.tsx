@@ -32,6 +32,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Consumer Antivirus": "bg-rose-100 text-rose-700",
   "Identity Protection": "bg-cyan-100 text-cyan-700",
   "Cloud Productivity": "bg-sky-100 text-sky-700",
+  "Sales & Marketing": "bg-violet-100 text-violet-700",
   "Web Hosting": "bg-amber-100 text-amber-700",
 };
 
