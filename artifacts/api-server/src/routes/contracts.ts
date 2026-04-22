@@ -281,6 +281,7 @@ router.post(
           content: null,
           storagePath,
           category: "agreement",
+          customerCompany: companyName.trim(),
           uploadedBy: "system",
           tags: JSON.stringify(["msa", "generated", slug]),
         });

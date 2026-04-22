@@ -257,6 +257,7 @@ export const documentsTable = pgTable("documents", {
   storagePath: text("storage_path"),
   category: documentCategoryEnum("category").notNull().default("other"),
   partnerId: integer("partner_id").references(() => partnersTable.id),
+  customerCompany: text("customer_company"),
   uploadedBy: text("uploaded_by").notNull().default("admin"),
   tags: text("tags").notNull().default("[]"),
   active: boolean("active").notNull().default(true),
