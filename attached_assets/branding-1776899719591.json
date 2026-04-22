@@ -1,0 +1,132 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Inter",
+      "role": "body"
+    },
+    {
+      "family": "Newsreader",
+      "role": "heading"
+    }
+  ],
+  "colors": {
+    "primary": "#434DE1",
+    "secondary": "#0A1567",
+    "accent": "#434EE1",
+    "background": "#FFFFFF",
+    "textPrimary": "#434EE1",
+    "link": "#434EE1"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Inter",
+      "heading": "Newsreader"
+    },
+    "fontStacks": {
+      "heading": [
+        "Inter",
+        "sans-serif"
+      ],
+      "body": [
+        "Inter",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Inter",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "69.6px",
+      "h2": "36px",
+      "body": "15px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "10px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#434EE1",
+      "textColor": "#434DE1",
+      "borderRadius": "8px",
+      "borderRadiusCorners": {
+        "topLeft": "8px",
+        "topRight": "8px",
+        "bottomRight": "8px",
+        "bottomLeft": "8px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#FFFFFF",
+      "textColor": "#333333",
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "File saved at: attached_assets/ogImage.jpg",
+    "logoHref": "File saved at: attached_assets/logoHref.html",
+    "logoAlt": "PartnerStack An AppDirect Company"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 2,
+    "reasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand name 'PartnerStack'.",
+    "confidence": 0.95,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Book your demo",
+      "reasoning": "Button #0 'Book your demo' is the primary CTA due to its vibrant brand color (#434EE1) and action-oriented text, making it the most prominent call-to-action."
+    },
+    "secondary": {
+      "index": 3,
+      "text": "Book your demo",
+      "reasoning": "Button #3 'Book your demo' is selected as secondary because it has a different background color (#FFFFFF) and serves as an alternative action with less emphasis."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "business professionals and companies looking for partner growth solutions"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand name 'PartnerStack'.",
+        "confidence": 0.95
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
