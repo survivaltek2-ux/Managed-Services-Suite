@@ -100,6 +100,7 @@ function buildPlaceholderMap(input: {
   initialTerm?: string;
   noticePeriod?: string;
   customerNotice?: string;
+  changeApprovalThreshold?: string;
 }): Record<string, string> {
   const tierLabel = PLAN_TIER_LABEL[input.planSlug] ?? input.planSlug;
   const monthlyTotal = input.pricePerUser * input.seats;
@@ -131,6 +132,9 @@ function buildPlaceholderMap(input: {
   if (input.initialTerm) map["INITIAL TERM, e.g., twelve (12) months"] = input.initialTerm;
   if (input.noticePeriod) map["NOTICE PERIOD, e.g., sixty (60) days"] = input.noticePeriod;
   if (input.customerNotice) map["CUSTOMER NOTICE ADDRESS AND EMAIL"] = input.customerNotice;
+  if (input.changeApprovalThreshold) {
+    map["CHANGE EMAIL THRESHOLD, e.g., two (2) hours"] = input.changeApprovalThreshold;
+  }
   if (input.signerTitle) {
     // Used in signature block context; surfaced as-is when present.
     map["SIGNER TITLE"] = input.signerTitle;

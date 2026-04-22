@@ -39,6 +39,7 @@ export default function AdminMSAGenerator() {
     initialTerm: "twelve (12) months",
     noticePeriod: "sixty (60) days",
     customerNotice: "",
+    changeApprovalThreshold: "two (2) hours",
   });
   const [generating, setGenerating] = useState(false);
   const [priceTouched, setPriceTouched] = useState(false);
@@ -82,6 +83,7 @@ export default function AdminMSAGenerator() {
           initialTerm: form.initialTerm || undefined,
           noticePeriod: form.noticePeriod || undefined,
           customerNotice: form.customerNotice || undefined,
+          changeApprovalThreshold: form.changeApprovalThreshold || undefined,
         }),
       });
 
@@ -365,6 +367,21 @@ export default function AdminMSAGenerator() {
                           onChange={(e) => update("customerNotice", e.target.value)}
                           placeholder="Attn: Legal — legal@acme.com"
                         />
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label htmlFor="changeApprovalThreshold">
+                          Change-control email approval threshold (§2.8)
+                        </Label>
+                        <Input
+                          id="changeApprovalThreshold"
+                          data-testid="input-change-approval-threshold"
+                          value={form.changeApprovalThreshold}
+                          onChange={(e) => update("changeApprovalThreshold", e.target.value)}
+                          placeholder="two (2) hours"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Routine work at or below this effort can be approved by the customer's primary contact via email; anything larger requires a written change order.
+                        </p>
                       </div>
                     </div>
                   </div>

@@ -438,6 +438,7 @@ const tocSections = [
   ["  Addendum 2 — Cloud & Microsoft 365 Management"],
   ["  Addendum 3 — Backup & Disaster Recovery"],
   ["  Addendum 4 — Compliance (HIPAA / SOC 2 / CMMC)"],
+  ["  Addendum 4-A — Business Associate Agreement (HIPAA)"],
   ["  Addendum 5 — Network Infrastructure"],
   ["  Addendum 6 — VoIP & Telephony"],
   ["  Addendum 7 — Hardware & Software Reselling"],
@@ -1272,6 +1273,7 @@ checkboxRow("Addendum 1 — Cybersecurity / Managed SOC");
 checkboxRow("Addendum 2 — Cloud & Microsoft 365 Management");
 checkboxRow("Addendum 3 — Backup & Disaster Recovery");
 checkboxRow("Addendum 4 — Compliance (HIPAA / SOC 2 / CMMC)");
+checkboxRow("Addendum 4-A — Business Associate Agreement (HIPAA)");
 checkboxRow("Addendum 5 — Network Infrastructure");
 checkboxRow("Addendum 6 — VoIP & Telephony");
 checkboxRow("Addendum 7 — Hardware & Software Reselling");
@@ -1555,10 +1557,64 @@ bulletList([
 
 sectionHeading("E.3  Subprocessors", 2);
 bodyText(
-  "Provider may engage subprocessors (e.g., RMM platform, backup cloud, NOC partner) to process " +
-  "Customer Data. A current list of subprocessors is available upon written request. Provider will " +
-  "notify Customer at least thirty (30) days before adding material new subprocessors and will impose " +
-  "equivalent data-protection obligations on all subprocessors."
+  "Provider engages the following subprocessors to deliver the Services as of the Effective Date. " +
+  "Each subprocessor is bound by written terms imposing data-protection obligations equivalent to those " +
+  "in this Schedule E. Provider will provide at least thirty (30) days' prior written notice (via the " +
+  `notice address in §17 or via email to Customer's primary contact) before adding or replacing any ` +
+  "subprocessor that materially processes Customer Data."
+);
+doc.moveDown(0.3);
+const subWidths = [0.28, 0.32, 0.25, 0.15].map((w) => w * CONTENT_WIDTH);
+tableRow(["Function", "Subprocessor", "Data Processed", "Hosting Region"], subWidths, true, true);
+tableRow([
+  "RMM / PSA platform",
+  placeholder("RMM/PSA VENDOR, e.g., NinjaOne / ConnectWise / Datto Autotask"),
+  "Device telemetry, asset inventory, ticket data",
+  "United States",
+], subWidths, false, false);
+tableRow([
+  "Endpoint Detection & Response (EDR)",
+  placeholder("EDR VENDOR, e.g., SentinelOne / CrowdStrike / Huntress"),
+  "Endpoint security telemetry, threat indicators",
+  "United States",
+], subWidths, false, true);
+tableRow([
+  "Backup & disaster-recovery cloud",
+  placeholder("BACKUP VENDOR, e.g., Datto / Veeam Cloud Connect / Axcient"),
+  "Server, endpoint, and Microsoft 365 backup data",
+  "United States",
+], subWidths, false, false);
+tableRow([
+  "After-hours NOC / SOC partner",
+  placeholder("NOC/SOC PARTNER, e.g., Continuum / Blackpoint Cyber"),
+  "Alerting metadata, incident response logs",
+  "United States",
+], subWidths, false, true);
+tableRow([
+  "Microsoft 365 / Azure hosting",
+  "Microsoft Corporation",
+  "Customer email, files, identity (Customer's own tenant)",
+  "United States",
+], subWidths, false, false);
+tableRow([
+  "Documentation / knowledge base",
+  placeholder("DOCS VENDOR, e.g., IT Glue / Hudu"),
+  "Configuration data, network diagrams, credentials (encrypted at rest)",
+  "United States",
+], subWidths, false, true);
+tableRow([
+  "Email & collaboration (Provider-side)",
+  "Microsoft 365 (Provider tenant)",
+  "Customer correspondence, support tickets sent by email",
+  "United States",
+], subWidths, false, false);
+doc.moveDown(0.3);
+bodyText(
+  "An updated subprocessor list is also available on request to compliance@siebertservices.com. If " +
+  "Customer has a reasonable, documented objection to a new or replacement subprocessor, the parties " +
+  "will work in good faith to identify an alternative; if no commercially reasonable alternative is " +
+  "available, Customer may terminate the affected Service without penalty as set forth in §9.3 of the " +
+  "main Agreement."
 );
 
 sectionHeading("E.4  Data Retention & Return", 2);
@@ -1748,6 +1804,138 @@ addenda.forEach((add, i) => {
   doc.rect(PAGE.margin, doc.y, CONTENT_WIDTH, 0.5).fill(COLORS.rule);
   doc.moveDown(0.3);
 });
+
+// ============================================================
+// ADDENDUM 4-A — BUSINESS ASSOCIATE AGREEMENT (HIPAA)
+// ============================================================
+// Only the rendered template — Customer signs it as a rider when their
+// environment processes Protected Health Information (PHI).
+// ============================================================
+addPage();
+doc.font(FONTS.bold).fontSize(14).fillColor(COLORS.navy)
+  .text("ADDENDUM 4-A", PAGE.margin, 80, { width: CONTENT_WIDTH, align: "center" });
+doc.moveDown(0.2);
+doc.font(FONTS.bold).fontSize(12).fillColor(COLORS.navyMed)
+  .text("BUSINESS ASSOCIATE AGREEMENT (HIPAA)", { width: CONTENT_WIDTH, align: "center" });
+doc.moveDown(0.2);
+doc.font(FONTS.italic).fontSize(9).fillColor(COLORS.gray)
+  .text(
+    "This Addendum 4-A applies only when Customer signs it below or otherwise notifies Provider in writing " +
+    "that Provider will create, receive, maintain, or transmit Protected Health Information (\"PHI\") on " +
+    "Customer's behalf. Capitalized terms not defined here have the meaning given in 45 C.F.R. §§ 160.103 " +
+    "and 164.501.",
+    { width: CONTENT_WIDTH, align: "justify" }
+  );
+doc.moveDown(0.5);
+
+sectionHeading("1.  Definitions", 2);
+bodyText(
+  "\"Business Associate\" means Provider. \"Covered Entity\" means Customer. \"PHI\" has the meaning given " +
+  "at 45 C.F.R. § 160.103 and includes Electronic PHI (\"ePHI\"). \"HIPAA Rules\" means the Privacy, " +
+  "Security, Breach Notification, and Enforcement Rules at 45 C.F.R. Parts 160 and 164, as amended " +
+  "(including by the HITECH Act and the Omnibus Rule)."
+);
+
+sectionHeading("2.  Permitted Uses and Disclosures", 2);
+bodyText(
+  "Business Associate may use or disclose PHI only as necessary to perform the Services for or on behalf " +
+  "of Covered Entity, as required by law, or as expressly permitted by this Addendum. Business Associate " +
+  "may use PHI for its own proper management and administration and to carry out its legal " +
+  "responsibilities, and may disclose PHI for those purposes if (a) the disclosure is required by law, or " +
+  "(b) Business Associate obtains reasonable assurances from the recipient that the PHI will be held " +
+  "confidentially and used or further disclosed only as required by law or for the purpose for which it " +
+  "was disclosed, and the recipient notifies Business Associate of any breach of confidentiality."
+);
+
+sectionHeading("3.  Safeguards", 2);
+bodyText(
+  "Business Associate will implement and maintain appropriate administrative, physical, and technical " +
+  "safeguards in accordance with the Security Rule (45 C.F.R. Part 164, Subpart C) to prevent the use or " +
+  "disclosure of ePHI other than as provided in this Addendum, including encryption of ePHI in transit " +
+  "and at rest, role-based access controls, audit logging, and workforce HIPAA training."
+);
+
+sectionHeading("4.  Reporting of Breaches and Security Incidents", 2);
+bodyText(
+  "Business Associate will report to Covered Entity, without unreasonable delay and in no event later " +
+  "than five (5) business days after Discovery, any (a) Breach of Unsecured PHI, (b) use or disclosure of " +
+  "PHI not permitted by this Addendum, or (c) Security Incident affecting ePHI. Routine, unsuccessful " +
+  "attempts at unauthorized access (port scans, blocked login attempts, etc.) that do not result in " +
+  "access to ePHI are reported in the aggregate on a quarterly basis. Each report will include the " +
+  "information required under 45 C.F.R. § 164.410, to the extent known."
+);
+
+sectionHeading("5.  Subcontractors", 2);
+bodyText(
+  "Business Associate will require any subcontractor that creates, receives, maintains, or transmits PHI " +
+  "on its behalf to agree, in writing, to restrictions and conditions that are at least as stringent as " +
+  "those that apply to Business Associate under this Addendum (a \"Downstream BAA\"). Business Associate's " +
+  "subprocessors as of the Effective Date are listed in Schedule E.3."
+);
+
+sectionHeading("6.  Access, Amendment, Accounting", 2);
+bodyText(
+  "To the extent Business Associate maintains PHI in a Designated Record Set, Business Associate will: " +
+  "(a) make such PHI available to Covered Entity within fifteen (15) business days of a written request " +
+  "to enable Covered Entity to meet its obligations under 45 C.F.R. § 164.524; (b) make amendments to " +
+  "PHI as directed by Covered Entity in accordance with 45 C.F.R. § 164.526; and (c) maintain and make " +
+  "available the information required to provide an accounting of disclosures in accordance with 45 " +
+  "C.F.R. § 164.528."
+);
+
+sectionHeading("7.  Compliance with Covered Entity Obligations", 2);
+bodyText(
+  "To the extent Business Associate is to carry out one or more of Covered Entity's obligations under " +
+  "Subpart E of 45 C.F.R. Part 164, Business Associate will comply with the requirements of Subpart E " +
+  "that apply to Covered Entity in the performance of those obligations."
+);
+
+sectionHeading("8.  HHS Audit Cooperation", 2);
+bodyText(
+  "Business Associate will make its internal practices, books, and records relating to the use and " +
+  "disclosure of PHI available to the Secretary of the U.S. Department of Health and Human Services " +
+  "for purposes of determining Covered Entity's compliance with the HIPAA Rules."
+);
+
+sectionHeading("9.  Term and Termination", 2);
+bodyText(
+  "This Addendum is effective on the same date as the underlying Agreement and terminates on the earlier " +
+  "of: (a) termination of the Agreement; (b) Covered Entity's written notice that Business Associate is " +
+  "no longer providing Services involving PHI; or (c) termination by Covered Entity for material breach " +
+  "as set forth in 45 C.F.R. § 164.504(e)(2)(iii). Upon termination, Business Associate will return or " +
+  "destroy all PHI received from, or created or received by Business Associate on behalf of, Covered " +
+  "Entity that Business Associate still maintains. If return or destruction is infeasible, Business " +
+  "Associate will extend the protections of this Addendum to such PHI and limit further uses and " +
+  "disclosures to those purposes that make the return or destruction infeasible, for so long as Business " +
+  "Associate maintains the PHI."
+);
+
+sectionHeading("10.  Indemnification and Insurance", 2);
+bodyText(
+  "Business Associate will maintain Cyber Liability insurance with limits of not less than the amount " +
+  "set forth in §14 of the main Agreement, which coverage will extend to HIPAA-related claims. The " +
+  "indemnification provisions of §13 of the main Agreement apply to claims arising from Business " +
+  "Associate's breach of this Addendum, subject to the limitations set forth therein, except that " +
+  "Business Associate's liability for civil monetary penalties imposed directly on Covered Entity by " +
+  "the U.S. Department of Health and Human Services arising solely from Business Associate's failure to " +
+  "comply with the HIPAA Rules is excluded from the cap in §12 to the extent required by law."
+);
+
+sectionHeading("11.  Order of Precedence", 2);
+bodyText(
+  "In the event of any conflict between this Addendum and the underlying Agreement (including any other " +
+  "Addendum or Schedule) with respect to the handling of PHI, this Addendum controls."
+);
+
+doc.moveDown(0.6);
+doc.font(FONTS.italic).fontSize(8).fillColor(COLORS.lightGray)
+  .text(
+    "Acknowledged: ____________________________  (Customer)     " +
+    "Date: ______________     " +
+    "Acknowledged: ____________________________  (Provider)     " +
+    "Date: ______________",
+    PAGE.margin, doc.y, { width: CONTENT_WIDTH }
+  );
 
 // End
 doc.end();
