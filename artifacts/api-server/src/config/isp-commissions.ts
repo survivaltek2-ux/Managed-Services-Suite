@@ -151,6 +151,15 @@ export const VOIP_COMMISSIONS: Record<string, CommissionEntry> = {
     notes:
       "Flexible business communications with UCaaS solutions and easy integrations with existing tools.",
   },
+  krispcall: {
+    rateUsd: 0,
+    commissionType: "negotiated",
+    network: "Direct (KrispCall affiliate program)",
+    affiliateSignupUrl: "https://krispcall.com/affiliate-program/",
+    affiliateUrl: "https://try.krispcall.com/siebert",
+    notes:
+      "Affordable cloud-based business phone with global numbers, SMS/MMS, IVR, and 80+ CRM integrations. 10% off via our partner link.",
+  },
   talkroute: {
     rateUsd: 175,
     commissionType: "per_sale",
