@@ -654,7 +654,7 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
   const { toast } = useToast();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [smtpForm, setSmtpForm] = useState({ mailgun_api_key: "", mailgun_domain: "", smtp_host: "", smtp_port: "587", smtp_user: "", smtp_pass: "", smtp_from_email: "", smtp_from_name: "", notification_email: "" });
+  const [smtpForm, setSmtpForm] = useState({ smtp_host: "", smtp_port: "587", smtp_user: "", smtp_pass: "", smtp_from_email: "", smtp_from_name: "", notification_email: "" });
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [smtpTesting, setSmtpTesting] = useState(false);
 
@@ -671,8 +671,6 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
   useEffect(() => {
     if (smtp && typeof smtp === "object") {
       setSmtpForm({
-        mailgun_api_key: smtp.mailgunApiKeySet ? "••••••••" : "",
-        mailgun_domain: smtp.mailgunDomain || "",
         smtp_host: smtp.host || "",
         smtp_port: String(smtp.port || "587"),
         smtp_user: smtp.user || "",
@@ -714,8 +712,7 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
       const res = await fetch("/api/admin/smtp/test", { method: "POST", headers: headers() });
       const d = await res.json();
       if (d.ok) {
-        const provider = d.provider === "mailgun" ? "Mailgun API" : "SMTP";
-        toast({ title: "Connection successful", description: `${provider} is configured and working.` });
+        toast({ title: "Connection successful", description: "SMTP is configured and working." });
       } else {
         toast({ title: "Connection failed", description: d.error || "Check your email settings.", variant: "destructive" });
       }
@@ -732,47 +729,18 @@ function SettingsTab({ data, smtp, refresh, headers }: { data: any; smtp: any; r
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base flex items-center gap-2"><Mail className="w-4 h-4" /> Email Configuration</CardTitle>
-            {smtp?.activeProvider === "mailgun" && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium"><Check className="w-3 h-3" />Mailgun Active</span>}
-            {smtp?.activeProvider === "smtp" && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium"><Check className="w-3 h-3" />SMTP Active</span>}
+            {smtp?.activeProvider === "microsoft365" && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium"><Check className="w-3 h-3" />Microsoft 365 SMTP Active</span>}
             {smtp?.activeProvider === "none" && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium"><AlertCircle className="w-3 h-3" />Not Configured</span>}
           </div>
-          <p className="text-xs text-muted-foreground">Configure outbound email for notifications and login codes. Mailgun API is recommended — SMTP is a fallback.</p>
+          <p className="text-xs text-muted-foreground">Configure outbound email for notifications and login codes.</p>
         </CardHeader>
         <CardContent className="space-y-5">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-semibold">Mailgun API</span>
-              <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary">Recommended</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs">API Key</Label>
-                <Input
-                  type="password"
-                  value={smtpForm.mailgun_api_key}
-                  onChange={e => setSmtpForm(p => ({ ...p, mailgun_api_key: e.target.value }))}
-                  placeholder={smtp?.mailgunApiKeySet ? "Leave blank to keep current" : "key-xxxxxxxxxxxxxxxx"}
-                />
-                <p className="text-xs text-muted-foreground">Found in Mailgun → Account → API Keys</p>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Sending Domain</Label>
-                <Input
-                  value={smtpForm.mailgun_domain}
-                  onChange={e => setSmtpForm(p => ({ ...p, mailgun_domain: e.target.value }))}
-                  placeholder="mg.siebertrservices.com"
-                />
-                <p className="text-xs text-muted-foreground">The domain verified in your Mailgun account</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <p className="text-sm font-semibold mb-3">SMTP Fallback <span className="text-xs font-normal text-muted-foreground">(used only if Mailgun is not configured)</span></p>
+            <p className="text-sm font-semibold mb-3">SMTP Configuration</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs">SMTP Host</Label>
-                <Input value={smtpForm.smtp_host} onChange={e => setSmtpForm(p => ({ ...p, smtp_host: e.target.value }))} placeholder="smtp.mailgun.org" />
+                <Input value={smtpForm.smtp_host} onChange={e => setSmtpForm(p => ({ ...p, smtp_host: e.target.value }))} placeholder="smtp.office365.com" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">SMTP Port</Label>

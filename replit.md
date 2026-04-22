@@ -71,7 +71,7 @@ The database uses PostgreSQL and Drizzle ORM. Key tables include `users`, `conta
 # Security Notes
 
 - **Vite**: Pinned to `^7.3.2` in the pnpm workspace catalog to address CVE file-system bypass (GHSA-v2wj-q39q-566r)
-- **axios override**: Added `"axios": ">=1.15.0"` in root `package.json` pnpm overrides to patch SSRF vulnerabilities (GHSA-3p68-rc4w-qgx5, GHSA-fvcv-3m26-pcqx) coming through `mailgun.js`
+- **axios override**: Added `"axios": ">=1.15.0"` in root `package.json` pnpm overrides to patch SSRF vulnerabilities (GHSA-3p68-rc4w-qgx5, GHSA-fvcv-3m26-pcqx). Mailgun was removed; outbound email goes through Microsoft 365 SMTP only.
 - **Email templates**: All user-provided data in `email.ts` HTML templates is escaped through the `esc()` helper function
 - **Legal pages**: `/privacy` and `/terms` both exist with proper routes in App.tsx
 

@@ -72,7 +72,7 @@ const PUBLIC_SETTING_KEYS = new Set<string>([
 ]);
 
 // Public endpoint: only allowlisted, non-sensitive settings.
-// IMPORTANT: never expose `smtp_*`, `mailgun_*`, API keys, or any credential here.
+// IMPORTANT: never expose `smtp_*`, API keys, or any credential here.
 router.get("/cms/settings", async (_req, res) => {
   try {
     const settings = await db.select().from(siteSettingsTable);
@@ -235,12 +235,11 @@ router.get("/admin/smtp", requireAuth, requireAdmin, async (_req: AuthRequest, r
 });
 
 const EMAIL_DB_KEYS = [
-  "mailgun_api_key", "mailgun_domain",
   "smtp_host", "smtp_port", "smtp_user", "smtp_pass",
   "smtp_from_email", "smtp_from_name", "notification_email",
 ];
 const MASKED_PLACEHOLDER = "••••••••";
-const MASKED_KEYS = new Set(["smtp_pass", "mailgun_api_key"]);
+const MASKED_KEYS = new Set(["smtp_pass"]);
 
 router.put("/admin/smtp", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

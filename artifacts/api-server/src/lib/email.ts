@@ -142,8 +142,6 @@ export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: st
 }
 
 export async function getSmtpSettings(): Promise<{
-  mailgunApiKeySet: boolean;
-  mailgunDomain: string;
   host: string;
   port: number;
   user: string;
@@ -159,8 +157,6 @@ export async function getSmtpSettings(): Promise<{
   const activeProvider = smtpUser && smtpPass ? "microsoft365" : "none";
 
   return {
-    mailgunApiKeySet: false,
-    mailgunDomain: "",
     host: MS_SMTP_HOST,
     port: MS_SMTP_PORT,
     user: smtpUser || cfg.fromEmail,
