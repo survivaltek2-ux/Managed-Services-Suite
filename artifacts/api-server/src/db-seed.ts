@@ -111,10 +111,9 @@ async function seedTrustContent(): Promise<void> {
       console.log("[seed] Inserted 3 case studies");
     }
 
-    // Pricing tiers
-    const [{ pCount }] = await db.select({ pCount: count() }).from(pricingTiersTable);
-    if (pCount === 0) {
-      await db.insert(pricingTiersTable).values([
+    // Pricing tiers — backfill any canonical tiers missing by slug.
+    // Existing rows are never overwritten (admin edits are preserved).
+    const canonicalTiers = [
         {
           slug: "consumer", name: "Consumer",
           tagline: "Essential remote IT support for individuals and very small home-office setups.",
@@ -219,8 +218,15 @@ async function seedTrustContent(): Promise<void> {
           ]),
           excludedFeatures: JSON.stringify([]),
         },
-      ]);
-      console.log("[seed] Inserted 4 pricing tiers");
+      ];
+
+    const existingTierSlugs = new Set(
+      (await db.select({ slug: pricingTiersTable.slug }).from(pricingTiersTable)).map((r) => r.slug)
+    );
+    const tiersToInsert = canonicalTiers.filter((t) => !existingTierSlugs.has(t.slug));
+    if (tiersToInsert.length > 0) {
+      await db.insert(pricingTiersTable).values(tiersToInsert);
+      console.log(`[seed] Backfilled ${tiersToInsert.length} pricing tier(s): ${tiersToInsert.map((t) => t.slug).join(", ")}`);
     }
 
     // Consumer services
