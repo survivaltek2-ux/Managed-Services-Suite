@@ -32,6 +32,7 @@ import contractsRouter from "./contracts.js";
 import esignRouter from "./esign.js";
 import writtenPlansRouter from "./written-plans.js";
 import partnerstackRouter from "./partnerstack.js";
+import customersRouter from "./customers.js";
 
 const router: IRouter = Router();
 
@@ -68,5 +69,6 @@ router.use(contractsRouter);
 router.use(esignRouter);
 router.use(writtenPlansRouter);
 router.use(partnerstackRouter);
+router.use(customersRouter);
 
 export default router;

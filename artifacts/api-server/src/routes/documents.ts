@@ -269,7 +269,7 @@ router.post("/admin/documents", requireAuth, async (req: AuthRequest, res: Respo
 
 // ─── Admin: Download document ─────────────────────────────────────────────────
 
-router.get("/admin/documents/:id/download", requireAuth, async (req: AuthRequest, res: Response) => {
+router.get("/admin/documents/:id/download", requireAuth, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
     const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id)).limit(1);
