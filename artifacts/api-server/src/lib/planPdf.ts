@@ -41,6 +41,7 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
     currentEnvironment?: string;
     keyFindings?: string[];
     recommendedServices?: { service: string; description: string }[];
+    recommendedProducts?: { vendor: string; product: string; category: string; rationale: string }[];
     nextSteps?: string[];
   }
   const content = (plan.planContent as PlanContent | null) ?? {};
@@ -189,7 +190,41 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
     doc.moveDown(0.55);
   }
 
-  // ─── 5. Service Levels ────────────────────────────────────────────────────
+  // ─── 5. Recommended Products ──────────────────────────────────────────────
+  const products: { vendor: string; product: string; category: string; rationale: string }[] =
+    Array.isArray(content.recommendedProducts) ? content.recommendedProducts : [];
+  if (products.length > 0) {
+    section("Recommended Products");
+
+    // Group products by category for cleaner reading
+    const byCategory = new Map<string, typeof products>();
+    for (const p of products) {
+      const cat = p.category || "Other";
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push(p);
+    }
+
+    for (const [category, items] of byCategory) {
+      if (doc.y > doc.page.height - 140) doc.addPage();
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9)
+        .text(category.toUpperCase(), MARGIN, doc.y, { characterSpacing: 1.1, width: contentW });
+      doc.moveDown(0.2);
+      for (const p of items) {
+        if (doc.y > doc.page.height - 130) doc.addPage();
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(10.5)
+          .text(p.vendor, MARGIN, doc.y, { width: contentW, continued: true })
+          .fillColor(BLACK).font("Times-Roman").fontSize(10.5)
+          .text(`  —  ${p.product}`, { width: contentW });
+        doc.moveDown(0.1);
+        doc.fillColor(BLACK).font("Times-Roman").fontSize(10)
+          .text(p.rationale, MARGIN, doc.y, { width: contentW, align: "justify", lineGap: 1.5 });
+        doc.moveDown(0.45);
+      }
+      doc.moveDown(0.2);
+    }
+  }
+
+  // ─── 6. Service Levels ────────────────────────────────────────────────────
   section("Service Levels");
   for (const sl of SERVICE_LEVELS) {
     if (doc.y > doc.page.height - 120) doc.addPage();

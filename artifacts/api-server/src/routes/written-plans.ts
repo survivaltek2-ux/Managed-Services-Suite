@@ -20,11 +20,13 @@ const router = Router();
 // ─── Typed JSON shapes ────────────────────────────────────────────────────────
 
 interface RecommendedService { service: string; description: string; }
+interface RecommendedProduct { vendor: string; product: string; category: string; rationale: string; }
 interface PlanContentShape {
   executiveSummary: string;
   currentEnvironment: string;
   keyFindings: string[];
   recommendedServices: RecommendedService[];
+  recommendedProducts?: RecommendedProduct[];
   nextSteps: string[];
 }
 type QuestionnaireAnswers = Record<string, string | string[]>;
@@ -266,6 +268,7 @@ function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
     currentEnvironment: `${company} maintains an IT environment supporting approximately ${headcount} employees across ${locations}.${envSentence}${notesSentence} This assessment identifies areas where targeted improvements will deliver the greatest business value.`,
     keyFindings,
     recommendedServices,
+    recommendedProducts: [],
     nextSteps,
   };
 }
@@ -304,6 +307,23 @@ const PLAN_CONTENT_JSON_SCHEMA = {
         },
       },
     },
+    recommendedProducts: {
+      type: "array",
+      minItems: 2,
+      maxItems: 8,
+      description: "Specific vendor products from the Siebert vendor catalog that pair with the recommended services. Use vendor and product names verbatim from the catalog. Pick products that fit the client's stated environment, scale, compliance needs, and pain points. Do NOT invent vendors or products not in the catalog.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["vendor", "product", "category", "rationale"],
+        properties: {
+          vendor: { type: "string", description: "Vendor name exactly as it appears in the Siebert vendor catalog, e.g. 'Comcast Business', 'RingCentral', 'Microsoft 365', 'Cisco Meraki'." },
+          product: { type: "string", description: "Specific product / SKU / tier from that vendor, e.g. 'Business Internet Gigabit Extra (1.25 Gbps)', 'RingEX Advanced', 'Microsoft 365 Business Premium', 'Meraki MX85 + MR46 access points'." },
+          category: { type: "string", description: "Short category label, e.g. 'Internet / Connectivity', 'UCaaS / Phone System', 'Endpoint Security', 'Backup / DR', 'SD-WAN / Networking', 'Productivity Suite'." },
+          rationale: { type: "string", description: "1-2 sentences explaining why this specific product fits this client's stated needs (reference the questionnaire data: location count, headcount, compliance, pain point, etc.)." },
+        },
+      },
+    },
     nextSteps: {
       type: "array",
       minItems: 3,
@@ -311,8 +331,72 @@ const PLAN_CONTENT_JSON_SCHEMA = {
       items: { type: "string", description: "One actionable next step per item." },
     },
   },
-  required: ["executiveSummary", "currentEnvironment", "keyFindings", "recommendedServices", "nextSteps"],
+  required: ["executiveSummary", "currentEnvironment", "keyFindings", "recommendedServices", "recommendedProducts", "nextSteps"],
 } as const;
+
+const SIEBERT_VENDOR_CATALOG = `Siebert Services partners with these vendors. When recommending products, use the vendor name and product/SKU verbatim from this list. Do NOT invent vendors or products that are not listed.
+
+INTERNET / CONNECTIVITY (ISP & dedicated fiber)
+- Comcast Business — Internet tiers (300 Mbps, 500 Mbps, 1.25 Gbps, 2 Gbps), Comcast Business Mobile, Ethernet Dedicated Internet (EDI), SecurityEdge, ActiveCore SD-WAN.
+- Spectrum Business — Fiber-Powered Internet, Business Internet (300 Mbps – 1 Gbps), Dedicated Fiber Internet (up to 100 Gbps), Managed SD-WAN, Business Voice.
+- AT&T Business — AT&T Business Fiber (up to 5 Gbps symmetric), AT&T Dedicated Internet (ADI), AT&T Business Internet Air (FWA), AT&T VPN (AVPN), AT&T Switched Ethernet, FirstNet.
+- Verizon Business — Verizon Business Internet (Fios), Verizon Business 5G Internet, Private 5G Network, DDoS Shield, Verizon SD-WAN.
+- Cox Business — Cox Business Internet (300 Mbps – 2 Gbps), Internet Backup (4G LTE), VoiceManager, Complete Care security, Managed WiFi.
+- Lumen — Dynamic Connections, Fiber+ Internet, Lumen SASE, Managed Security Services, Edge Compute.
+- T-Mobile Business — T-Mobile 5G Business Internet, Cradlepoint E300/W1850 routers, Business Unlimited wireless plans.
+- Altice Business — Optimum Business Fiber (up to 5 Gbps), Optimum Business Hosted Voice, SD-WAN.
+- AireSpring — Managed SD-WAN, Dedicated Internet Access (DIA), Managed Failover, AirePBX UCaaS, AireContact CCaaS.
+- Bigleaf Networks — Bigleaf Cloud Connect (Essential, Premier, High Availability), Bigleaf Wireless Connect.
+- 11:11 Systems — Managed Last-Mile, NaaS, SD-WAN, Global Cloud Native Backbone.
+
+UCAAS / VOIP / PHONE SYSTEMS
+- RingCentral — RingEX (Core, Advanced, Ultra), RingCX contact center, RingSense AI, AIR (AI Receptionist).
+- 8x8 — 8x8 X Series (X2, X4, X6, X8), 8x8 Work, 8x8 Contact Center, 8x8 Engage.
+- Microsoft 365 (Teams Phone) — Teams Phone Standard, Teams Phone with Calling Plan, Teams Premium.
+- Dialpad — Dialpad Connect (Standard $15, Pro $25, Enterprise), Dialpad Support (AI Contact Center), Dialpad Sell, Dialpad Ai.
+- Zoom — Zoom Phone (Metered, Unlimited Regional, Pro Global Select), Zoom Contact Center, Zoom Workplace.
+- Vonage Business — Vonage Business Communications (Mobile, Premium, Advanced), Vonage Fusion, VBC SmartWAN.
+- Nextiva — Nextiva NEXT Platform (Core $15, Engage $25, Scale $75), Contact Center Basic, NextOS.
+- GoTo — GoTo Connect (Phone System, CX, Contact Center), GoTo Meeting, GoTo Webinar.
+- Sangoma — Sangoma Phone, PBXact, FreePBX, Sangoma CX, Sangoma Meet.
+
+PRODUCTIVITY / EMAIL / CLOUD WORKPLACE
+- Microsoft 365 — Microsoft 365 Business Basic, Business Standard, Business Premium, Apps for Business, E3, E5.
+- Google Workspace — Business Starter, Business Standard, Business Plus, Enterprise.
+- Microsoft Azure — Azure Virtual Desktop (AVD), Azure Backup, Azure Site Recovery, Microsoft Sentinel.
+
+SECURITY / EDR / MDR / EMAIL SECURITY
+- Microsoft 365 Defender — Defender for Endpoint Plan 1/Plan 2, Defender for Office 365, Defender for Identity, Microsoft Sentinel.
+- Fortinet — FortiGate firewalls (40F, 60F, 100F, 200F), FortiClient EMS, FortiEDR, FortiSASE.
+- Palo Alto Networks — Cortex XDR, Cortex XSIAM, Prisma Access SASE, NGFW PA-Series.
+- Cisco Meraki — MX security appliances (MX67, MX85, MX95, MX105), MS switches, MR access points, Meraki Systems Manager (MDM).
+- Arctic Wolf — Arctic Wolf Managed Detection and Response (MDR), Managed Risk, Managed Security Awareness, Cloud Detection and Response.
+- CrowdStrike — Falcon Go, Falcon Pro, Falcon Enterprise, Falcon Complete (managed XDR).
+- SentinelOne — Singularity Core, Singularity Control, Singularity Complete, Singularity Commercial.
+- Mimecast — Mimecast Email Security, Awareness Training, Archive, Brand Exploit Protect.
+- Proofpoint — Proofpoint Essentials Business / Advanced / Professional (email security + awareness training for SMB).
+
+NETWORKING / SD-WAN / WIFI HARDWARE
+- Cisco Meraki — see Security; same vendor handles SD-WAN (MX appliances) and cloud-managed WiFi/switching.
+- Extreme Networks — ExtremeCloud IQ, Universal Switching, ExtremeWireless access points, Extreme Fabric.
+- Juniper Networks — Mist AI WiFi, EX Series switches, SRX firewalls, Apstra fabric automation.
+- HP / Aruba — Aruba Instant On, Aruba Central, Aruba CX switches, Aruba Access Points.
+
+BACKUP / DR / BUSINESS CONTINUITY
+- Datto (Kaseya) — Datto SIRIS (BCDR appliance), Datto ALTO, Datto SaaS Protection (M365 / Google Workspace backup), Datto Cloud Continuity.
+- Veeam — Veeam Data Platform (Foundation, Advanced, Premium), Veeam Backup for Microsoft 365, Veeam Cloud Connect.
+- Acronis — Acronis Cyber Protect Cloud (Standard, Advanced, Premium), Acronis Cyber Backup.
+- Rubrik — Rubrik Security Cloud, Rubrik Enterprise Edition, Rubrik for Microsoft 365.
+
+HARDWARE / ENDPOINTS
+- Dell — Dell Latitude / OptiPlex / Precision laptops & desktops, PowerEdge servers, ProSupport Plus.
+- HP — HP EliteBook / ProBook laptops, HP Z workstations, HP ProLiant servers.
+
+PHYSICAL SECURITY
+- ADT Business — ADT Commercial intrusion, video surveillance, access control, fire monitoring.
+- Vivint — Vivint Smart Business security and monitoring.
+
+NOTE: When the client environment already lists a vendor (e.g., "Microsoft 365" in cloud platforms), prefer adjacent products from that same vendor before suggesting a switch. When a competing primary product is suggested, briefly justify the switch.`;
 
 const SIEBERT_SERVICE_CATALOG = `Siebert Services offers these service lines (use names verbatim when recommending; do not invent new ones):
 - Managed IT Support — proactive monitoring, helpdesk, rapid incident response.
@@ -339,10 +423,13 @@ Strict rules:
 - Reference the client by their company name where natural. Address them in second person sparingly ("your environment", "your team") — this document is read by the client.
 - Do not mention pricing, fees, or dollar amounts unless the answers contain a budget range, in which case you may reference it neutrally.
 - Recommend services from the Siebert catalog only.
+- Recommend specific vendor products from the Siebert vendor catalog only — never invent vendors or product SKUs. Pick products that match the client's stated environment (size, locations, cloud platforms, compliance, pain points). Prefer the vendor they already use when expanding their stack (e.g., if they're already on Microsoft 365, prefer Microsoft Defender / Teams Phone over a competitor unless there's a clear reason to switch).
 - Findings should be specific and grounded ("MFA is enforced everywhere" / "no formal backup solution noted") — not generic best-practice statements.
 - Next steps are concrete actions for the next 1–2 weeks.
 
-${SIEBERT_SERVICE_CATALOG}`;
+${SIEBERT_SERVICE_CATALOG}
+
+${SIEBERT_VENDOR_CATALOG}`;
 
   const userPrompt = `Client company: ${meta.clientCompany}
 Primary contact: ${meta.clientName}

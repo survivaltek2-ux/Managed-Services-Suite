@@ -25,6 +25,7 @@ interface PlanContent {
   currentEnvironment: string;
   keyFindings: string[];
   recommendedServices: { service: string; description: string }[];
+  recommendedProducts?: { vendor: string; product: string; category: string; rationale: string }[];
   nextSteps: string[];
 }
 
@@ -110,6 +111,23 @@ function PlanDocument({ content, plan }: { content: PlanContent; plan?: Plan & {
           ))}
         </div>
       </Section>
+      {(content.recommendedProducts?.length ?? 0) > 0 && (
+        <Section id="products" title="Recommended Products">
+          <div className="space-y-3">
+            {(content.recommendedProducts || []).map((p, i) => (
+              <div key={i} className="p-3 rounded-lg bg-white border border-[#0176d3]/20">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{p.category}</p>
+                <p className="text-sm mt-0.5">
+                  <span className="font-semibold text-[#032d60]">{p.vendor}</span>
+                  <span className="text-gray-500"> — </span>
+                  <span className="text-gray-700">{p.product}</span>
+                </p>
+                <p className="text-gray-600 text-xs mt-1 leading-relaxed">{p.rationale}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
       <Section id="next" title="Next Steps">
         <ol className="space-y-2">
           {(content.nextSteps || []).map((step, i) => (
