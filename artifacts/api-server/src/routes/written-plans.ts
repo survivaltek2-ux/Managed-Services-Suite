@@ -434,12 +434,20 @@ async function generatePlanContentAI(
 
 Tone: consultative, factual, restrained. Avoid marketing language ("cutting-edge", "world-class", "leverage", "synergy"). Avoid hyperbole. Write the way a Big-4 consultant or attorney would.
 
-Strict rules:
-- Use ONLY information present in the questionnaire answers. Never invent client-specific facts (headcount, vendors, compliance scope, etc.).
+GROUNDING RULES (most important — every recommendation must be traceable to the questionnaire):
+- Every key finding, every recommended service, and every recommended product MUST be directly justified by a specific answer in the questionnaire. If a fact is not in the answers, you may NOT use it.
+- Never invent client-specific facts: headcount, locations, workstations, server count, cloud platforms, vendors in use, compliance scope, MFA status, backup status, ticket volume, hours of operation, budget, timeline, planned projects — these come ONLY from the answers.
+- For EACH recommended product and EACH recommended service, the rationale/description must explicitly reference the questionnaire signal that triggered it (e.g., "no backup solution noted", "MFA is partially deployed", "already on Microsoft 365", "operates 3 locations with planned 4th", "HIPAA is a stated requirement", "20–50 tickets/month with after-hours on-call needed", "budget range $5k–$10k/mo"). If you cannot tie a recommendation to a specific answer, do NOT include it.
+- Match product scale to client size: do not recommend enterprise-tier products to a 5-person company; do not recommend small-business tiers to a 500-person multi-site company. Use headcount, location count, server count, and ticket volume from the answers to pick the right tier.
+- When the client already lists a vendor in the answers (e.g., Microsoft 365 in cloudPlatforms, "Spectrum Business 300 Mbps" in currentVendors), prefer adjacent products from THAT same vendor before suggesting a competing vendor. If you do recommend a switch, the rationale must explain why based on a stated pain point or stated priority.
+- If the answers say a control is already in place (e.g., MFA "Yes - everywhere", a documented backup solution, EDR already deployed), do NOT recommend duplicating it. Recommend complementary or higher-tier products only when there is a stated gap or stated priority for improvement.
+
+WRITING RULES:
+- Use ONLY information present in the questionnaire answers. No outside facts about the client.
 - Reference the client by their company name where natural. Address them in second person sparingly ("your environment", "your team") — this document is read by the client.
 - Do not mention pricing, fees, or dollar amounts unless the answers contain a budget range, in which case you may reference it neutrally.
-- Recommend services from the Siebert catalog only.
-- Recommend specific vendor products from the Siebert vendor catalog only — never invent vendors or product SKUs. Pick products that match the client's stated environment (size, locations, cloud platforms, compliance, pain points). Prefer the vendor they already use when expanding their stack (e.g., if they're already on Microsoft 365, prefer Microsoft Defender / Teams Phone over a competitor unless there's a clear reason to switch).
+- Recommend services from the Siebert service catalog only.
+- Recommend specific vendor products from the Siebert vendor catalog only — never invent vendors or product SKUs.
 - Findings should be specific and grounded ("MFA is enforced everywhere" / "no formal backup solution noted") — not generic best-practice statements.
 - Next steps are concrete actions for the next 1–2 weeks.
 
