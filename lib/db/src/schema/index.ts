@@ -13,3 +13,4 @@ export * from "./affiliate";
 export * from "./marketplace";
 export * from "./lead-magnets";
 export * from "./billing";
+export * from "./clientPortal";

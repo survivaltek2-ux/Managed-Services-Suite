@@ -2154,6 +2154,71 @@ export async function sendPlanApprovedEmail(plan: {
   return sendEmail(to, `Plan Approved: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
 }
 
+export async function sendClientPortalWelcomeEmail(params: {
+  clientName: string;
+  clientEmail: string;
+  clientCompany: string;
+  planNumber: string;
+  dashboardUrl: string;
+  onboardingUrl: string;
+}): Promise<SendEmailResult> {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  if (!smtpUser || !smtpPass) {
+    return { ok: false, error: "smtp_not_configured", errorMessage: "SMTP not configured." };
+  }
+  const { clientName, clientEmail, clientCompany, planNumber, dashboardUrl, onboardingUrl } = params;
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 22px;">Welcome to Siebert Services</h1>
+        <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 13px;">${esc(clientCompany)} · Plan ${esc(planNumber)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;">Hi ${esc(clientName)},</p>
+        <p style="font-size: 14px; color: #374151; margin: 0 0 16px; line-height: 1.6;">
+          Thank you for approving your IT Assessment Plan. To get started, please complete a short onboarding so our team can prepare your kickoff smoothly.
+        </p>
+        <div style="text-align: center; margin: 28px 0 20px;">
+          <a href="${onboardingUrl}" style="background: #0176d3; color: #fff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">Start Onboarding</a>
+        </div>
+        <p style="font-size: 13px; color: #6b7280; margin: 20px 0 8px; text-align: center;">
+          You can also access your client portal anytime:
+        </p>
+        <p style="font-size: 13px; text-align: center; margin: 0 0 20px;">
+          <a href="${dashboardUrl}" style="color: #0176d3;">Open Client Portal →</a>
+        </p>
+        <p style="font-size: 12px; color: #9ca3af; margin: 24px 0 0; line-height: 1.5;">
+          Bookmark these links — they're tied to your account and valid for 180 days. If you ever need new ones, just reply to this email.
+        </p>
+      </div>
+    </div>`;
+  const sent = await sendEmail(clientEmail, `Welcome to Siebert Services — Let's get ${esc(clientCompany)} onboarded`, html);
+  if (!sent) return { ok: false, error: "smtp_error", errorMessage: "Email delivery failed." };
+  return { ok: true };
+}
+
+export async function sendClientOnboardingCompleteEmail(params: {
+  clientName: string;
+  clientCompany: string;
+  planNumber: string;
+  recipientEmail: string;
+}): Promise<boolean> {
+  const { clientName, clientCompany, planNumber, recipientEmail } = params;
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 20px;">Client Onboarding Complete ✓</h1>
+        <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 13px;">${esc(clientCompany)} · Plan ${esc(planNumber)}</p>
+      </div>
+      <div style="border: 1px solid #e2e8f0; border-top: none; padding: 28px; border-radius: 0 0 4px 4px; background: #fff;">
+        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;"><strong>${esc(clientName)}</strong> at <strong>${esc(clientCompany)}</strong> just completed their post-approval onboarding.</p>
+        <p style="font-size: 14px; color: #374151; margin: 0 0 16px;">Review their submitted contacts, billing details, and kickoff preferences in the Partner Portal to schedule next steps.</p>
+      </div>
+    </div>`;
+  return sendEmail(recipientEmail, `Onboarding Complete: ${esc(clientCompany)} — ${esc(planNumber)}`, html);
+}
+
 export async function sendPlanCallRequestedEmail(plan: {
   clientName: string; clientEmail: string; clientCompany: string; planNumber: string;
 }, recipientEmail?: string): Promise<boolean> {

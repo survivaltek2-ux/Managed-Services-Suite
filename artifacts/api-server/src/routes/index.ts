@@ -33,6 +33,7 @@ import esignRouter from "./esign.js";
 import writtenPlansRouter from "./written-plans.js";
 import partnerstackRouter from "./partnerstack.js";
 import customersRouter from "./customers.js";
+import clientPortalRouter from "./client-portal.js";
 
 const router: IRouter = Router();
 
@@ -70,5 +71,6 @@ router.use(esignRouter);
 router.use(writtenPlansRouter);
 router.use(partnerstackRouter);
 router.use(customersRouter);
+router.use(clientPortalRouter);
 
 export default router;

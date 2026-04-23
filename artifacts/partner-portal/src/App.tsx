@@ -51,6 +51,8 @@ import PlanReview from "./pages/PlanReview";
 import AdminPlans from "./pages/AdminPlans";
 import AdminCustomers from "./pages/AdminCustomers";
 import AdminPartnerstack from "./pages/AdminPartnerstack";
+import ClientDashboard from "./pages/ClientDashboard";
+import ClientOnboarding from "./pages/ClientOnboarding";
 
 import { useAuth } from "./hooks/use-auth";
 
@@ -109,6 +111,8 @@ function Router() {
       <Route path="/proposals/generate"><ProtectedRoute component={ProposalGenerator} /></Route>
       <Route path="/plans"><ProtectedRoute component={WrittenPlans} /></Route>
       <Route path="/plan-review/:token" component={PlanReview} />
+      <Route path="/c/:token/onboarding" component={ClientOnboarding} />
+      <Route path="/c/:token" component={ClientDashboard} />
 
       {/* Admin-only Partner Management Routes */}
       <Route path="/admin/partners"><ProtectedRoute component={AdminPartners} /></Route>

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers, partnersTable, PAIN_POINT_OPTIONS } from "@workspace/db";
+import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers, partnersTable, PAIN_POINT_OPTIONS, clientOnboardingTable } from "@workspace/db";
 import { eq, desc, and, lt, gt, inArray, sql } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import {
@@ -8,7 +8,9 @@ import {
   sendPlanCallRequestedEmail,
   sendPlanDeclinedEmail,
   sendPlanExpiringEmail,
+  sendClientPortalWelcomeEmail,
 } from "../lib/email.js";
+import { issueClientPortalToken } from "./client-portal.js";
 import { generatePlanPdf } from "../lib/planPdf.js";
 import crypto from "crypto";
 
@@ -275,6 +277,53 @@ async function resolvePartnerEmail(partnerId: number | null): Promise<string | u
     const [partner] = await db.select({ email: partnersTable.email }).from(partnersTable).where(eq(partnersTable.id, partnerId)).limit(1);
     return partner?.email || undefined;
   } catch { return undefined; }
+}
+
+// ─── Post-approval client portal provisioning ────────────────────────────────
+
+async function triggerPostApprovalClientPortal(plan: typeof writtenPlansTable.$inferSelect): Promise<void> {
+  // Issue a 180-day magic-link token for this client
+  const tokenRow = await issueClientPortalToken({
+    partnerId: plan.partnerId,
+    planId: plan.id,
+    clientEmail: plan.clientEmail,
+    clientName: plan.clientName,
+    clientCompany: plan.clientCompany,
+  });
+
+  // Create onboarding row (one per plan; idempotent on re-trigger)
+  const [existing] = await db.select().from(clientOnboardingTable)
+    .where(and(
+      eq(clientOnboardingTable.planId, plan.id),
+      eq(clientOnboardingTable.clientEmail, plan.clientEmail),
+    )).limit(1);
+  if (!existing) {
+    await db.insert(clientOnboardingTable).values({
+      partnerId: plan.partnerId,
+      planId: plan.id,
+      clientEmail: plan.clientEmail,
+      clientCompany: plan.clientCompany,
+      status: "in_progress",
+      currentStep: "welcome",
+      stepData: {},
+    });
+  }
+
+  // Send the welcome + onboarding email
+  const baseUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners";
+  const dashboardUrl = `${baseUrl}/c/${tokenRow.token}`;
+  const onboardingUrl = `${baseUrl}/c/${tokenRow.token}/onboarding`;
+  const result = await sendClientPortalWelcomeEmail({
+    clientName: plan.clientName,
+    clientEmail: plan.clientEmail,
+    clientCompany: plan.clientCompany,
+    planNumber: plan.planNumber,
+    dashboardUrl,
+    onboardingUrl,
+  });
+  if (!result.ok) {
+    console.error("[ClientPortal] welcome email failed:", result.error, result.errorMessage);
+  }
 }
 
 // ─── Partner/Admin Routes ────────────────────────────────────────────────────
@@ -773,6 +822,11 @@ router.post("/public/plan-review/:token/sign", async (req: Request, res: Respons
 
     resolvePartnerEmail(updated.partnerId).then(partnerEmail =>
       sendPlanApprovedEmail(updated, partnerEmail).catch(e => console.error("[Email] plan approved error:", e))
+    );
+
+    // Provision client portal: issue magic-link token, create onboarding row, send welcome email.
+    triggerPostApprovalClientPortal(updated).catch(e =>
+      console.error("[ClientPortal] post-approval provisioning error:", e)
     );
 
     res.json({ success: true, plan: toPublicPlan(updated, true) });
