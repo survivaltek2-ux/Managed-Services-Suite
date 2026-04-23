@@ -1010,10 +1010,24 @@ function PlanDetail({ planId, onBack, onRevise }: {
         headers: authHeader(),
         body: JSON.stringify({ clientEmail: plan.clientEmail, validityDays: plan.validityDays }),
       });
-      if (!res.ok) throw new Error("Failed");
-      toast({ title: "Plan resent to client" });
+      const body = await res.json().catch(() => ({} as { message?: string; reason?: string; error?: string }));
+      if (!res.ok) {
+        const description = body?.message
+          || (body?.reason ? `Reason: ${body.reason}` : undefined)
+          || (body?.error ? `Error: ${body.error}` : undefined)
+          || `Server returned HTTP ${res.status}.`;
+        toast({ title: "Resend failed", description, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Plan resent to client", description: `Sent to ${plan.clientEmail}` });
       load();
-    } catch { toast({ title: "Resend failed", variant: "destructive" }); }
+    } catch (err) {
+      toast({
+        title: "Resend failed",
+        description: err instanceof Error ? `Network error: ${err.message}` : "Network error reaching the server.",
+        variant: "destructive",
+      });
+    }
     finally { setResending(false); }
   }
 
