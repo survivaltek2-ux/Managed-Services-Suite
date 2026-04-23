@@ -420,7 +420,7 @@ export default function PlanReview() {
         )}
 
         {/* Plan content */}
-        <PlanDocument content={plan.planContent} />
+        <PlanDocument content={plan.planContent} plan={plan} />
 
         {/* Action Panel */}
         {action === null && (

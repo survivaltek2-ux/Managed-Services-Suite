@@ -108,7 +108,12 @@ async function sendEmail(to: string, subject: string, html: string, attachments?
 
     // Use the configured From address (must be a verified sender at the SMTP
     // provider — for Brevo, complete sender / domain authentication first).
-    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${cfg.fromEmail}>` : cfg.fromEmail;
+    // Microsoft 365 / Exchange Online require From == authenticated mailbox
+    // (or explicit SendAs). When using an M365 endpoint, force the address to
+    // the SMTP user to avoid 5.7.x rejections.
+    const provider = providerName();
+    const fromAddress = provider === "microsoft365" ? smtpUser : cfg.fromEmail;
+    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
     console.log(`[Email] Sending from: ${fromDisplay}`);
 
     await transport.sendMail({
