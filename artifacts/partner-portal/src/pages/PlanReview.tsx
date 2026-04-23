@@ -24,7 +24,7 @@ interface PlanContent {
   executiveSummary: string;
   currentEnvironment: string;
   keyFindings: string[];
-  recommendedServices: { service: string; description: string }[];
+  recommendedServices: { service: string; description: string; vendor?: string; product?: string }[];
   recommendedProducts?: { vendor: string; product: string; category: string; rationale: string }[];
   nextSteps: string[];
 }
@@ -106,6 +106,12 @@ function PlanDocument({ content, plan }: { content: PlanContent; plan?: Plan & {
           {(content.recommendedServices || []).map((s, i) => (
             <div key={i} className="p-3 rounded-lg bg-[#f0f7ff] border border-[#0176d3]/20">
               <p className="font-semibold text-[#032d60] text-sm">{s.service}</p>
+              {(s.vendor || s.product) && (
+                <p className="text-[11px] text-[#0176d3] mt-0.5">
+                  Delivered via:{" "}
+                  <span className="font-medium">{[s.vendor, s.product].filter(Boolean).join(" — ")}</span>
+                </p>
+              )}
               <p className="text-gray-600 text-xs mt-1 leading-relaxed">{s.description}</p>
             </div>
           ))}

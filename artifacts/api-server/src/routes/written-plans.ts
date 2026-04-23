@@ -20,7 +20,7 @@ const router = Router();
 
 // ─── Typed JSON shapes ────────────────────────────────────────────────────────
 
-interface RecommendedService { service: string; description: string; }
+interface RecommendedService { service: string; description: string; vendor?: string; product?: string; }
 interface RecommendedProduct { vendor: string; product: string; category: string; rationale: string; }
 interface PlanContentShape {
   executiveSummary: string;
@@ -301,10 +301,12 @@ const PLAN_CONTENT_JSON_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["service", "description"],
+        required: ["service", "description", "vendor", "product"],
         properties: {
-          service: { type: "string", description: "Short service name, e.g. 'Cybersecurity Bundle', 'Microsoft 365 Management', 'Backup & Disaster Recovery'." },
-          description: { type: "string", description: "1-2 sentences explaining why it is recommended for this client and what it includes." },
+          service: { type: "string", description: "Short Siebert service name, verbatim from the service catalog, e.g. 'Cybersecurity Bundle', 'Microsoft 365 Management', 'Backup & Disaster Recovery'." },
+          description: { type: "string", description: "1-2 sentences explaining why this service is recommended for this client (cite the questionnaire signal) and what is included." },
+          vendor: { type: "string", description: "Vendor name (verbatim from the Siebert vendor catalog) of the specific product Siebert will use to deliver this service, e.g. 'Microsoft 365 Defender', 'Datto (Kaseya)', 'Microsoft 365 (Teams Phone)', 'Cisco Meraki'." },
+          product: { type: "string", description: "Specific product / SKU / tier (verbatim from the catalog) that delivers this service, e.g. 'Defender for Endpoint Plan 2', 'Datto SaaS Protection (M365 / Google Workspace backup)', 'Teams Phone Standard', 'Meraki MX85 + MR46 access points'." },
         },
       },
     },
@@ -437,6 +439,7 @@ Tone: consultative, factual, restrained. Avoid marketing language ("cutting-edge
 GROUNDING RULES (most important — every recommendation must be traceable to the questionnaire):
 - Every key finding, every recommended service, and every recommended product MUST be directly justified by a specific answer in the questionnaire. If a fact is not in the answers, you may NOT use it.
 - Never invent client-specific facts: headcount, locations, workstations, server count, cloud platforms, vendors in use, compliance scope, MFA status, backup status, ticket volume, hours of operation, budget, timeline, planned projects — these come ONLY from the answers.
+- EACH recommended service MUST name the specific Siebert vendor product/SKU (vendor + product, verbatim from the catalog) that Siebert will use to deliver that service. A service without a concrete product is not acceptable. Example: service "Backup & Disaster Recovery" → vendor "Datto (Kaseya)", product "Datto SaaS Protection (M365 / Google Workspace backup)".
 - For EACH recommended product and EACH recommended service, the rationale/description must explicitly reference the questionnaire signal that triggered it (e.g., "no backup solution noted", "MFA is partially deployed", "already on Microsoft 365", "operates 3 locations with planned 4th", "HIPAA is a stated requirement", "20–50 tickets/month with after-hours on-call needed", "budget range $5k–$10k/mo"). If you cannot tie a recommendation to a specific answer, do NOT include it.
 - Match product scale to client size: do not recommend enterprise-tier products to a 5-person company; do not recommend small-business tiers to a 500-person multi-site company. Use headcount, location count, server count, and ticket volume from the answers to pick the right tier.
 - When the client already lists a vendor in the answers (e.g., Microsoft 365 in cloudPlatforms, "Spectrum Business 300 Mbps" in currentVendors), prefer adjacent products from THAT same vendor before suggesting a competing vendor. If you do recommend a switch, the rationale must explain why based on a stated pain point or stated priority.

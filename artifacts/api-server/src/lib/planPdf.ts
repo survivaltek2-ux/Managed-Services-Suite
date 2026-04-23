@@ -40,7 +40,7 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
     executiveSummary?: string;
     currentEnvironment?: string;
     keyFindings?: string[];
-    recommendedServices?: { service: string; description: string }[];
+    recommendedServices?: { service: string; description: string; vendor?: string; product?: string }[];
     recommendedProducts?: { vendor: string; product: string; category: string; rationale: string }[];
     nextSteps?: string[];
   }
@@ -179,11 +179,18 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
 
   // ─── 4. Recommended Services ──────────────────────────────────────────────
   section("Recommended Services");
-  const services: { service: string; description: string }[] = Array.isArray(content.recommendedServices) ? content.recommendedServices : [];
+  const services: { service: string; description: string; vendor?: string; product?: string }[] =
+    Array.isArray(content.recommendedServices) ? content.recommendedServices : [];
   for (const s of services) {
-    if (doc.y > doc.page.height - 130) doc.addPage();
+    if (doc.y > doc.page.height - 140) doc.addPage();
     doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(11)
       .text(s.service, MARGIN, doc.y, { width: contentW });
+    if (s.vendor || s.product) {
+      doc.moveDown(0.1);
+      const label = [s.vendor, s.product].filter(Boolean).join(" — ");
+      doc.fillColor(GRAY).font("Helvetica-Oblique").fontSize(9.5)
+        .text(`Delivered via: ${label}`, MARGIN, doc.y, { width: contentW });
+    }
     doc.moveDown(0.15);
     doc.fillColor(BLACK).font("Times-Roman").fontSize(10.5)
       .text(s.description, MARGIN, doc.y, { width: contentW, align: "justify", lineGap: 1.5 });
