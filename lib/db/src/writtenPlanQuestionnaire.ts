@@ -146,6 +146,126 @@ export const TICKET_VOLUME_OPTIONS = [
   "Unsure",
 ];
 
+export const INTERNET_SPEED_OPTIONS = [
+  "Under 100 Mbps",
+  "100-300 Mbps",
+  "300 Mbps - 1 Gbps",
+  "1-2 Gbps",
+  "2 Gbps+",
+  "Dedicated fiber / DIA",
+  "Unsure",
+];
+
+export const INTERNET_REDUNDANCY_OPTIONS = [
+  "No — single circuit per site",
+  "Yes — secondary circuit (wired)",
+  "Yes — wireless / 4G/5G failover",
+  "Yes — SD-WAN with multiple circuits",
+  "Unsure",
+];
+
+export const FIREWALL_OPTIONS = [
+  "Cisco Meraki",
+  "Fortinet FortiGate",
+  "Palo Alto Networks",
+  "SonicWall",
+  "WatchGuard",
+  "Sophos",
+  "ISP-provided router only",
+  "None / Unsure",
+  "Other",
+];
+
+export const EMAIL_SECURITY_OPTIONS = [
+  "Microsoft 365 Defender (built-in)",
+  "Microsoft Defender for Office 365 (add-on)",
+  "Proofpoint",
+  "Mimecast",
+  "Barracuda",
+  "Google Workspace built-in",
+  "None",
+  "Unsure",
+];
+
+export const SECURITY_TRAINING_OPTIONS = [
+  "Yes — formal program with phishing simulations",
+  "Yes — informal / occasional",
+  "No",
+  "Unsure",
+];
+
+export const MDR_COVERAGE_OPTIONS = [
+  "Yes — managed by current MSP / vendor",
+  "Yes — third-party SOC / MDR",
+  "No — self-managed",
+  "No — no monitoring in place",
+  "Unsure",
+];
+
+export const PHONE_SYSTEM_OPTIONS = [
+  "Cloud / VoIP (RingCentral, 8x8, Teams Phone, Zoom Phone, etc.)",
+  "On-prem PBX",
+  "Hybrid (PBX + cloud)",
+  "Mobile phones only",
+  "None",
+];
+
+export const PHONE_USERS_OPTIONS = [
+  "Under 10",
+  "10-25",
+  "26-50",
+  "51-100",
+  "101-250",
+  "250+",
+];
+
+export const CONTACT_CENTER_OPTIONS = [
+  "No — basic phone only",
+  "Yes — call queues / hunt groups",
+  "Yes — full contact center (IVR, routing, reporting)",
+  "Yes — omnichannel (voice + SMS + chat)",
+  "Unsure",
+];
+
+export const HARDWARE_AGE_OPTIONS = [
+  "Mostly under 2 years old",
+  "Mostly 2-4 years old",
+  "Mostly 4+ years old",
+  "Mixed ages",
+  "Unsure",
+];
+
+export const WIFI_OPTIONS = [
+  "Cisco Meraki",
+  "Aruba (HPE)",
+  "Ubiquiti / UniFi",
+  "Extreme Networks",
+  "Juniper Mist",
+  "Consumer / SOHO equipment",
+  "ISP-provided WiFi only",
+  "None",
+  "Other / Unsure",
+];
+
+export const MDM_OPTIONS = [
+  "Microsoft Intune",
+  "Jamf (Apple)",
+  "Google Workspace device management",
+  "Meraki Systems Manager",
+  "Other",
+  "None",
+  "Unsure",
+];
+
+export const PHYSICAL_SECURITY_OPTIONS = [
+  "None",
+  "Video surveillance / CCTV",
+  "Access control / badge readers",
+  "Alarm / intrusion monitoring",
+  "Fire / life safety monitoring",
+  "Need to add or upgrade",
+];
+
 export const QUESTIONNAIRE_STEPS: WizardStepConfig[] = [
   {
     id: 1,
@@ -170,33 +290,59 @@ export const QUESTIONNAIRE_STEPS: WizardStepConfig[] = [
       { id: "existingItSupport", label: "Existing IT Support", type: "select",    required: true,  placeholder: "Select", options: EXISTING_IT_OPTIONS },
       { id: "currentItSetup",  label: "Additional Environment Notes", type: "textarea", required: false, placeholder: "Anything specific about the network, key apps, custom setups, etc.", helpText: "Optional — useful for unusual or custom environments." },
       { id: "currentVendors",  label: "Current Vendors / Tools", type: "text",    required: false, placeholder: "e.g., Microsoft 365, Cisco Meraki, AWS" },
+      { id: "specialtySoftware", label: "Industry / Specialty Software", type: "text", required: false, placeholder: "e.g., Epic / Cerner (EHR), Clio (legal), QuickBooks, Toast POS, AutoCAD", helpText: "Line-of-business apps that are critical to operations." },
     ],
   },
   {
     id: 3,
-    label: "Security & Compliance",
+    label: "Connectivity & Network",
     questions: [
-      { id: "mfaStatus",        label: "Multi-Factor Authentication", type: "select", required: true, placeholder: "Select", options: MFA_OPTIONS },
-      { id: "endpointProtection", label: "Endpoint Protection in Use", type: "text", required: false, placeholder: "e.g., Microsoft Defender, SentinelOne, none" },
-      { id: "backupSolution",   label: "Backup Solution in Use",      type: "text",   required: false, placeholder: "e.g., Veeam, Datto, Microsoft 365 backup, none" },
-      { id: "lastAssessment",   label: "Last Security Assessment",     type: "select", required: true, placeholder: "Select", options: LAST_ASSESSMENT_OPTIONS },
-      { id: "cyberInsurance",   label: "Cyber Insurance",              type: "select", required: true, placeholder: "Select", options: CYBER_INSURANCE_OPTIONS },
-      { id: "complianceNeeds",  label: "Compliance Requirements",      type: "multicheck", required: true, options: COMPLIANCE_OPTIONS, columns: 2, helpText: "Select 'None / Not applicable' if there are no compliance obligations." },
+      { id: "internetSpeed",      label: "Primary Internet Speed",     type: "select", required: false, placeholder: "Select", options: INTERNET_SPEED_OPTIONS, helpText: "Approximate bandwidth at the main location." },
+      { id: "internetRedundancy", label: "Internet Redundancy / Failover", type: "select", required: false, placeholder: "Select", options: INTERNET_REDUNDANCY_OPTIONS },
+      { id: "firewallInUse",      label: "Firewall / Network Security",   type: "select", required: false, placeholder: "Select", options: FIREWALL_OPTIONS },
+      { id: "wifiInfrastructure", label: "WiFi Infrastructure",            type: "select", required: false, placeholder: "Select", options: WIFI_OPTIONS },
     ],
   },
   {
     id: 4,
+    label: "Communications",
+    questions: [
+      { id: "phoneSystem",        label: "Current Phone System",          type: "select", required: false, placeholder: "Select", options: PHONE_SYSTEM_OPTIONS },
+      { id: "phoneUsers",         label: "Number of Phone Users",         type: "select", required: false, placeholder: "Select", options: PHONE_USERS_OPTIONS },
+      { id: "contactCenterNeeds", label: "Contact Center / Call Routing", type: "select", required: false, placeholder: "Select", options: CONTACT_CENTER_OPTIONS },
+    ],
+  },
+  {
+    id: 5,
+    label: "Security & Compliance",
+    questions: [
+      { id: "mfaStatus",            label: "Multi-Factor Authentication", type: "select", required: true,  placeholder: "Select", options: MFA_OPTIONS },
+      { id: "endpointProtection",   label: "Endpoint Protection in Use",  type: "text",   required: false, placeholder: "e.g., Microsoft Defender, SentinelOne, none" },
+      { id: "emailSecurity",        label: "Email Security in Place",     type: "select", required: false, placeholder: "Select", options: EMAIL_SECURITY_OPTIONS },
+      { id: "mdrCoverage",          label: "MDR / SOC Monitoring",        type: "select", required: false, placeholder: "Select", options: MDR_COVERAGE_OPTIONS, helpText: "Is someone watching for and responding to security alerts 24x7?" },
+      { id: "securityAwarenessTraining", label: "Security Awareness Training", type: "select", required: false, placeholder: "Select", options: SECURITY_TRAINING_OPTIONS },
+      { id: "backupSolution",       label: "Backup Solution in Use",      type: "text",   required: false, placeholder: "e.g., Veeam, Datto, Microsoft 365 backup, none" },
+      { id: "lastAssessment",       label: "Last Security Assessment",    type: "select", required: true,  placeholder: "Select", options: LAST_ASSESSMENT_OPTIONS },
+      { id: "cyberInsurance",       label: "Cyber Insurance",             type: "select", required: true,  placeholder: "Select", options: CYBER_INSURANCE_OPTIONS },
+      { id: "complianceNeeds",      label: "Compliance Requirements",     type: "multicheck", required: true, options: COMPLIANCE_OPTIONS, columns: 2, helpText: "Select 'None / Not applicable' if there are no compliance obligations." },
+    ],
+  },
+  {
+    id: 6,
     label: "Support & Operations",
     questions: [
       { id: "hoursOfOperation",  label: "Hours of Operation",         type: "select", required: true,  placeholder: "Select", options: HOURS_OPTIONS },
       { id: "afterHoursSupport", label: "After-hours Support Needed", type: "select", required: true,  placeholder: "Select", options: AFTER_HOURS_OPTIONS },
       { id: "ticketVolume",      label: "Estimated Monthly Tickets",  type: "select", required: false, placeholder: "Select", options: TICKET_VOLUME_OPTIONS },
+      { id: "hardwareAge",       label: "Hardware Age / Refresh Status", type: "select", required: false, placeholder: "Select", options: HARDWARE_AGE_OPTIONS },
+      { id: "mdmInUse",          label: "Mobile Device Management (MDM)", type: "select", required: false, placeholder: "Select", options: MDM_OPTIONS },
+      { id: "physicalSecurity",  label: "Physical Security in Place", type: "multicheck", required: false, options: PHYSICAL_SECURITY_OPTIONS, columns: 2, helpText: "Select all that apply." },
       { id: "growthHeadcount",   label: "Expected Headcount in 12 Months", type: "text", required: false, placeholder: "e.g., 75 (or N/A)" },
       { id: "plannedProjects",   label: "Major IT Projects in Next 12 Months", type: "textarea", required: false, placeholder: "e.g., office relocation, M365 migration, ERP rollout" },
     ],
   },
   {
-    id: 5,
+    id: 7,
     label: "Pain Points & Priorities",
     questions: [
       { id: "painPoints",        label: "Primary Pain Points", type: "multicheck", required: true, options: PAIN_POINT_OPTIONS.map(p => p.value), columns: 2, helpText: "Select all that apply." },
@@ -206,8 +352,8 @@ export const QUESTIONNAIRE_STEPS: WizardStepConfig[] = [
       { id: "additionalContext", label: "Additional Context",  type: "textarea", required: false, placeholder: "Any other relevant information about the client's situation or goals" },
     ],
   },
-  { id: 6, label: "Review & Generate", questions: [] },
-  { id: 7, label: "Send",              questions: [] },
+  { id: 8, label: "Review & Generate", questions: [] },
+  { id: 9, label: "Send",              questions: [] },
 ];
 
 export const REQUIRED_QUESTIONNAIRE_FIELDS: string[] = QUESTIONNAIRE_STEPS
