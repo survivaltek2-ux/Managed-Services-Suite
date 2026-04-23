@@ -41,6 +41,7 @@ ZOOM_WS_SUBSCRIPTION_ID = "UaDd__jFTTilfIn9yc7c9Q"
 
 [userenv.production]
 PUBLIC_URL = "https://siebertrservices.com"
+PARTNER_PORTAL_URL = "https://siebertrservices.com/partners"
 
 [userenv.development]
 PARTNERSTACK_PUBLIC_KEY = "ps_pub_e2e_test_key"

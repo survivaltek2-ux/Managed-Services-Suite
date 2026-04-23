@@ -494,7 +494,7 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     const expiresAt = new Date(Date.now() + vdays * 86400000);
     const finalEmail = clientEmail || existing.clientEmail;
 
-    const baseUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partner-portal";
+    const baseUrl = (process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partners").replace(/\/$/, "");
     const reviewUrl = `${baseUrl}/plan-review/${token}`;
 
     const content = existing.planContent as PlanContentShape | null;
