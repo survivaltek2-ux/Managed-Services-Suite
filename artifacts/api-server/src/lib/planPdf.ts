@@ -116,8 +116,8 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   doc.moveDown(0.3);
   const steps: string[] = Array.isArray(content.nextSteps) ? content.nextSteps : [];
   steps.forEach((step, i) => {
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(10).text(`${i + 1}.`, 60, doc.y, { continued: true, width: 20 });
-    doc.fillColor(BLACK).font("Helvetica").text("  " + step, { width: doc.page.width - 120 });
+    doc.fillColor(BLACK).font("Helvetica").fontSize(10)
+      .text(`${i + 1}.  ${step}`, 60, doc.y, { width: doc.page.width - 120 });
     doc.moveDown(0.3);
   });
 
