@@ -61,17 +61,17 @@ export function invalidateSmtpCache() {
   _configCacheAt = 0;
 }
 
-const MS_SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
-const MS_SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
+const SMTP_HOST = process.env.SMTP_HOST || "smtp-relay.brevo.com";
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
 
-function buildMicrosoftTransport(user: string, pass: string) {
+function buildSmtpTransport(user: string, pass: string) {
   return nodemailer.createTransport({
-    host: MS_SMTP_HOST,
-    port: MS_SMTP_PORT,
-    secure: false,
-    requireTLS: true,
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    requireTLS: SMTP_PORT !== 465,
     auth: { user, pass },
-    tls: { ciphers: "TLSv1.2", minVersion: "TLSv1.2" },
+    tls: { minVersion: "TLSv1.2" },
   });
 }
 
@@ -81,27 +81,34 @@ export interface EmailAttachment {
   contentType?: string;
 }
 
+function providerName(): string {
+  if (/brevo|sendinblue/i.test(SMTP_HOST)) return "brevo";
+  if (/office365|outlook/i.test(SMTP_HOST)) return "microsoft365";
+  if (/sendgrid/i.test(SMTP_HOST)) return "sendgrid";
+  if (/postmark/i.test(SMTP_HOST)) return "postmark";
+  if (/amazonaws/i.test(SMTP_HOST)) return "ses";
+  if (/mailgun/i.test(SMTP_HOST)) return "mailgun";
+  return "smtp";
+}
+
 async function sendEmail(to: string, subject: string, html: string, attachments?: EmailAttachment[]): Promise<boolean> {
   const cfg = await loadEmailConfig();
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
 
-  console.log(`[Email] Starting email send to ${to}`);
+  console.log(`[Email] Starting email send to ${to} via ${SMTP_HOST}:${SMTP_PORT} (${providerName()})`);
 
   if (!smtpUser || !smtpPass) {
-    console.error(`[Email] Microsoft 365 SMTP credentials not configured (SMTP_USER / SMTP_PASS)`);
+    console.error(`[Email] SMTP credentials not configured (SMTP_USER / SMTP_PASS)`);
     return false;
   }
 
   try {
-    console.log(`[Email] Config loaded - from: ${cfg.fromEmail}, fromName: ${cfg.fromName}`);
-    const transport = buildMicrosoftTransport(smtpUser, smtpPass);
+    const transport = buildSmtpTransport(smtpUser, smtpPass);
 
-    // Microsoft 365 requires the From address to match the authenticated mailbox
-    // (or have explicit SendAs permission). Force the envelope/from to the
-    // authenticated user, but keep the configured display name.
-    const fromAddress = smtpUser;
-    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${fromAddress}>` : fromAddress;
+    // Use the configured From address (must be a verified sender at the SMTP
+    // provider — for Brevo, complete sender / domain authentication first).
+    const fromDisplay = cfg.fromName ? `"${cfg.fromName}" <${cfg.fromEmail}>` : cfg.fromEmail;
     console.log(`[Email] Sending from: ${fromDisplay}`);
 
     await transport.sendMail({
@@ -127,17 +134,18 @@ async function sendEmail(to: string, subject: string, html: string, attachments?
 export async function testSmtpConnection(): Promise<{ ok: boolean; provider?: string; error?: string }> {
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
+  const provider = providerName();
 
   if (!smtpUser || !smtpPass) {
-    return { ok: false, provider: "microsoft365", error: "Microsoft 365 SMTP credentials not configured (SMTP_USER / SMTP_PASS)" };
+    return { ok: false, provider, error: "SMTP credentials not configured (SMTP_USER / SMTP_PASS)" };
   }
 
   try {
-    const transport = buildMicrosoftTransport(smtpUser, smtpPass);
+    const transport = buildSmtpTransport(smtpUser, smtpPass);
     await transport.verify();
-    return { ok: true, provider: "microsoft365" };
+    return { ok: true, provider };
   } catch (err: any) {
-    return { ok: false, provider: "microsoft365", error: err?.message || "Connection failed" };
+    return { ok: false, provider, error: err?.message || "Connection failed" };
   }
 }
 
@@ -149,16 +157,16 @@ export async function getSmtpSettings(): Promise<{
   fromEmail: string;
   fromName: string;
   notificationEmail: string;
-  activeProvider: "microsoft365" | "none";
+  activeProvider: string;
 }> {
   const cfg = await loadEmailConfig();
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
-  const activeProvider = smtpUser && smtpPass ? "microsoft365" : "none";
+  const activeProvider = smtpUser && smtpPass ? providerName() : "none";
 
   return {
-    host: MS_SMTP_HOST,
-    port: MS_SMTP_PORT,
+    host: SMTP_HOST,
+    port: SMTP_PORT,
     user: smtpUser || cfg.fromEmail,
     passSet: !!smtpPass,
     fromEmail: cfg.fromEmail,
