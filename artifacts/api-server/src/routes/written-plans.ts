@@ -12,6 +12,7 @@ import {
 } from "../lib/email.js";
 import { issueClientPortalToken } from "./client-portal.js";
 import { generatePlanPdf } from "../lib/planPdf.js";
+import { openai } from "@workspace/integrations-openai-ai-server";
 import crypto from "crypto";
 
 const router = Router();
@@ -269,6 +270,137 @@ function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
   };
 }
 
+// ─── AI-assisted plan content generation ─────────────────────────────────────
+
+const PLAN_CONTENT_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    executiveSummary: {
+      type: "string",
+      description: "2-4 sentences. Professional, consultative tone. References the client by name and summarizes the engagement and what this plan delivers. No marketing fluff.",
+    },
+    currentEnvironment: {
+      type: "string",
+      description: "2-4 sentences. Describes the client's current IT environment in plain prose: headcount, locations, on-prem vs cloud footprint, support model, and any notable posture details. Uses information from the questionnaire only — never invent specifics.",
+    },
+    keyFindings: {
+      type: "array",
+      minItems: 4,
+      maxItems: 12,
+      items: { type: "string", description: "One concise finding per item, ~10-25 words. Each finding should be specific and grounded in the questionnaire data." },
+    },
+    recommendedServices: {
+      type: "array",
+      minItems: 3,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["service", "description"],
+        properties: {
+          service: { type: "string", description: "Short service name, e.g. 'Cybersecurity Bundle', 'Microsoft 365 Management', 'Backup & Disaster Recovery'." },
+          description: { type: "string", description: "1-2 sentences explaining why it is recommended for this client and what it includes." },
+        },
+      },
+    },
+    nextSteps: {
+      type: "array",
+      minItems: 3,
+      maxItems: 7,
+      items: { type: "string", description: "One actionable next step per item." },
+    },
+  },
+  required: ["executiveSummary", "currentEnvironment", "keyFindings", "recommendedServices", "nextSteps"],
+} as const;
+
+const SIEBERT_SERVICE_CATALOG = `Siebert Services offers these service lines (use names verbatim when recommending; do not invent new ones):
+- Managed IT Support — proactive monitoring, helpdesk, rapid incident response.
+- Cybersecurity Bundle — EDR, threat monitoring, security hardening, MFA enforcement.
+- Compliance Services — HIPAA, SOC 2, CMMC program management.
+- Microsoft 365 Management — full M365 administration, security, licensing.
+- Cloud Migration & Management — Azure / AWS / M365 strategy and migration.
+- Backup & Disaster Recovery — immutable, tested backups with rapid restore.
+- VoIP & Unified Communications — modern phone systems and integrations.
+- Vendor & ISP Management — single point of accountability for tech vendors.
+- Hardware Lifecycle Management — procurement, deployment, refresh planning.
+- Remote Workforce Enablement — secure VPN, MFA, collaboration tools.`;
+
+async function generatePlanContentAI(
+  answers: QuestionnaireAnswers,
+  meta: { clientCompany: string; clientName: string },
+): Promise<PlanContentShape> {
+  const systemPrompt = `You are a senior IT consultant at Siebert Services LLC, a U.S. managed services provider. Your job is to write a concise, professional, contract-grade IT Assessment and Written Plan for a prospective client based on their discovery questionnaire answers.
+
+Tone: consultative, factual, restrained. Avoid marketing language ("cutting-edge", "world-class", "leverage", "synergy"). Avoid hyperbole. Write the way a Big-4 consultant or attorney would.
+
+Strict rules:
+- Use ONLY information present in the questionnaire answers. Never invent client-specific facts (headcount, vendors, compliance scope, etc.).
+- Reference the client by their company name where natural. Address them in second person sparingly ("your environment", "your team") — this document is read by the client.
+- Do not mention pricing, fees, or dollar amounts unless the answers contain a budget range, in which case you may reference it neutrally.
+- Recommend services from the Siebert catalog only.
+- Findings should be specific and grounded ("MFA is enforced everywhere" / "no formal backup solution noted") — not generic best-practice statements.
+- Next steps are concrete actions for the next 1–2 weeks.
+
+${SIEBERT_SERVICE_CATALOG}`;
+
+  const userPrompt = `Client company: ${meta.clientCompany}
+Primary contact: ${meta.clientName}
+
+Discovery questionnaire answers (JSON):
+${JSON.stringify(answers, null, 2)}
+
+Generate the structured IT Assessment & Written Plan content. Return JSON matching the schema exactly.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "plan_content",
+        strict: true,
+        schema: PLAN_CONTENT_JSON_SCHEMA,
+      },
+    },
+  });
+
+  const raw = response.choices[0]?.message?.content;
+  if (!raw) throw new Error("AI returned empty content");
+  const parsed = JSON.parse(raw) as PlanContentShape;
+  if (
+    !parsed.executiveSummary ||
+    !parsed.currentEnvironment ||
+    !Array.isArray(parsed.keyFindings) ||
+    !Array.isArray(parsed.recommendedServices) ||
+    !Array.isArray(parsed.nextSteps)
+  ) {
+    throw new Error("AI returned invalid plan content shape");
+  }
+  return parsed;
+}
+
+/**
+ * Tries the AI generator first, falls back to the deterministic templated
+ * generator if AI fails for any reason. Always returns a valid PlanContentShape.
+ */
+async function generatePlanContentSmart(
+  answers: QuestionnaireAnswers,
+  meta: { clientCompany: string; clientName: string },
+): Promise<{ content: PlanContentShape; source: "ai" | "template"; error?: string }> {
+  try {
+    const content = await generatePlanContentAI(answers, meta);
+    return { content, source: "ai" };
+  } catch (err) {
+    console.warn("[WrittenPlans] AI generation failed, falling back to template:", err);
+    const content = generatePlanContent({ ...answers, clientCompany: meta.clientCompany, clientName: meta.clientName });
+    return { content, source: "template", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 // ─── Partner email resolver ───────────────────────────────────────────────────
 
 async function resolvePartnerEmail(partnerId: number | null): Promise<string | undefined> {
@@ -433,7 +565,10 @@ router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, re
       res.status(400).json({ error: "validation_error", message: qaErrors.join("; ") });
       return;
     }
-    const planContent = generatePlanContent({ ...(questionnaireAnswers as QuestionnaireAnswers), clientCompany, clientName });
+    const { content: planContent, source: contentSource } = await generatePlanContentSmart(
+      (questionnaireAnswers as QuestionnaireAnswers) ?? {},
+      { clientCompany, clientName },
+    );
     const planNumber = generatePlanNumber();
     // Admin can create on behalf of a specific partner
     let effectivePartnerId: number | null = req.partnerId === MAIN_SITE_ADMIN_SENTINEL ? null : req.partnerId ?? null;
@@ -455,8 +590,8 @@ router.post("/partner/plans", requirePartnerAuth, async (req: PartnerRequest, re
       planContent,
       validityDays: resolveValidityDays(validityDays),
     }).returning();
-    await logEvent(plan.id, "created", { planNumber });
-    res.status(201).json({ plan });
+    await logEvent(plan.id, "created", { planNumber, contentSource });
+    res.status(201).json({ plan, contentSource });
   } catch (err) {
     console.error("[WrittenPlans] create error:", err);
     res.status(500).json({ error: "server_error" });
@@ -509,10 +644,14 @@ router.put("/partner/plans/:id/regenerate", requirePartnerAuth, async (req: Part
       return;
     }
     const answers = (existing.questionnaireAnswers as QuestionnaireAnswers) ?? {};
-    const planContent = generatePlanContent({ ...answers, clientCompany: existing.clientCompany, clientName: existing.clientName });
+    const { content: planContent, source: contentSource } = await generatePlanContentSmart(
+      answers,
+      { clientCompany: existing.clientCompany, clientName: existing.clientName },
+    );
     const [plan] = await db.update(writtenPlansTable).set({ planContent, updatedAt: new Date() })
       .where(eq(writtenPlansTable.id, id)).returning();
-    res.json({ plan });
+    await logEvent(plan.id, "regenerated", { contentSource });
+    res.json({ plan, contentSource });
   } catch (err) {
     console.error("[WrittenPlans] regenerate error:", err);
     res.status(500).json({ error: "server_error" });
