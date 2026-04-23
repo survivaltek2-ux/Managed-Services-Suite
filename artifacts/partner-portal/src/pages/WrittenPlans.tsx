@@ -316,10 +316,35 @@ function PlanDocument({ content, editable, onChange }: {
 
 const DRAFT_STORAGE_KEY = "written_plan_wizard_draft";
 
+// Merge any partial/legacy answers shape with BLANK_ANSWERS so every key exists
+// and every array field is actually an array. Protects render & canProceed checks
+// against drafts saved under older schemas or server-stored answers from old plans.
+function normalizeAnswers(raw: unknown): WizardAnswers {
+  const src = (raw && typeof raw === "object") ? raw as Record<string, unknown> : {};
+  const out: WizardAnswers = { ...BLANK_ANSWERS };
+  for (const key of Object.keys(BLANK_ANSWERS) as (keyof WizardAnswers)[]) {
+    const v = src[key];
+    const blank = BLANK_ANSWERS[key];
+    if (Array.isArray(blank)) {
+      (out as Record<string, unknown>)[key] = Array.isArray(v) ? v.filter(x => typeof x === "string") : [];
+    } else {
+      (out as Record<string, unknown>)[key] = typeof v === "string" ? v : "";
+    }
+  }
+  return out;
+}
+
 function loadDraft(): { answers: WizardAnswers; step: number } | null {
   try {
     const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const answers = normalizeAnswers(parsed?.answers);
+    const stepRaw = typeof parsed?.step === "number" ? parsed.step : 1;
+    // Cap restored step to last input step — schema changed, force user back through
+    // any newly-required questions instead of dropping them at Review with empty data.
+    const step = Math.min(Math.max(stepRaw, 1), LAST_INPUT_STEP);
+    return { answers, step };
   } catch { return null; }
 }
 
@@ -343,7 +368,9 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
   const savedDraft = !initial ? loadDraft() : null;
 
   const [step, setStep] = useState(savedDraft?.step || 1);
-  const [answers, setAnswers] = useState<WizardAnswers>(initial?.answers || savedDraft?.answers || BLANK_ANSWERS);
+  const [answers, setAnswers] = useState<WizardAnswers>(
+    initial?.answers ? normalizeAnswers(initial.answers) : (savedDraft?.answers || BLANK_ANSWERS)
+  );
   const [planId, setPlanId] = useState<number | undefined>(initial?.planId);
   const [generatedPlan, setGeneratedPlan] = useState<WrittenPlan | null>(null);
   const [editedContent, setEditedContent] = useState<PlanContent | null>(null);
