@@ -660,6 +660,8 @@ function toPublicPlan(plan: typeof writtenPlansTable.$inferSelect, includeSignat
     clientCompany: plan.clientCompany,
     clientTitle: plan.clientTitle,
     planContent: plan.planContent,
+    questionnaireAnswers: plan.questionnaireAnswers,
+    validityDays: plan.validityDays,
     status: plan.status,
     expiresAt: plan.expiresAt,
     personalNote: plan.personalNote,

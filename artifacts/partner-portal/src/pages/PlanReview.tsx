@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  SERVICE_LEVELS, CLIENT_RESPONSIBILITIES, ASSUMPTIONS,
+  CONFIDENTIALITY_TEXT, TERMS_TEXT, ACCEPTANCE_TEXT,
+  investmentSummaryText, validityNotice,
+} from "@workspace/db/boilerplate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +59,7 @@ const DECLINE_REASONS = [
 
 // ─── Plan Document ────────────────────────────────────────────────────────────
 
-function PlanDocument({ content }: { content: PlanContent }) {
+function PlanDocument({ content, plan }: { content: PlanContent; plan?: Plan & { questionnaireAnswers?: unknown; validityDays?: number } }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["summary"]));
 
   function toggle(key: string) {
@@ -113,6 +118,53 @@ function PlanDocument({ content }: { content: PlanContent }) {
             </li>
           ))}
         </ol>
+      </Section>
+      <Section id="sla" title="Service Levels">
+        <div className="space-y-2">
+          {SERVICE_LEVELS.map((sl, i) => (
+            <div key={i}>
+              <p className="text-sm font-semibold text-[#032d60]">{sl.tier}</p>
+              <p className="text-xs text-muted-foreground">{sl.target}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+      <Section id="investment" title="Investment Summary">
+        <p className="text-sm text-gray-700 leading-relaxed">
+          {investmentSummaryText((plan?.questionnaireAnswers as Record<string, unknown>) ?? {})}
+        </p>
+      </Section>
+      <Section id="responsibilities" title="Client Responsibilities">
+        <ul className="space-y-2">
+          {CLIENT_RESPONSIBILITIES.map((r, i) => (
+            <li key={i} className="flex gap-2 items-start text-sm text-gray-700">
+              <span className="text-[#0176d3] mt-0.5 shrink-0">▪</span> {r}
+            </li>
+          ))}
+        </ul>
+      </Section>
+      <Section id="assumptions" title="Assumptions">
+        <ul className="space-y-2">
+          {ASSUMPTIONS.map((a, i) => (
+            <li key={i} className="flex gap-2 items-start text-sm text-gray-700">
+              <span className="text-[#0176d3] mt-0.5 shrink-0">▪</span> {a}
+            </li>
+          ))}
+        </ul>
+      </Section>
+      <Section id="validity" title="Plan Validity">
+        <p className="text-sm text-gray-700 leading-relaxed">
+          {validityNotice(plan?.validityDays ?? 30, plan?.expiresAt ?? null)}
+        </p>
+      </Section>
+      <Section id="confidentiality" title="Confidentiality">
+        <p className="text-sm text-gray-700 leading-relaxed">{CONFIDENTIALITY_TEXT}</p>
+      </Section>
+      <Section id="terms" title="Terms">
+        <p className="text-sm text-gray-700 leading-relaxed">{TERMS_TEXT}</p>
+      </Section>
+      <Section id="acceptance" title="Acceptance">
+        <p className="text-sm text-gray-700 leading-relaxed">{ACCEPTANCE_TEXT}</p>
       </Section>
     </div>
   );
