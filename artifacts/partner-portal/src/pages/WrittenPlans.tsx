@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  HEADCOUNT_OPTIONS, PAIN_POINT_OPTIONS, COMPLIANCE_OPTIONS,
+  HEADCOUNT_OPTIONS, LOCATIONS_OPTIONS, WORKSTATION_OPTIONS, SERVER_OPTIONS,
+  CLOUD_PLATFORM_OPTIONS, EXISTING_IT_OPTIONS,
+  PAIN_POINT_OPTIONS, COMPLIANCE_OPTIONS,
   PRIORITY_OPTIONS, BUDGET_OPTIONS, TIMELINE_OPTIONS,
+  MFA_OPTIONS, LAST_ASSESSMENT_OPTIONS, CYBER_INSURANCE_OPTIONS,
+  HOURS_OPTIONS, AFTER_HOURS_OPTIONS, TICKET_VOLUME_OPTIONS,
 } from "@workspace/db/questionnaire";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/hooks/use-auth";
@@ -103,11 +107,17 @@ function StatusBadge({ status }: { status: string }) {
 
 const WIZARD_STEPS = [
   { id: 1, label: "Client Info" },
-  { id: 2, label: "Business Details" },
-  { id: 3, label: "Pain Points" },
-  { id: 4, label: "Review & Generate" },
-  { id: 5, label: "Send" },
+  { id: 2, label: "Business" },
+  { id: 3, label: "Security" },
+  { id: 4, label: "Support" },
+  { id: 5, label: "Pain Points" },
+  { id: 6, label: "Review" },
+  { id: 7, label: "Send" },
 ];
+
+const REVIEW_STEP = 6;
+const SEND_STEP = 7;
+const LAST_INPUT_STEP = 5;
 
 interface WizardAnswers {
   clientName: string;
@@ -115,12 +125,30 @@ interface WizardAnswers {
   clientTitle: string;
   clientCompany: string;
   clientPhone: string;
+  // Business
   headcount: string;
   locations: string;
+  workstations: string;
+  servers: string;
+  cloudPlatforms: string[];
+  existingItSupport: string;
   currentItSetup: string;
   currentVendors: string;
-  painPoints: string[];
+  // Security & Compliance
+  mfaStatus: string;
+  endpointProtection: string;
+  backupSolution: string;
+  lastAssessment: string;
+  cyberInsurance: string;
   complianceNeeds: string[];
+  // Support & Operations
+  hoursOfOperation: string;
+  afterHoursSupport: string;
+  ticketVolume: string;
+  growthHeadcount: string;
+  plannedProjects: string;
+  // Pain Points & Priorities
+  painPoints: string[];
   priorities: string[];
   budgetRange: string;
   preferredTimeline: string;
@@ -129,8 +157,14 @@ interface WizardAnswers {
 
 const BLANK_ANSWERS: WizardAnswers = {
   clientName: "", clientEmail: "", clientTitle: "", clientCompany: "", clientPhone: "",
-  headcount: "", locations: "", currentItSetup: "", currentVendors: "",
-  painPoints: [], complianceNeeds: [], priorities: [],
+  headcount: "", locations: "", workstations: "", servers: "",
+  cloudPlatforms: [], existingItSupport: "",
+  currentItSetup: "", currentVendors: "",
+  mfaStatus: "", endpointProtection: "", backupSolution: "",
+  lastAssessment: "", cyberInsurance: "", complianceNeeds: [],
+  hoursOfOperation: "", afterHoursSupport: "", ticketVolume: "",
+  growthHeadcount: "", plannedProjects: "",
+  painPoints: [], priorities: [],
   budgetRange: "", preferredTimeline: "", additionalContext: "",
 };
 
@@ -324,7 +358,7 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
   // Auto-save questionnaire answers to localStorage on every change
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (step >= 4) return; // Don't auto-save after generation
+    if (step >= REVIEW_STEP) return; // Don't auto-save after generation
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => saveDraft(answers, step), 600);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
@@ -433,7 +467,7 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
       setGeneratedPlan(plan);
       setEditedContent(plan.planContent);
       setSendEmail(answers.clientEmail);
-      setStep(4);
+      setStep(REVIEW_STEP);
     } catch {
       toast({ title: "Failed to generate plan", variant: "destructive" });
     } finally {
@@ -488,10 +522,12 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
 
   const canProceed: Record<number, boolean> = {
     1: !!(answers.clientName && answers.clientEmail && answers.clientCompany),
-    2: !!(answers.headcount && answers.locations && answers.currentItSetup.trim()),
-    3: answers.painPoints.length > 0 && answers.complianceNeeds.length > 0,
-    4: !!generatedPlan,
-    5: !!(sendEmail),
+    2: !!(answers.headcount && answers.locations && answers.workstations && answers.servers && answers.cloudPlatforms.length > 0 && answers.existingItSupport),
+    3: !!(answers.mfaStatus && answers.lastAssessment && answers.cyberInsurance && answers.complianceNeeds.length > 0),
+    4: !!(answers.hoursOfOperation && answers.afterHoursSupport),
+    5: answers.painPoints.length > 0,
+    6: !!generatedPlan,
+    7: !!(sendEmail),
   };
 
   return (
@@ -511,11 +547,11 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           ))}
         </div>
         <div className="w-full bg-muted rounded-full h-1.5 mt-2">
-          <div className="bg-[#0176d3] h-1.5 rounded-full transition-all" style={{ width: `${((step - 1) / 4) * 100}%` }} />
+          <div className="bg-[#0176d3] h-1.5 rounded-full transition-all" style={{ width: `${((step - 1) / (WIZARD_STEPS.length - 1)) * 100}%` }} />
         </div>
       </div>
 
-      {draftRestored && step < 4 && (
+      {draftRestored && step < REVIEW_STEP && (
         <div className="mb-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
           <span className="flex items-center gap-2"><RotateCcw className="w-3.5 h-3.5" /> Draft restored from your last session.</span>
           <button onClick={() => { clearDraft(); setAnswers(BLANK_ANSWERS); setStep(1); setDraftRestored(false); }}
@@ -564,14 +600,29 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
               </div>
               <div>
                 <Label className="text-xs">Number of Locations *</Label>
-                <Input value={answers.locations} onChange={e => upd("locations", e.target.value)} placeholder="e.g., 2 offices in NYC" />
+                <Select value={answers.locations} onChange={v => upd("locations", v)} options={LOCATIONS_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Workstations / Laptops *</Label>
+                <Select value={answers.workstations} onChange={v => upd("workstations", v)} options={WORKSTATION_OPTIONS} placeholder="Select count" />
+              </div>
+              <div>
+                <Label className="text-xs">On-prem Servers *</Label>
+                <Select value={answers.servers} onChange={v => upd("servers", v)} options={SERVER_OPTIONS} placeholder="Select count" />
               </div>
             </div>
             <div>
-              <Label className="text-xs">Current IT Setup *</Label>
+              <Label className="text-xs mb-2 block">Cloud Platforms in Use * <span className="text-muted-foreground font-normal">(select all that apply)</span></Label>
+              <MultiCheck options={CLOUD_PLATFORM_OPTIONS} value={answers.cloudPlatforms} onChange={v => upd("cloudPlatforms", v)} />
+            </div>
+            <div>
+              <Label className="text-xs">Existing IT Support *</Label>
+              <Select value={answers.existingItSupport} onChange={v => upd("existingItSupport", v)} options={EXISTING_IT_OPTIONS} placeholder="Select" />
+            </div>
+            <div>
+              <Label className="text-xs">Additional Environment Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Textarea value={answers.currentItSetup} onChange={e => upd("currentItSetup", e.target.value)}
-                placeholder="Describe the current infrastructure — servers, cloud services, devices, managed by whom, etc." rows={3} />
-              <p className="text-xs text-muted-foreground mt-1">This helps tailor the plan to the client's actual environment.</p>
+                placeholder="Anything specific about the network, key apps, custom setups, etc." rows={2} />
             </div>
             <div>
               <Label className="text-xs">Current Vendors / Tools <span className="text-muted-foreground">(optional)</span></Label>
@@ -581,17 +632,79 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           </div>
         )}
 
-        {/* Step 3: Pain Points */}
+        {/* Step 3: Security & Compliance Posture */}
         {step === 3 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-[#032d60]">Security & Compliance Posture</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Multi-Factor Authentication *</Label>
+                <Select value={answers.mfaStatus} onChange={v => upd("mfaStatus", v)} options={MFA_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Last Security Assessment *</Label>
+                <Select value={answers.lastAssessment} onChange={v => upd("lastAssessment", v)} options={LAST_ASSESSMENT_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Endpoint Protection in Use <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input value={answers.endpointProtection} onChange={e => upd("endpointProtection", e.target.value)}
+                  placeholder="e.g., Defender, SentinelOne, none" />
+              </div>
+              <div>
+                <Label className="text-xs">Backup Solution in Use <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input value={answers.backupSolution} onChange={e => upd("backupSolution", e.target.value)}
+                  placeholder="e.g., Veeam, Datto, none" />
+              </div>
+              <div>
+                <Label className="text-xs">Cyber Insurance *</Label>
+                <Select value={answers.cyberInsurance} onChange={v => upd("cyberInsurance", v)} options={CYBER_INSURANCE_OPTIONS} placeholder="Select" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs mb-2 block">Compliance Requirements * <span className="text-muted-foreground font-normal">(select 'None / Not applicable' if there are no obligations)</span></Label>
+              <MultiCheck options={COMPLIANCE_OPTIONS} value={answers.complianceNeeds} onChange={v => upd("complianceNeeds", v)} />
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Support & Operations */}
+        {step === 4 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-[#032d60]">Support & Operations</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Hours of Operation *</Label>
+                <Select value={answers.hoursOfOperation} onChange={v => upd("hoursOfOperation", v)} options={HOURS_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">After-hours Support Needed *</Label>
+                <Select value={answers.afterHoursSupport} onChange={v => upd("afterHoursSupport", v)} options={AFTER_HOURS_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Estimated Monthly Tickets <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={answers.ticketVolume} onChange={v => upd("ticketVolume", v)} options={TICKET_VOLUME_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Expected Headcount in 12 Months <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input value={answers.growthHeadcount} onChange={e => upd("growthHeadcount", e.target.value)}
+                  placeholder="e.g., 75" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Major IT Projects in Next 12 Months <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea value={answers.plannedProjects} onChange={e => upd("plannedProjects", e.target.value)}
+                placeholder="e.g., office relocation, M365 migration, ERP rollout" rows={2} />
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Pain Points & Priorities */}
+        {step === 5 && (
           <div className="space-y-5">
             <h2 className="text-lg font-bold text-[#032d60]">Pain Points & Priorities</h2>
             <div>
               <Label className="text-xs mb-2 block">Primary Pain Points * <span className="text-muted-foreground font-normal">(select all that apply)</span></Label>
               <MultiCheck options={PAIN_POINT_OPTIONS} value={answers.painPoints} onChange={v => upd("painPoints", v)} />
-            </div>
-            <div>
-              <Label className="text-xs mb-2 block">Compliance Requirements * <span className="text-muted-foreground font-normal">(select 'None / Not applicable' if there are no obligations)</span></Label>
-              <MultiCheck options={COMPLIANCE_OPTIONS} value={answers.complianceNeeds} onChange={v => upd("complianceNeeds", v)} />
             </div>
             <div>
               <Label className="text-xs mb-2 block">Top Priorities <span className="text-muted-foreground font-normal">(optional)</span></Label>
@@ -615,8 +728,8 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           </div>
         )}
 
-        {/* Step 4: Review & Generate */}
-        {step === 4 && (
+        {/* Step 6: Review & Generate */}
+        {step === REVIEW_STEP && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-[#032d60]">Review & Generate Plan</h2>
@@ -654,8 +767,8 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           </div>
         )}
 
-        {/* Step 5: Send */}
-        {step === 5 && (
+        {/* Step 7: Send */}
+        {step === SEND_STEP && (
           <div className="space-y-5">
             <h2 className="text-lg font-bold text-[#032d60]">Send to Client</h2>
             <div>
@@ -694,20 +807,20 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
             </Button>
           </div>
           <div className="flex gap-2">
-            {step < 4 && (
+            {step < REVIEW_STEP && (
               <Button
-                onClick={() => step === 3 ? generatePlan() : advanceWithServerDraft()}
+                onClick={() => step === LAST_INPUT_STEP ? generatePlan() : advanceWithServerDraft()}
                 disabled={!canProceed[step] || generating}
                 className="bg-[#032d60] hover:bg-[#0176d3] text-white gap-1.5">
-                {step === 3 ? (generating ? <><Loader className="w-4 h-4 animate-spin" /> Generating…</> : "Generate Plan →") : "Next →"}
+                {step === LAST_INPUT_STEP ? (generating ? <><Loader className="w-4 h-4 animate-spin" /> Generating…</> : "Generate Plan →") : "Next →"}
               </Button>
             )}
-            {step === 4 && generatedPlan && (
-              <Button onClick={() => setStep(5)} className="bg-[#032d60] hover:bg-[#0176d3] text-white gap-1.5">
+            {step === REVIEW_STEP && generatedPlan && (
+              <Button onClick={() => setStep(SEND_STEP)} className="bg-[#032d60] hover:bg-[#0176d3] text-white gap-1.5">
                 <Send className="w-4 h-4" /> Proceed to Send
               </Button>
             )}
-            {step === 5 && (
+            {step === SEND_STEP && (
               <Button onClick={sendPlan} disabled={sending || !sendEmail}
                 className="bg-[#0176d3] hover:bg-[#015fa3] text-white gap-1.5">
                 {sending ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

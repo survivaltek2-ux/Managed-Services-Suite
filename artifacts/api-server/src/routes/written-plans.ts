@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers, partnersTable } from "@workspace/db";
+import { db, writtenPlansTable, planActivityEventsTable, validateQuestionnaireAnswers, partnersTable, PAIN_POINT_OPTIONS } from "@workspace/db";
 import { eq, desc, and, lt, gt, inArray, sql } from "drizzle-orm";
 import { requirePartnerAuth, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import {
@@ -109,49 +109,139 @@ function resolveValidityDays(value: unknown, fallback = 30): number {
   return n;
 }
 
+// Map pain-point raw values → friendly labels for display in plan text
+const PAIN_POINT_LABELS: Record<string, string> = Object.fromEntries(
+  PAIN_POINT_OPTIONS.map(p => [p.value, p.label.toLowerCase()])
+);
+
+function painPointLabel(v: string): string {
+  return PAIN_POINT_LABELS[v] || v;
+}
+
+function locationsPhrase(raw: string): string {
+  if (!raw) return "your location(s)";
+  const trimmed = raw.trim();
+  if (trimmed === "1") return "1 location";
+  return `${trimmed} locations`;
+}
+
 function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
   const company = strVal(answers.clientCompany) || strVal(answers.companyName) || "your company";
   const headcount = strVal(answers.headcount) || "your team";
-  const locations = strVal(answers.locations) || "your location(s)";
+  const locationsRaw = strVal(answers.locations);
+  const locations = locationsPhrase(locationsRaw);
+  const workstations = strVal(answers.workstations);
+  const servers = strVal(answers.servers);
+  const cloudPlatforms = arrVal(answers.cloudPlatforms);
+  const existingItSupport = strVal(answers.existingItSupport);
   const painPoints = arrVal(answers.painPoints);
-  const complianceNeeds = arrVal(answers.complianceNeeds);
-  const currentSetup = strVal(answers.currentItSetup) || "current infrastructure";
+  const complianceNeeds = arrVal(answers.complianceNeeds).filter(c => c && c !== "None / Not applicable");
+  const currentSetup = strVal(answers.currentItSetup).trim();
+  const currentVendors = strVal(answers.currentVendors).trim();
   const priorities = arrVal(answers.priorities);
   const budget = strVal(answers.budgetRange) || null;
   const timeline = strVal(answers.preferredTimeline) || null;
+  const mfaStatus = strVal(answers.mfaStatus);
+  const endpointProtection = strVal(answers.endpointProtection).trim();
+  const backupSolution = strVal(answers.backupSolution).trim();
+  const lastAssessment = strVal(answers.lastAssessment);
+  const cyberInsurance = strVal(answers.cyberInsurance);
+  const hoursOfOperation = strVal(answers.hoursOfOperation);
+  const afterHoursSupport = strVal(answers.afterHoursSupport);
+  const ticketVolume = strVal(answers.ticketVolume);
+  const growthHeadcount = strVal(answers.growthHeadcount).trim();
+  const plannedProjects = strVal(answers.plannedProjects).trim();
 
   // Map pain points to recommended services
   const recommendedServices: { service: string; description: string }[] = [];
   const seen = new Set<string>();
 
-  for (const pp of painPoints) {
-    const key = pp.toLowerCase().replace(/[^a-z]/g, "");
-    for (const [mapKey, val] of Object.entries(PAIN_POINT_MAP)) {
-      if (key.includes(mapKey) && !seen.has(val.service)) {
-        seen.add(val.service);
-        recommendedServices.push(val);
-      }
+  function addService(svc: { service: string; description: string }) {
+    if (!seen.has(svc.service)) {
+      seen.add(svc.service);
+      recommendedServices.push(svc);
     }
   }
 
-  if (complianceNeeds.length > 0 && !seen.has("Compliance Services")) {
-    seen.add("Compliance Services");
-    recommendedServices.push(PAIN_POINT_MAP.compliance);
+  for (const pp of painPoints) {
+    const key = pp.toLowerCase().replace(/[^a-z]/g, "");
+    for (const [mapKey, val] of Object.entries(PAIN_POINT_MAP)) {
+      if (key.includes(mapKey)) addService(val);
+    }
+  }
+
+  if (complianceNeeds.length > 0) addService(PAIN_POINT_MAP.compliance);
+
+  // Posture-driven recommendations
+  const mfaWeak = mfaStatus.startsWith("No") || mfaStatus.startsWith("Partial") || mfaStatus.startsWith("Unsure");
+  if (mfaWeak || /never|unsure|more than/i.test(lastAssessment)) {
+    addService(PAIN_POINT_MAP.security);
+  }
+  if (!backupSolution || /none/i.test(backupSolution)) {
+    addService(PAIN_POINT_MAP.backup);
+  }
+  if (cloudPlatforms.includes("Microsoft 365") || cloudPlatforms.includes("Google Workspace")) {
+    addService(PAIN_POINT_MAP.email);
+  }
+  if (afterHoursSupport.startsWith("Yes") || hoursOfOperation.includes("24x7") || hoursOfOperation.includes("Extended")) {
+    addService(PAIN_POINT_MAP.downtime);
   }
 
   if (recommendedServices.length === 0) {
-    recommendedServices.push(PAIN_POINT_MAP.downtime, PAIN_POINT_MAP.security);
+    addService(PAIN_POINT_MAP.downtime);
+    addService(PAIN_POINT_MAP.security);
   }
 
+  // Build environment description
+  const envParts: string[] = [];
+  if (workstations) envParts.push(`${workstations} workstations / laptops`);
+  if (servers) envParts.push(`${servers} on-prem server${servers.startsWith("0") || servers.startsWith("1-2") ? "" : "s"}`);
+  if (cloudPlatforms.length > 0) envParts.push(`cloud: ${cloudPlatforms.join(", ")}`);
+  if (existingItSupport) envParts.push(`current support model: ${existingItSupport.toLowerCase()}`);
+  const envSummary = envParts.length > 0 ? envParts.join("; ") : "";
+
   const keyFindings: string[] = [
-    `${company} currently operates with approximately ${headcount} employees across ${locations}.`,
+    `${company} operates with approximately ${headcount} employees across ${locations}.`,
+    ...(envSummary ? [`Environment snapshot — ${envSummary}.`] : []),
     ...(painPoints.length > 0
-      ? [`Key challenges identified: ${painPoints.join(", ")}.`]
+      ? [`Key challenges identified: ${painPoints.map(painPointLabel).join(", ")}.`]
       : ["General IT optimization opportunities were identified during assessment."]),
+    ...(mfaStatus
+      ? [`MFA posture: ${mfaStatus.toLowerCase()}.`]
+      : []),
+    ...(backupSolution
+      ? [`Current backup solution: ${backupSolution}.`]
+      : ["No formal backup solution noted — disaster recovery gap identified."]),
+    ...(endpointProtection
+      ? [`Endpoint protection: ${endpointProtection}.`]
+      : []),
+    ...(lastAssessment
+      ? [`Last security assessment: ${lastAssessment.toLowerCase()}.`]
+      : []),
+    ...(cyberInsurance
+      ? [`Cyber insurance status: ${cyberInsurance.toLowerCase()}.`]
+      : []),
     ...(complianceNeeds.length > 0
       ? [`Compliance obligations noted: ${complianceNeeds.join(", ")}.`]
       : []),
-    `Current IT environment: ${currentSetup}.`,
+    ...(hoursOfOperation
+      ? [`Operating hours: ${hoursOfOperation.toLowerCase()}${afterHoursSupport ? `; after-hours support: ${afterHoursSupport.toLowerCase()}` : ""}.`]
+      : []),
+    ...(ticketVolume
+      ? [`Estimated ticket volume: ${ticketVolume.toLowerCase()}.`]
+      : []),
+    ...(growthHeadcount
+      ? [`Projected headcount in 12 months: ${growthHeadcount}.`]
+      : []),
+    ...(plannedProjects
+      ? [`Major projects planned: ${plannedProjects}.`]
+      : []),
+    ...(currentVendors
+      ? [`Key vendors / tools in use: ${currentVendors}.`]
+      : []),
+    ...(currentSetup
+      ? [`Additional notes: ${currentSetup}.`]
+      : []),
     ...(priorities.length > 0
       ? [`Top priorities expressed: ${priorities.join(", ")}.`]
       : []),
@@ -165,9 +255,12 @@ function generatePlanContent(answers: QuestionnaireAnswers): PlanContentShape {
     ...(timeline ? [`Target go-live aligned to your preferred timeline: ${timeline}.`] : []),
   ];
 
+  const envSentence = envSummary ? ` The environment snapshot includes ${envSummary}.` : "";
+  const notesSentence = currentSetup ? ` Additional notes: ${currentSetup}` : "";
+
   return {
-    executiveSummary: `This IT assessment plan has been prepared for ${company} following a discovery session with Siebert Services. Based on our evaluation of your current environment and business objectives, this document outlines key findings, recommended services, and a clear path forward to modernize and secure your technology infrastructure. Siebert Services is committed to delivering measurable improvements in uptime, security, and operational efficiency for your organization.`,
-    currentEnvironment: `${company} maintains an IT environment supporting approximately ${headcount} employees across ${locations}. ${currentSetup ? `The current setup includes: ${currentSetup}.` : ""} This assessment identifies areas where targeted improvements will deliver the greatest business value.`,
+    executiveSummary: `This IT assessment plan has been prepared for ${company} following a discovery session with Siebert Services. Based on our evaluation of your current environment, security posture, support model, and business objectives, this document outlines key findings, recommended services, and a clear path forward to modernize and secure your technology infrastructure. Siebert Services is committed to delivering measurable improvements in uptime, security, and operational efficiency for your organization.`,
+    currentEnvironment: `${company} maintains an IT environment supporting approximately ${headcount} employees across ${locations}.${envSentence}${notesSentence} This assessment identifies areas where targeted improvements will deliver the greatest business value.`,
     keyFindings,
     recommendedServices,
     nextSteps,
