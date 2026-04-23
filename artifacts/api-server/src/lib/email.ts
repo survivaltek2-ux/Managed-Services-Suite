@@ -2063,11 +2063,27 @@ interface PlanReadyParams {
   personalNote?: string;
 }
 
-export async function sendPlanReadyEmail(params: PlanReadyParams): Promise<boolean> {
+export interface SendEmailResult {
+  ok: boolean;
+  error?: "smtp_not_configured" | "smtp_error" | "template_error";
+  errorMessage?: string;
+}
+
+export async function sendPlanReadyEmail(params: PlanReadyParams): Promise<SendEmailResult> {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  if (!smtpUser || !smtpPass) {
+    console.error("[Email] sendPlanReadyEmail: SMTP credentials not configured (SMTP_USER / SMTP_PASS missing)");
+    return { ok: false, error: "smtp_not_configured", errorMessage: "Email credentials are not configured on the server." };
+  }
+
   const { clientName, clientEmail, company, planNumber, reviewUrl, expiresAt, executiveSummary, personalNote } = params;
-  const expiry = expiresAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  const summarySnippet = executiveSummary.length > 300 ? executiveSummary.slice(0, 297) + "…" : executiveSummary;
-  const html = `
+
+  let html: string;
+  try {
+    const expiry = expiresAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const summarySnippet = executiveSummary.length > 300 ? executiveSummary.slice(0, 297) + "…" : executiveSummary;
+    html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 24px; border-radius: 4px 4px 0 0;">
         <h1 style="color: #fff; margin: 0; font-size: 20px;">Your IT Assessment Plan is Ready</h1>
@@ -2085,7 +2101,16 @@ export async function sendPlanReadyEmail(params: PlanReadyParams): Promise<boole
         <p style="font-size: 12px; color: #9ca3af; margin: 8px 0 0;">Or copy this link: <a href="${reviewUrl}" style="color: #0176d3; word-break: break-all;">${reviewUrl}</a></p>
       </div>
     </div>`;
-  return sendEmail(clientEmail, `Your IT Assessment Plan is Ready — ${esc(company)}`, html);
+  } catch (err: any) {
+    console.error("[Email] sendPlanReadyEmail: template error:", err?.message || err);
+    return { ok: false, error: "template_error", errorMessage: "Failed to build the email template." };
+  }
+
+  const sent = await sendEmail(clientEmail, `Your IT Assessment Plan is Ready — ${esc(company)}`, html);
+  if (!sent) {
+    return { ok: false, error: "smtp_error", errorMessage: "The mail server rejected the message or an SMTP error occurred." };
+  }
+  return { ok: true };
 }
 
 export async function sendPlanApprovedEmail(plan: {

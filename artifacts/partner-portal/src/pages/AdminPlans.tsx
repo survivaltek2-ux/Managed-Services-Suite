@@ -91,6 +91,7 @@ function PlanDetailPanel({ plan, events, onBack, partnerName }: {
     created: "Plan created", sent: "Sent to client", viewed: "Client viewed",
     approved: "Plan approved", declined: "Declined", call_requested: "Call requested",
     revised: "Revision created", reminder_sent: "Reminder sent",
+    send_failed: "Email delivery failed",
   };
 
   return (
@@ -164,7 +165,7 @@ function PlanDetailPanel({ plan, events, onBack, partnerName }: {
             <div key={ev.id} className="flex items-start gap-3">
               <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0",
                 ev.eventType === "approved" ? "bg-green-500" :
-                ev.eventType === "declined" ? "bg-red-500" :
+                ev.eventType === "declined" || ev.eventType === "send_failed" ? "bg-red-500" :
                 ev.eventType === "call_requested" ? "bg-orange-500" :
                 "bg-[#0176d3]")} />
               <div className="flex-1">

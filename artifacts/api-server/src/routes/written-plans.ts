@@ -494,6 +494,43 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     const expiresAt = new Date(Date.now() + vdays * 86400000);
     const finalEmail = clientEmail || existing.clientEmail;
 
+    const baseUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partner-portal";
+    const reviewUrl = `${baseUrl}/plan-review/${token}`;
+
+    const content = existing.planContent as PlanContentShape | null;
+
+    const emailResult = await sendPlanReadyEmail({
+      clientName: existing.clientName,
+      clientEmail: finalEmail,
+      company: existing.clientCompany,
+      planNumber: existing.planNumber,
+      reviewUrl,
+      expiresAt,
+      executiveSummary: content?.executiveSummary || "",
+      personalNote: personalNote ?? existing.personalNote ?? undefined,
+    });
+
+    if (!emailResult.ok) {
+      console.error(`[WrittenPlans] plan ${id} email failed (${emailResult.error}): ${emailResult.errorMessage}`);
+      await logEvent(id, "send_failed", {
+        reason: emailResult.error || "unknown",
+        detail: emailResult.errorMessage || "",
+        to: finalEmail,
+      });
+      const userMessage =
+        emailResult.error === "smtp_not_configured"
+          ? "Email is not configured on the server. Contact your administrator."
+          : emailResult.error === "template_error"
+          ? "Failed to build the plan email. Contact your administrator."
+          : "The mail server rejected the message. Please try again or contact your administrator.";
+      res.status(502).json({
+        error: "email_send_failed",
+        reason: emailResult.error,
+        message: userMessage,
+      });
+      return;
+    }
+
     const [plan] = await db.update(writtenPlansTable).set({
       status: "sent",
       reviewToken: token,
@@ -506,21 +543,6 @@ router.post("/partner/plans/:id/send", requirePartnerAuth, async (req: PartnerRe
     }).where(eq(writtenPlansTable.id, id)).returning();
 
     await logEvent(plan.id, "sent", { to: finalEmail });
-
-    const baseUrl = process.env.PARTNER_PORTAL_URL || "https://siebertrservices.com/partner-portal";
-    const reviewUrl = `${baseUrl}/plan-review/${token}`;
-
-    const content = plan.planContent as PlanContentShape | null;
-    sendPlanReadyEmail({
-      clientName: plan.clientName,
-      clientEmail: finalEmail,
-      company: plan.clientCompany,
-      planNumber: plan.planNumber,
-      reviewUrl,
-      expiresAt,
-      executiveSummary: content?.executiveSummary || "",
-      personalNote: plan.personalNote || undefined,
-    }).catch(e => console.error("[WrittenPlans] send email error:", e));
 
     res.json({ plan, reviewUrl });
   } catch (err) {

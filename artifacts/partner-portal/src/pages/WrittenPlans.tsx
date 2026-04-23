@@ -604,13 +604,17 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
         headers: authHeader(),
         body: JSON.stringify({ personalNote, validityDays, clientEmail: sendEmail }),
       });
-      if (!res.ok) throw new Error("Failed");
-      const d = await res.json();
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const reason = d?.message || "Failed to send the plan. Please try again.";
+        toast({ title: "Send failed", description: reason, variant: "destructive" });
+        return;
+      }
       toast({ title: "Plan sent to client!" });
       clearDraft();
       onComplete(d.plan);
     } catch {
-      toast({ title: "Failed to send plan", variant: "destructive" });
+      toast({ title: "Send failed", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -1017,7 +1021,7 @@ function PlanDetail({ planId, onBack, onRevise }: {
     created: "Plan created", sent: "Sent to client", viewed: "Client viewed plan",
     approved: "Plan approved & signed", declined: "Client declined", call_requested: "Client requested a call",
     revised: "New revision created", reminder_sent: "Expiry reminder sent",
-    extended: "Deadline extended",
+    extended: "Deadline extended", send_failed: "Email delivery failed",
   };
 
   const canResend = ["draft", "viewed", "sent"].includes(plan.status);
@@ -1127,7 +1131,7 @@ function PlanDetail({ planId, onBack, onRevise }: {
             <div key={ev.id} className="flex items-start gap-3">
               <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0",
                 ev.eventType === "approved" ? "bg-green-500" :
-                ev.eventType === "declined" ? "bg-red-500" :
+                ev.eventType === "declined" || ev.eventType === "send_failed" ? "bg-red-500" :
                 ev.eventType === "call_requested" ? "bg-orange-500" :
                 "bg-[#0176d3]")} />
               <div className="flex-1 min-w-0">
