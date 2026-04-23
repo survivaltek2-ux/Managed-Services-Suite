@@ -558,6 +558,23 @@ export const CLOUD_PRODUCTIVITY_COMMISSIONS: Record<string, CommissionEntry> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NETWORK MONITORING & IT OPS
+// MSP-grade network visibility, mapping, and IT asset management.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const NETWORK_MONITORING_COMMISSIONS: Record<string, CommissionEntry> = {
+  auvik: {
+    rateUsd: 0,
+    commissionType: "negotiated",
+    network: "Auvik (PartnerStack)",
+    affiliateSignupUrl: "https://www.auvik.com/partners/",
+    affiliateUrl: "https://try.auvik.com/siebert",
+    notes:
+      "Cloud-based network monitoring, automated mapping, and IT asset management built for MSPs and internal IT teams. Delivers full Layer 1–3 visibility, device inventory, and hardware lifecycle data in minutes.",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SALES & MARKETING
 // B2B SaaS tools for partner programs, affiliate marketing, and sales ops.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -664,6 +681,7 @@ export function getAllServicePrograms(): Array<CommissionEntry & { slug: string;
   addCategory(CONSUMER_ANTIVIRUS_COMMISSIONS, "Consumer Antivirus");
   addCategory(IDENTITY_PROTECTION_COMMISSIONS, "Identity Protection");
   addCategory(CLOUD_PRODUCTIVITY_COMMISSIONS, "Cloud Productivity");
+  addCategory(NETWORK_MONITORING_COMMISSIONS, "Network Monitoring & IT Ops");
   addCategory(SALES_MARKETING_COMMISSIONS, "Sales & Marketing");
   addCategory(WEB_HOSTING_COMMISSIONS, "Web Hosting & Domains");
 
