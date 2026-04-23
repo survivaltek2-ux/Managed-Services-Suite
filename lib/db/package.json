@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
-    "./questionnaire": "./src/writtenPlanQuestionnaire.ts"
+    "./questionnaire": "./src/writtenPlanQuestionnaire.ts",
+    "./boilerplate": "./src/planBoilerplate.ts"
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",

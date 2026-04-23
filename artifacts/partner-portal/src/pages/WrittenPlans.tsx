@@ -7,6 +7,11 @@ import {
   MFA_OPTIONS, LAST_ASSESSMENT_OPTIONS, CYBER_INSURANCE_OPTIONS,
   HOURS_OPTIONS, AFTER_HOURS_OPTIONS, TICKET_VOLUME_OPTIONS,
 } from "@workspace/db/questionnaire";
+import {
+  SERVICE_LEVELS, CLIENT_RESPONSIBILITIES, ASSUMPTIONS,
+  CONFIDENTIALITY_TEXT, TERMS_TEXT, ACCEPTANCE_TEXT,
+  investmentSummaryText, validityNotice,
+} from "@workspace/db/boilerplate";
 import { PortalLayout } from "@/components/layout/PortalLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";

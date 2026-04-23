@@ -1,5 +1,10 @@
 import PDFDocument from "pdfkit";
 import type { WrittenPlan } from "@workspace/db";
+import {
+  SERVICE_LEVELS, CLIENT_RESPONSIBILITIES, ASSUMPTIONS,
+  CONFIDENTIALITY_TEXT, TERMS_TEXT, ACCEPTANCE_TEXT,
+  investmentSummaryText, validityNotice,
+} from "@workspace/db";
 
 function bufferDoc(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -111,6 +116,41 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
     doc.moveDown(0.6);
   }
 
+  // ─── Service Levels ──────────────────────────────────────────────────────
+  section("Service Levels");
+  doc.moveDown(0.3);
+  for (const sl of SERVICE_LEVELS) {
+    if (doc.y > doc.page.height - 100) doc.addPage();
+    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(10).text(sl.tier, 60, doc.y, { width: doc.page.width - 120 });
+    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text(sl.target, 60, doc.y, { width: doc.page.width - 120 });
+    doc.moveDown(0.3);
+  }
+
+  // ─── Investment Summary ──────────────────────────────────────────────────
+  section("Investment Summary");
+  doc.moveDown(0.3);
+  bodyText(investmentSummaryText((plan.questionnaireAnswers as Record<string, unknown>) ?? {}));
+
+  // ─── Client Responsibilities ─────────────────────────────────────────────
+  section("Client Responsibilities");
+  doc.moveDown(0.3);
+  for (const r of CLIENT_RESPONSIBILITIES) {
+    if (doc.y > doc.page.height - 100) doc.addPage();
+    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("▪", 60, doc.y, { continued: true });
+    doc.fillColor(BLACK).font("Helvetica").text("  " + r, { width: doc.page.width - 120 });
+    doc.moveDown(0.2);
+  }
+
+  // ─── Assumptions ─────────────────────────────────────────────────────────
+  section("Assumptions");
+  doc.moveDown(0.3);
+  for (const a of ASSUMPTIONS) {
+    if (doc.y > doc.page.height - 100) doc.addPage();
+    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("▪", 60, doc.y, { continued: true });
+    doc.fillColor(BLACK).font("Helvetica").text("  " + a, { width: doc.page.width - 120 });
+    doc.moveDown(0.2);
+  }
+
   // ─── Next Steps ──────────────────────────────────────────────────────────
   section("Next Steps");
   doc.moveDown(0.3);
@@ -120,6 +160,26 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
       .text(`${i + 1}.  ${step}`, 60, doc.y, { width: doc.page.width - 120 });
     doc.moveDown(0.3);
   });
+
+  // ─── Validity ────────────────────────────────────────────────────────────
+  section("Plan Validity");
+  doc.moveDown(0.3);
+  bodyText(validityNotice(plan.validityDays ?? 30, plan.expiresAt));
+
+  // ─── Confidentiality ─────────────────────────────────────────────────────
+  section("Confidentiality");
+  doc.moveDown(0.3);
+  bodyText(CONFIDENTIALITY_TEXT);
+
+  // ─── Terms ───────────────────────────────────────────────────────────────
+  section("Terms");
+  doc.moveDown(0.3);
+  bodyText(TERMS_TEXT);
+
+  // ─── Acceptance ──────────────────────────────────────────────────────────
+  section("Acceptance");
+  doc.moveDown(0.3);
+  bodyText(ACCEPTANCE_TEXT);
 
   // ─── Signature Block ─────────────────────────────────────────────────────
   if (plan.status === "approved" && plan.signerName) {
