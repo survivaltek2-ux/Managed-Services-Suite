@@ -70,13 +70,17 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   doc.y = infoY + 85;
 
   // ─── Section Helper ───────────────────────────────────────────────────────
+  const BAR_H = 22;
   function section(title: string) {
-    if (doc.y > doc.page.height - 140) doc.addPage();
-    doc.moveDown(0.5);
-    doc.rect(60, doc.y, doc.page.width - 120, 22).fill(BLUE);
+    if (doc.y > doc.page.height - 160) doc.addPage();
+    doc.moveDown(0.8);
+    const top = doc.y;
+    doc.rect(60, top, doc.page.width - 120, BAR_H).fill(BLUE);
     doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(11)
-      .text(title.toUpperCase(), 68, doc.y - 17);
-    doc.fillColor(BLACK).y += 8;
+      .text(title.toUpperCase(), 68, top + 6, { width: doc.page.width - 136, lineBreak: false });
+    doc.fillColor(BLACK).font("Helvetica").fontSize(10);
+    doc.x = 60;
+    doc.y = top + BAR_H + 10;
   }
 
   function bodyText(text: string) {
@@ -99,7 +103,7 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   doc.moveDown(0.3);
   const findings: string[] = Array.isArray(content.keyFindings) ? content.keyFindings : [];
   for (const f of findings) {
-    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("▪", 60, doc.y, { continued: true });
+    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("•", 60, doc.y, { continued: true });
     doc.fillColor(BLACK).font("Helvetica").text("  " + f, { width: doc.page.width - 120 });
     doc.moveDown(0.25);
   }
@@ -136,7 +140,7 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   doc.moveDown(0.3);
   for (const r of CLIENT_RESPONSIBILITIES) {
     if (doc.y > doc.page.height - 100) doc.addPage();
-    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("▪", 60, doc.y, { continued: true });
+    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("•", 60, doc.y, { continued: true });
     doc.fillColor(BLACK).font("Helvetica").text("  " + r, { width: doc.page.width - 120 });
     doc.moveDown(0.2);
   }
@@ -146,7 +150,7 @@ export async function generatePlanPdf(plan: WrittenPlan): Promise<Buffer> {
   doc.moveDown(0.3);
   for (const a of ASSUMPTIONS) {
     if (doc.y > doc.page.height - 100) doc.addPage();
-    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("▪", 60, doc.y, { continued: true });
+    doc.fillColor(BLUE).font("Helvetica-Bold").fontSize(10).text("•", 60, doc.y, { continued: true });
     doc.fillColor(BLACK).font("Helvetica").text("  " + a, { width: doc.page.width - 120 });
     doc.moveDown(0.2);
   }
