@@ -13,6 +13,7 @@ import {
 import { issueClientPortalToken } from "./client-portal.js";
 import { generatePlanPdf } from "../lib/planPdf.js";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { SUPPLIERS } from "../data/suppliers.js";
 import crypto from "crypto";
 
 const router = Router();
@@ -334,7 +335,16 @@ const PLAN_CONTENT_JSON_SCHEMA = {
   required: ["executiveSummary", "currentEnvironment", "keyFindings", "recommendedServices", "recommendedProducts", "nextSteps"],
 } as const;
 
-const SIEBERT_VENDOR_CATALOG = `Siebert Services partners with these vendors. When recommending products, use the vendor name and product/SKU verbatim from this list. Do NOT invent vendors or products that are not listed.
+// ─── Build the full vendor catalog from the suppliers data file ──────────────
+// Auto-generated so it stays in sync with `data/suppliers.ts` (≈280 vendors).
+// We keep the curated, grouped "preferred / common" section first to anchor
+// the AI on what to reach for in typical IT-assessment scenarios, then list
+// the long-tail catalog below so the AI can recommend any specialty vendor.
+const FULL_SUPPLIER_CATALOG = SUPPLIERS
+  .map(s => `- ${s.name} [${s.industry}] — ${s.keyProducts}`)
+  .join("\n");
+
+const SIEBERT_VENDOR_CATALOG = `Siebert Services partners with these vendors. When recommending products, use the vendor name and product/SKU verbatim from this catalog. Do NOT invent vendors or products that are not listed.
 
 INTERNET / CONNECTIVITY (ISP & dedicated fiber)
 - Comcast Business — Internet tiers (300 Mbps, 500 Mbps, 1.25 Gbps, 2 Gbps), Comcast Business Mobile, Ethernet Dedicated Internet (EDI), SecurityEdge, ActiveCore SD-WAN.
@@ -396,7 +406,13 @@ PHYSICAL SECURITY
 - ADT Business — ADT Commercial intrusion, video surveillance, access control, fire monitoring.
 - Vivint — Vivint Smart Business security and monitoring.
 
-NOTE: When the client environment already lists a vendor (e.g., "Microsoft 365" in cloud platforms), prefer adjacent products from that same vendor before suggesting a switch. When a competing primary product is suggested, briefly justify the switch.`;
+NOTE: When the client environment already lists a vendor (e.g., "Microsoft 365" in cloud platforms), prefer adjacent products from that same vendor before suggesting a switch. When a competing primary product is suggested, briefly justify the switch.
+
+═══════════════════════════════════════════════════════════════════════════════
+FULL VENDOR CATALOG (long tail — use these for specialty needs the curated list above does not cover, e.g., contact-center, IoT, data-center colocation, legal/practice-management, AV/digital-signage, OT/SCADA, public-safety, point-of-sale, etc.)
+═══════════════════════════════════════════════════════════════════════════════
+
+${FULL_SUPPLIER_CATALOG}`;
 
 const SIEBERT_SERVICE_CATALOG = `Siebert Services offers these service lines (use names verbatim when recommending; do not invent new ones):
 - Managed IT Support — proactive monitoring, helpdesk, rapid incident response.
