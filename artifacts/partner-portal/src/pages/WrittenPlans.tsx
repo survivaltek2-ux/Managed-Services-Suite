@@ -829,9 +829,29 @@ function PlanDetail({ planId, onBack, onRevise }: {
           <p className="text-muted-foreground text-sm">{plan.planNumber} · v{plan.version} · <StatusBadge status={plan.status} /></p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          <a href={`/api/partner/plans/${plan.id}/pdf`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="gap-1.5"><Download className="w-3.5 h-3.5" /> PDF</Button>
-          </a>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={async () => {
+              const t = localStorage.getItem("partner_token");
+              const res = await fetch(`/api/partner/plans/${plan.id}/pdf`, {
+                headers: t ? { Authorization: `Bearer ${t}` } : {},
+              });
+              if (!res.ok) return;
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `plan-${plan.planNumber}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+          >
+            <Download className="w-3.5 h-3.5" /> PDF
+          </Button>
           {isEditable && (
             <Button variant="outline" size="sm" onClick={handleSaveEdits} disabled={saving} className="gap-1.5">
               {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Edit2 className="w-3.5 h-3.5" />} Save
