@@ -29,8 +29,6 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-SMTP_HOST = "smtp-hve.office365.com"
-SMTP_PORT = "587"
 SMTP_FROM_EMAIL = "notifications@siebertrservices.com"
 SMTP_FROM_NAME = "Siebert Services"
 MICROSOFT_REDIRECT_URI = "https://siebertrservices.com/api/auth/sso/microsoft/callback"
