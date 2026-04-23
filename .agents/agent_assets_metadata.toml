@@ -18,3 +18,9 @@ id = "xjzW0s0-CSjOs5C2n3wh8"
 uri = "file://attached_assets/plan_fixed_preview.pdf"
 type = "pdf"
 title = "Fixed Plan PDF — preview"
+
+[[outputs]]
+id = "Hqp1URt8c1o_-y1g_85sK"
+uri = "file://attached_assets/plan_legal_v2.pdf"
+type = "pdf"
+title = "IT Assessment & Written Plan — redesigned"
