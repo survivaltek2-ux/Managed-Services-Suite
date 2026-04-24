@@ -39,7 +39,8 @@ interface PlanContent {
   executiveSummary: string;
   currentEnvironment: string;
   keyFindings: string[];
-  recommendedServices: { service: string; description: string }[];
+  recommendedServices: { service: string; description: string; vendor?: string; product?: string }[];
+  recommendedProducts?: { vendor: string; product: string; category: string; rationale: string }[];
   nextSteps: string[];
 }
 
@@ -314,6 +315,11 @@ function PlanDocument({ content, editable, onChange, plan }: {
                 updated[i] = { ...updated[i], service: v };
                 updateSection("recommendedServices", updated);
               }} />
+              {(s.vendor || s.product) && (
+                <p className="text-xs text-[#0176d3] font-medium mt-1">
+                  Delivered via: {s.vendor}{s.vendor && s.product ? " — " : ""}{s.product}
+                </p>
+              )}
               <div className="mt-1">
                 <EditableText value={s.description} multiline onSave={v => {
                   const updated = [...(content.recommendedServices || [])];
@@ -325,6 +331,41 @@ function PlanDocument({ content, editable, onChange, plan }: {
           ))}
         </div>
       </section>
+      {(content.recommendedProducts?.length ?? 0) > 0 && (
+        <section>
+          <h3 className="font-bold text-[#032d60] text-base mb-3 border-b border-[#e2e8f0] pb-1">Recommended Products</h3>
+          <div className="space-y-3">
+            {(content.recommendedProducts || []).map((p, i) => (
+              <div key={i} className="p-3 rounded bg-[#fff7ed] border border-[#fb923c]/30">
+                <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                  <p className="font-semibold text-[#032d60]">
+                    <EditableText value={p.product} onSave={v => {
+                      const updated = [...(content.recommendedProducts || [])];
+                      updated[i] = { ...updated[i], product: v };
+                      updateSection("recommendedProducts", updated);
+                    }} />
+                  </p>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">{p.category}</span>
+                </div>
+                <p className="text-xs text-[#9a3412] font-medium mt-0.5">
+                  Vendor: <EditableText value={p.vendor} onSave={v => {
+                    const updated = [...(content.recommendedProducts || [])];
+                    updated[i] = { ...updated[i], vendor: v };
+                    updateSection("recommendedProducts", updated);
+                  }} />
+                </p>
+                <div className="mt-1.5 text-sm text-gray-700">
+                  <EditableText value={p.rationale} multiline onSave={v => {
+                    const updated = [...(content.recommendedProducts || [])];
+                    updated[i] = { ...updated[i], rationale: v };
+                    updateSection("recommendedProducts", updated);
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <section>
         <h3 className="font-bold text-[#032d60] text-base mb-2 border-b border-[#e2e8f0] pb-1">Next Steps</h3>
         <ol className="space-y-1.5">
