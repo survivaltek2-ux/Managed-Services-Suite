@@ -6,6 +6,10 @@ import {
   PRIORITY_OPTIONS, BUDGET_OPTIONS, TIMELINE_OPTIONS,
   MFA_OPTIONS, LAST_ASSESSMENT_OPTIONS, CYBER_INSURANCE_OPTIONS,
   HOURS_OPTIONS, AFTER_HOURS_OPTIONS, TICKET_VOLUME_OPTIONS,
+  INTERNET_SPEED_OPTIONS, INTERNET_REDUNDANCY_OPTIONS, FIREWALL_OPTIONS, WIFI_OPTIONS,
+  PHONE_SYSTEM_OPTIONS, PHONE_USERS_OPTIONS, CONTACT_CENTER_OPTIONS,
+  EMAIL_SECURITY_OPTIONS, MDR_COVERAGE_OPTIONS, SECURITY_TRAINING_OPTIONS,
+  HARDWARE_AGE_OPTIONS, MDM_OPTIONS, PHYSICAL_SECURITY_OPTIONS,
 } from "@workspace/db/questionnaire";
 import {
   SERVICE_LEVELS, CLIENT_RESPONSIBILITIES, ASSUMPTIONS,
@@ -113,16 +117,18 @@ function StatusBadge({ status }: { status: string }) {
 const WIZARD_STEPS = [
   { id: 1, label: "Client Info" },
   { id: 2, label: "Business" },
-  { id: 3, label: "Security" },
-  { id: 4, label: "Support" },
-  { id: 5, label: "Pain Points" },
-  { id: 6, label: "Review" },
-  { id: 7, label: "Send" },
+  { id: 3, label: "Network" },
+  { id: 4, label: "Comms" },
+  { id: 5, label: "Security" },
+  { id: 6, label: "Support" },
+  { id: 7, label: "Pain Points" },
+  { id: 8, label: "Review" },
+  { id: 9, label: "Send" },
 ];
 
-const REVIEW_STEP = 6;
-const SEND_STEP = 7;
-const LAST_INPUT_STEP = 5;
+const REVIEW_STEP = 8;
+const SEND_STEP = 9;
+const LAST_INPUT_STEP = 7;
 
 interface WizardAnswers {
   clientName: string;
@@ -139,9 +145,22 @@ interface WizardAnswers {
   existingItSupport: string;
   currentItSetup: string;
   currentVendors: string;
+  specialtySoftware: string;
+  // Connectivity & Network
+  internetSpeed: string;
+  internetRedundancy: string;
+  firewallInUse: string;
+  wifiInfrastructure: string;
+  // Communications
+  phoneSystem: string;
+  phoneUsers: string;
+  contactCenterNeeds: string;
   // Security & Compliance
   mfaStatus: string;
   endpointProtection: string;
+  emailSecurity: string;
+  mdrCoverage: string;
+  securityAwarenessTraining: string;
   backupSolution: string;
   lastAssessment: string;
   cyberInsurance: string;
@@ -150,6 +169,9 @@ interface WizardAnswers {
   hoursOfOperation: string;
   afterHoursSupport: string;
   ticketVolume: string;
+  hardwareAge: string;
+  mdmInUse: string;
+  physicalSecurity: string[];
   growthHeadcount: string;
   plannedProjects: string;
   // Pain Points & Priorities
@@ -164,10 +186,14 @@ const BLANK_ANSWERS: WizardAnswers = {
   clientName: "", clientEmail: "", clientTitle: "", clientCompany: "", clientPhone: "",
   headcount: "", locations: "", workstations: "", servers: "",
   cloudPlatforms: [], existingItSupport: "",
-  currentItSetup: "", currentVendors: "",
-  mfaStatus: "", endpointProtection: "", backupSolution: "",
+  currentItSetup: "", currentVendors: "", specialtySoftware: "",
+  internetSpeed: "", internetRedundancy: "", firewallInUse: "", wifiInfrastructure: "",
+  phoneSystem: "", phoneUsers: "", contactCenterNeeds: "",
+  mfaStatus: "", endpointProtection: "", emailSecurity: "", mdrCoverage: "",
+  securityAwarenessTraining: "", backupSolution: "",
   lastAssessment: "", cyberInsurance: "", complianceNeeds: [],
   hoursOfOperation: "", afterHoursSupport: "", ticketVolume: "",
+  hardwareAge: "", mdmInUse: "", physicalSecurity: [],
   growthHeadcount: "", plannedProjects: "",
   painPoints: [], priorities: [],
   budgetRange: "", preferredTimeline: "", additionalContext: "",
@@ -729,11 +755,66 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
               <Input value={answers.currentVendors} onChange={e => upd("currentVendors", e.target.value)}
                 placeholder="e.g., Microsoft 365, Cisco Meraki, AWS" />
             </div>
+            <div>
+              <Label className="text-xs">Industry / Specialty Software <span className="text-muted-foreground">(optional)</span></Label>
+              <Input value={answers.specialtySoftware} onChange={e => upd("specialtySoftware", e.target.value)}
+                placeholder="e.g., Epic / Cerner (EHR), Clio (legal), QuickBooks, Toast POS, AutoCAD" />
+              <p className="text-[11px] text-muted-foreground mt-1">Line-of-business apps that are critical to operations.</p>
+            </div>
           </div>
         )}
 
-        {/* Step 3: Security & Compliance Posture */}
+        {/* Step 3: Connectivity & Network */}
         {step === 3 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-[#032d60]">Connectivity & Network</h2>
+            <p className="text-xs text-muted-foreground">All optional — fill in what you know to get sharper recommendations.</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Primary Internet Speed</Label>
+                <Select value={answers.internetSpeed} onChange={v => upd("internetSpeed", v)} options={INTERNET_SPEED_OPTIONS} placeholder="Select" />
+                <p className="text-[11px] text-muted-foreground mt-1">Approximate bandwidth at the main location.</p>
+              </div>
+              <div>
+                <Label className="text-xs">Internet Redundancy / Failover</Label>
+                <Select value={answers.internetRedundancy} onChange={v => upd("internetRedundancy", v)} options={INTERNET_REDUNDANCY_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Firewall / Network Security</Label>
+                <Select value={answers.firewallInUse} onChange={v => upd("firewallInUse", v)} options={FIREWALL_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">WiFi Infrastructure</Label>
+                <Select value={answers.wifiInfrastructure} onChange={v => upd("wifiInfrastructure", v)} options={WIFI_OPTIONS} placeholder="Select" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Communications */}
+        {step === 4 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-[#032d60]">Communications</h2>
+            <p className="text-xs text-muted-foreground">Phone, voice, and contact-center signals (all optional).</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Current Phone System</Label>
+                <Select value={answers.phoneSystem} onChange={v => upd("phoneSystem", v)} options={PHONE_SYSTEM_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Number of Phone Users</Label>
+                <Select value={answers.phoneUsers} onChange={v => upd("phoneUsers", v)} options={PHONE_USERS_OPTIONS} placeholder="Select" />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-xs">Contact Center / Call Routing</Label>
+                <Select value={answers.contactCenterNeeds} onChange={v => upd("contactCenterNeeds", v)} options={CONTACT_CENTER_OPTIONS} placeholder="Select" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Security & Compliance Posture */}
+        {step === 5 && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-[#032d60]">Security & Compliance Posture</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -749,6 +830,18 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
                 <Label className="text-xs">Endpoint Protection in Use <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Input value={answers.endpointProtection} onChange={e => upd("endpointProtection", e.target.value)}
                   placeholder="e.g., Defender, SentinelOne, none" />
+              </div>
+              <div>
+                <Label className="text-xs">Email Security in Place <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={answers.emailSecurity} onChange={v => upd("emailSecurity", v)} options={EMAIL_SECURITY_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">MDR / SOC Monitoring <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={answers.mdrCoverage} onChange={v => upd("mdrCoverage", v)} options={MDR_COVERAGE_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Security Awareness Training <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={answers.securityAwarenessTraining} onChange={v => upd("securityAwarenessTraining", v)} options={SECURITY_TRAINING_OPTIONS} placeholder="Select" />
               </div>
               <div>
                 <Label className="text-xs">Backup Solution in Use <span className="text-muted-foreground font-normal">(optional)</span></Label>
@@ -767,8 +860,8 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           </div>
         )}
 
-        {/* Step 4: Support & Operations */}
-        {step === 4 && (
+        {/* Step 6: Support & Operations */}
+        {step === 6 && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-[#032d60]">Support & Operations</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -785,10 +878,22 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
                 <Select value={answers.ticketVolume} onChange={v => upd("ticketVolume", v)} options={TICKET_VOLUME_OPTIONS} placeholder="Select" />
               </div>
               <div>
+                <Label className="text-xs">Hardware Age / Refresh Status <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={answers.hardwareAge} onChange={v => upd("hardwareAge", v)} options={HARDWARE_AGE_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
+                <Label className="text-xs">Mobile Device Management (MDM) <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Select value={answers.mdmInUse} onChange={v => upd("mdmInUse", v)} options={MDM_OPTIONS} placeholder="Select" />
+              </div>
+              <div>
                 <Label className="text-xs">Expected Headcount in 12 Months <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Input value={answers.growthHeadcount} onChange={e => upd("growthHeadcount", e.target.value)}
                   placeholder="e.g., 75" />
               </div>
+            </div>
+            <div>
+              <Label className="text-xs mb-2 block">Physical Security in Place <span className="text-muted-foreground font-normal">(optional, select all that apply)</span></Label>
+              <MultiCheck options={PHYSICAL_SECURITY_OPTIONS} value={answers.physicalSecurity} onChange={v => upd("physicalSecurity", v)} />
             </div>
             <div>
               <Label className="text-xs">Major IT Projects in Next 12 Months <span className="text-muted-foreground font-normal">(optional)</span></Label>
@@ -798,8 +903,8 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
           </div>
         )}
 
-        {/* Step 5: Pain Points & Priorities */}
-        {step === 5 && (
+        {/* Step 7: Pain Points & Priorities */}
+        {step === 7 && (
           <div className="space-y-5">
             <h2 className="text-lg font-bold text-[#032d60]">Pain Points & Priorities</h2>
             <div>
