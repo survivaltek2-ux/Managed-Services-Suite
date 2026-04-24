@@ -690,11 +690,13 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
   const canProceed: Record<number, boolean> = {
     1: !!(answers.clientName && answers.clientEmail && answers.clientCompany),
     2: !!(answers.headcount && answers.locations && answers.workstations && answers.servers && answers.cloudPlatforms.length > 0 && answers.existingItSupport),
-    3: !!(answers.mfaStatus && answers.lastAssessment && answers.cyberInsurance && answers.complianceNeeds.length > 0),
-    4: !!(answers.hoursOfOperation && answers.afterHoursSupport),
-    5: answers.painPoints.length > 0,
-    6: !!generatedPlan,
-    7: !!(sendEmail),
+    3: true, // Network — all optional
+    4: true, // Comms — all optional
+    5: !!(answers.mfaStatus && answers.lastAssessment && answers.cyberInsurance && answers.complianceNeeds.length > 0),
+    6: !!(answers.hoursOfOperation && answers.afterHoursSupport),
+    7: answers.painPoints.length > 0,
+    8: !!generatedPlan,
+    9: !!(sendEmail),
   };
 
   return (
