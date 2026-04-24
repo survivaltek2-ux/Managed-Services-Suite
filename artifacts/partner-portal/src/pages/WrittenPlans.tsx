@@ -493,7 +493,7 @@ function clearDraft() {
 }
 
 export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId }: {
-  initial?: { answers: WizardAnswers; planId?: number; planContent?: PlanContent | null };
+  initial?: { answers: WizardAnswers; planId?: number; planContent?: PlanContent | null; mode?: "revise" | "edit-draft" };
   onComplete: (plan: WrittenPlan) => void;
   onCancel: () => void;
   onBehalfOfPartnerId?: number;
@@ -583,7 +583,7 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
       };
 
       let plan;
-      if (planId && initial?.planContent) {
+      if (planId && initial?.planContent && initial?.mode !== "edit-draft") {
         // Revision mode: plan already has parent's edited content — preserve it.
         // Just update questionnaire answers; no regeneration so edits are not overwritten.
         const putRes = await fetch(`${BASE}/${planId}`, {
@@ -1418,7 +1418,7 @@ export default function WrittenPlans() {
   const [plans, setPlans] = useState<WrittenPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
-  const [revisionInitial, setRevisionInitial] = useState<{ answers: WizardAnswers; planId?: number; planContent?: PlanContent | null } | undefined>();
+  const [revisionInitial, setRevisionInitial] = useState<{ answers: WizardAnswers; planId?: number; planContent?: PlanContent | null; mode?: "revise" | "edit-draft" } | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
 
   const load = useCallback(async () => {
@@ -1433,7 +1433,7 @@ export default function WrittenPlans() {
 
   function handleEditAnswers(plan: WrittenPlan) {
     const answers = normalizeAnswers(plan.questionnaireAnswers);
-    setRevisionInitial({ answers, planId: plan.id, planContent: plan.planContent as PlanContent | null });
+    setRevisionInitial({ answers, planId: plan.id, planContent: plan.planContent as PlanContent | null, mode: "edit-draft" });
     setView("wizard");
   }
 
@@ -1444,7 +1444,7 @@ export default function WrittenPlans() {
       const d = await createRes.json();
       const newPlan: WrittenPlan = d.plan;
       const answers = (plan.questionnaireAnswers as WizardAnswers) || BLANK_ANSWERS;
-      setRevisionInitial({ answers, planId: newPlan.id, planContent: newPlan.planContent as PlanContent | null });
+      setRevisionInitial({ answers, planId: newPlan.id, planContent: newPlan.planContent as PlanContent | null, mode: "revise" });
       setView("wizard");
     } catch {
       toast({ title: "Failed to create revision", variant: "destructive" });
