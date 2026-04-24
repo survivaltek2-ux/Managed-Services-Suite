@@ -57,6 +57,8 @@ const BASE_NAV_ITEMS = [
   { href: "/announcements", label: "News", icon: Bell },
 ];
 
+const TEAM_NAV_ITEM = { href: "/team", label: "Team", icon: Users };
+
 const ADMIN_NAV_ITEMS = [
   { href: "/client-tickets", label: "Client Tickets", icon: Users },
   { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
@@ -90,8 +92,36 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const isPending = user.status === "pending";
-  const adminItems = user.isAdmin ? ADMIN_NAV_ITEMS : [];
-  const NAV_ITEMS = [...BASE_NAV_ITEMS, ...adminItems];
+  const isTeamMember = Boolean(user.isTeamMember);
+  const tmPerms = user.teamMember?.permissions;
+
+  const baseItems = isTeamMember
+    ? BASE_NAV_ITEMS.filter(item => {
+        if (!tmPerms) return false;
+        switch (item.href) {
+          case "/dashboard": return true;
+          case "/deals": return tmPerms.canViewDeals;
+          case "/leads": return tmPerms.canViewLeads;
+          case "/commissions": return tmPerms.canViewCommissions;
+          case "/resources": return tmPerms.canViewResources;
+          case "/plans": return tmPerms.canCreatePlans;
+          case "/proposals/generate": return tmPerms.canCreatePlans;
+          case "/billing": return false;
+          case "/marketplace": return tmPerms.canViewResources;
+          case "/vivint": return false;
+          case "/documents": return tmPerms.canViewResources;
+          case "/training": return tmPerms.canViewResources;
+          case "/service-availability": return true;
+          case "/support": return true;
+          case "/announcements": return true;
+          default: return true;
+        }
+      })
+    : BASE_NAV_ITEMS;
+
+  const navItems = isTeamMember ? baseItems : [...baseItems, TEAM_NAV_ITEM];
+  const adminItems = user.isAdmin && !isTeamMember ? ADMIN_NAV_ITEMS : [];
+  const NAV_ITEMS = [...navItems, ...adminItems];
   const currentTab = NAV_ITEMS.find(i => location === i.href) || NAV_ITEMS[0];
 
   return (
@@ -111,7 +141,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav Tabs */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto">
-            {BASE_NAV_ITEMS.map(item => {
+            {navItems.map(item => {
               const isActive = location === item.href;
               const disabled = isPending && item.href !== "/dashboard" && item.href !== "/profile";
               return (
@@ -201,7 +231,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-white/10 bg-[#032d60] pb-2 px-2 max-h-[calc(100vh-40px)] overflow-y-auto">
-            {BASE_NAV_ITEMS.map(item => {
+            {navItems.map(item => {
               const isActive = location === item.href;
               const Icon = item.icon;
               return (
@@ -216,7 +246,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
-            {user.isAdmin && (
+            {user.isAdmin && !isTeamMember && (
               <>
                 <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-white/40 font-semibold mt-2 flex items-center gap-1.5">
                   <ShieldCheck className="w-3 h-3" /> Admin

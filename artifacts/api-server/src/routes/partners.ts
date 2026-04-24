@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, partnersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable, siteSettingsTable } from "@workspace/db";
+import { db, partnersTable, partnerTeamMembersTable, partnerDealsTable, partnerLeadsTable, partnerResourcesTable, partnerCertificationsTable, partnerCertProgressTable, partnerAnnouncementsTable, partnerCommissionsTable, partnerSupportTicketsTable, partnerTicketMessagesTable, ticketsTable, ticketMessagesTable, usersTable, tsdDealPushLogsTable, tsdProductsTable, telarusVendorsTable, trainingRequestsTable, siteSettingsTable } from "@workspace/db";
 import { eq, and, desc, sql, count, sum, asc, isNull, inArray, gt } from "drizzle-orm";
 import { requirePartnerAuth, requirePartnerAdmin, generatePartnerToken, isMainSiteAdmin, PartnerRequest, MAIN_SITE_ADMIN_SENTINEL } from "../middlewares/partnerAuth.js";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth.js";
@@ -226,7 +226,36 @@ router.get("/partner/auth/me", requirePartnerAuth, async (req: PartnerRequest, r
     }
     const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, req.partnerId!)).limit(1);
     if (!partner) { res.status(404).json({ error: "not_found", message: "Partner not found" }); return; }
-    res.json(sanitizePartner(partner));
+    const safe = sanitizePartner(partner);
+    if (req.teamMemberId) {
+      const [member] = await db.select().from(partnerTeamMembersTable).where(eq(partnerTeamMembersTable.id, req.teamMemberId)).limit(1);
+      if (!member || member.status === "revoked") {
+        res.status(403).json({ error: "team_member_revoked", message: "Your access has been revoked." });
+        return;
+      }
+      res.json({
+        ...safe,
+        isAdmin: false,
+        isTeamMember: true,
+        teamMember: {
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          status: member.status,
+          permissions: {
+            canViewDeals: member.canViewDeals,
+            canCreateDeals: member.canCreateDeals,
+            canViewLeads: member.canViewLeads,
+            canCreateLeads: member.canCreateLeads,
+            canViewCommissions: member.canViewCommissions,
+            canViewResources: member.canViewResources,
+            canCreatePlans: member.canCreatePlans,
+          },
+        },
+      });
+      return;
+    }
+    res.json({ ...safe, isTeamMember: false });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server_error", message: "Failed to get profile" });

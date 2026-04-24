@@ -2,9 +2,10 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, usersTable, partnersTable, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, partnersTable, partnerTeamMembersTable, siteSettingsTable } from "@workspace/db";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { sendPartnerSsoRegistrationNotification } from "../lib/email.js";
+import { generatePartnerToken, generateTeamMemberToken } from "../middlewares/partnerAuth.js";
 
 const router = Router();
 
@@ -174,72 +175,146 @@ router.get("/auth/sso/microsoft/callback", async (req, res) => {
         .where(eq(partnersTable.email, email))
         .limit(1);
 
-      if (!partner) {
-        const [adminUser] = await db
-          .select()
-          .from(usersTable)
-          .where(eq(usersTable.email, email))
-          .limit(1);
-
-        if (adminUser && adminUser.role === "admin") {
-          if (!adminUser.ssoId) {
-            await db
-              .update(usersTable)
-              .set({ ssoProvider: "microsoft", ssoId })
-              .where(eq(usersTable.id, adminUser.id));
-          }
-          const token = jwt.sign({ userId: adminUser.id, role: adminUser.role }, JWT_SECRET, { expiresIn: "7d" });
-          res.redirect(`/partners/login?sso_token=${token}`);
+      if (partner) {
+        if (!partner.ssoId) {
+          await db
+            .update(partnersTable)
+            .set({ ssoProvider: "microsoft", ssoId })
+            .where(eq(partnersTable.id, partner.id));
+        }
+        if (partner.status === "pending") {
+          const pendingParams = new URLSearchParams({ company: partner.companyName, email: partner.email });
+          res.redirect(`/partners/pending?${pendingParams}`);
           return;
         }
-
-        const companyName = profile.companyName || email.split("@")[1]?.split(".")[0] || "Unknown Company";
-        const [newPartner] = await db.insert(partnersTable).values({
-          companyName,
-          contactName: name,
-          email,
-          password: await bcrypt.hash(ssoId + crypto.randomUUID(), 10),
-          phone: null,
-          website: null,
-          businessType: "other",
-          specializations: "[]",
-          status: "pending",
-          tier: "registered",
-          ssoProvider: "microsoft",
-          ssoId,
-        }).returning();
-
-        sendPartnerSsoRegistrationNotification({
-          companyName,
-          contactName: name,
-          email,
-        }).catch(err => console.error("[SSO] Partner registration notification error:", err));
-
-        console.log(`[SSO] Created pending partner account for ${email} via SSO self-registration`);
-        const pendingParams = new URLSearchParams({ company: companyName, email });
-        res.redirect(`/partners/pending?${pendingParams}`);
+        if (partner.status === "rejected") {
+          res.redirect(`/partners/login?sso_error=account_rejected`);
+          return;
+        }
+        const token = generatePartnerToken(partner.id, partner.isAdmin);
+        res.redirect(`/partners/login?sso_token=${token}`);
         return;
       }
 
-      if (!partner.ssoId) {
+      // Not a primary partner. Check if this email is an invited team member.
+      const [teamMember] = await db
+        .select()
+        .from(partnerTeamMembersTable)
+        .where(eq(partnerTeamMembersTable.email, email))
+        .limit(1);
+
+      if (teamMember) {
+        if (teamMember.status === "revoked") {
+          res.redirect(`/partners/login?sso_error=team_member_revoked`);
+          return;
+        }
+        // For pending invites, enforce the invite expiry — a stale invite must
+        // not auto-activate just because the email matches.
+        if (teamMember.status === "pending") {
+          if (teamMember.inviteTokenExpires && teamMember.inviteTokenExpires < new Date()) {
+            res.redirect(`/partners/login?sso_error=invite_expired`);
+            return;
+          }
+        }
+        const [parentPartner] = await db
+          .select()
+          .from(partnersTable)
+          .where(eq(partnersTable.id, teamMember.partnerId))
+          .limit(1);
+        if (!parentPartner || parentPartner.status !== "approved") {
+          res.redirect(`/partners/login?sso_error=team_member_company_inactive`);
+          return;
+        }
         await db
-          .update(partnersTable)
-          .set({ ssoProvider: "microsoft", ssoId })
-          .where(eq(partnersTable.id, partner.id));
-      }
-
-      if (partner.status === "pending") {
-        const pendingParams = new URLSearchParams({ company: partner.companyName, email: partner.email });
-        res.redirect(`/partners/pending?${pendingParams}`);
+          .update(partnerTeamMembersTable)
+          .set({
+            status: "active",
+            ssoProvider: "microsoft",
+            ssoId,
+            acceptedAt: teamMember.acceptedAt ?? new Date(),
+            lastLoginAt: new Date(),
+            inviteToken: null,
+            inviteTokenExpires: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(partnerTeamMembersTable.id, teamMember.id));
+        console.log(`[SSO] Team member ${email} logged in for partner ${parentPartner.companyName}`);
+        const token = generateTeamMemberToken(parentPartner.id, teamMember.id);
+        res.redirect(`/partners/login?sso_token=${token}`);
         return;
       }
-      if (partner.status === "rejected") {
-        res.redirect(`/partners/login?sso_error=account_rejected`);
+
+      // Not a partner and not an invited team member. Fall back to admin-user
+      // shortcut if this email belongs to an internal admin.
+      const [adminUser] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, email))
+        .limit(1);
+      if (adminUser && adminUser.role === "admin") {
+        if (!adminUser.ssoId) {
+          await db
+            .update(usersTable)
+            .set({ ssoProvider: "microsoft", ssoId })
+            .where(eq(usersTable.id, adminUser.id));
+        }
+        const token = jwt.sign({ userId: adminUser.id, role: adminUser.role }, JWT_SECRET, { expiresIn: "7d" });
+        res.redirect(`/partners/login?sso_token=${token}`);
         return;
       }
 
-      const token = jwt.sign({ partnerId: partner.id }, JWT_SECRET, { expiresIn: "7d" });
-      res.redirect(`/partners/login?sso_token=${token}`);
+      // Enforce one-admin-per-domain: if any approved partner already exists
+      // with the same email domain, this person must be invited by that admin
+      // rather than self-register a duplicate company.
+      const domain = email.split("@")[1]?.toLowerCase() ?? "";
+      if (domain) {
+        const [existingDomainPartner] = await db
+          .select({ id: partnersTable.id, companyName: partnersTable.companyName, email: partnersTable.email })
+          .from(partnersTable)
+          .where(and(
+            sql`lower(split_part(${partnersTable.email}, '@', 2)) = ${domain}`,
+            ne(partnersTable.status, "rejected"),
+          ))
+          .limit(1);
+        if (existingDomainPartner) {
+          console.log(`[SSO] Blocking self-registration for ${email} — domain already owned by partner ${existingDomainPartner.email}`);
+          const params = new URLSearchParams({
+            sso_error: "domain_already_registered",
+            admin_email: existingDomainPartner.email,
+            company: existingDomainPartner.companyName,
+          });
+          res.redirect(`/partners/login?${params}`);
+          return;
+        }
+      }
+
+      const companyName = profile.companyName || email.split("@")[1]?.split(".")[0] || "Unknown Company";
+      await db.insert(partnersTable).values({
+        companyName,
+        contactName: name,
+        email,
+        password: await bcrypt.hash(ssoId + crypto.randomUUID(), 10),
+        phone: null,
+        website: null,
+        businessType: "other",
+        specializations: "[]",
+        status: "pending",
+        tier: "registered",
+        isAdmin: true,
+        ssoProvider: "microsoft",
+        ssoId,
+      });
+
+      sendPartnerSsoRegistrationNotification({
+        companyName,
+        contactName: name,
+        email,
+      }).catch(err => console.error("[SSO] Partner registration notification error:", err));
+
+      console.log(`[SSO] Created pending partner account for ${email} via SSO self-registration`);
+      const pendingParams = new URLSearchParams({ company: companyName, email });
+      res.redirect(`/partners/pending?${pendingParams}`);
+      return;
     } else {
       let [user] = await db
         .select()

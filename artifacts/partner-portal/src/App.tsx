@@ -53,6 +53,8 @@ import AdminCustomers from "./pages/AdminCustomers";
 import AdminPartnerstack from "./pages/AdminPartnerstack";
 import ClientDashboard from "./pages/ClientDashboard";
 import ClientOnboarding from "./pages/ClientOnboarding";
+import Team from "./pages/Team";
+import AcceptTeamInvite from "./pages/AcceptTeamInvite";
 
 import { useAuth } from "./hooks/use-auth";
 
@@ -105,6 +107,8 @@ function Router() {
       <Route path="/marketplace"><ProtectedRoute component={Marketplace} /></Route>
       <Route path="/support"><ProtectedRoute component={SupportTickets} /></Route>
       <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
+      <Route path="/team"><ProtectedRoute component={Team} /></Route>
+      <Route path="/team/accept/:token" component={AcceptTeamInvite} />
       <Route path="/client-tickets"><ProtectedRoute component={ClientTickets} /></Route>
       <Route path="/documents"><ProtectedRoute component={Documents} /></Route>
       <Route path="/admin/inquiries"><ProtectedRoute component={AdminInquiries} /></Route>

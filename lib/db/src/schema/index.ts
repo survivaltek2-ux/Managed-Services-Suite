@@ -6,6 +6,7 @@ export * from "./tickets";
 export * from "./chat";
 export * from "./cms";
 export * from "./partners";
+export * from "./partnerTeamMembers";
 export * from "./conversations";
 export * from "./messages";
 export * from "./invoices";

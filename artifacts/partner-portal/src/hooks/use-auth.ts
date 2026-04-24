@@ -22,6 +22,24 @@ export function getAuthHeaders() {
   };
 }
 
+export interface PartnerTeamMemberPermissions {
+  canViewDeals: boolean;
+  canCreateDeals: boolean;
+  canViewLeads: boolean;
+  canCreateLeads: boolean;
+  canViewCommissions: boolean;
+  canViewResources: boolean;
+  canCreatePlans: boolean;
+}
+
+export interface PartnerTeamMemberContext {
+  id: number;
+  name: string;
+  email: string;
+  status: "pending" | "active" | "revoked";
+  permissions: PartnerTeamMemberPermissions;
+}
+
 export interface PartnerUser {
   id: number;
   companyName: string;
@@ -34,6 +52,8 @@ export interface PartnerUser {
   totalRevenue?: string | number;
   isAdmin: boolean;
   isMainSiteAdmin?: boolean;
+  isTeamMember?: boolean;
+  teamMember?: PartnerTeamMemberContext;
   stripeConnectAccountId?: string | null;
   mustChangePassword?: boolean;
 }

@@ -2283,3 +2283,37 @@ export async function sendPlanExpiringEmail(plan: {
     </div>`;
   return sendEmail(to, `Plan Expiring ${expiry}: ${esc(plan.clientCompany)} — ${esc(plan.planNumber)}`, html);
 }
+
+export async function sendPartnerTeamInviteEmail(args: {
+  to: string;
+  inviteeName: string;
+  inviterName: string;
+  companyName: string;
+  inviteToken: string;
+}): Promise<boolean> {
+  const portalBase = process.env.PARTNER_PORTAL_URL
+    ? process.env.PARTNER_PORTAL_URL.replace(/\/$/, "")
+    : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}/partners` : "https://siebertrservices.com/partners");
+  const acceptUrl = `${portalBase}/team/accept/${args.inviteToken}`;
+  const html = `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #032d60, #0176d3); padding: 20px 24px; border-radius: 4px 4px 0 0;">
+        <h1 style="color: #fff; margin: 0; font-size: 18px;">You've been invited to ${esc(args.companyName)}</h1>
+      </div>
+      <div style="border: 1px solid #e5e5e5; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
+        <p style="font-size: 14px; margin: 0 0 16px;">Hi ${esc(args.inviteeName)},</p>
+        <p style="font-size: 14px; margin: 0 0 16px;"><strong>${esc(args.inviterName)}</strong> has invited you to join the Siebert Services Partner Portal as part of the <strong>${esc(args.companyName)}</strong> team.</p>
+        <p style="font-size: 14px; margin: 0 0 16px;">To accept this invitation, sign in with your Microsoft work account using the button below. Your portal access begins immediately after sign-in.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${esc(acceptUrl)}" style="background: #0176d3; color: #fff; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: 600; display: inline-block;">Accept Invitation</a>
+        </div>
+        <p style="font-size: 13px; color: #706e6b; margin: 0 0 8px;">Or paste this link into your browser:</p>
+        <p style="font-size: 13px; word-break: break-all; margin: 0 0 16px;"><a href="${esc(acceptUrl)}" style="color: #0176d3;">${esc(acceptUrl)}</a></p>
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin: 16px 0;">
+          <p style="font-size: 13px; color: #856404; margin: 0;"><strong>Note:</strong> Sign in must use your Microsoft work account that matches <strong>${esc(args.to)}</strong>. This invitation expires in 14 days.</p>
+        </div>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">If you didn't expect this invitation, you can safely ignore this email.</p>
+      </div>
+    </div>`;
+  return sendEmail(args.to, `You've been invited to ${args.companyName} on Siebert Services`, html);
+}
