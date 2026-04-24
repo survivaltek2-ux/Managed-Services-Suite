@@ -21,6 +21,30 @@ export function isStripeConfigured(): boolean {
 }
 
 /**
+ * In Stripe API version 2025-02-24.acacia and later, `current_period_start` /
+ * `current_period_end` were moved off the Subscription object onto each
+ * subscription item. This helper reads from the item first and falls back to
+ * the legacy subscription-level field, so it works against both shapes.
+ *
+ * Returns `null` if the field is missing or invalid (avoids `Invalid Date`
+ * writes to the DB).
+ */
+export function getSubscriptionPeriod(sub: any): {
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+} {
+  const item = sub?.items?.data?.[0] || {};
+  const startSec = item.current_period_start ?? sub?.current_period_start;
+  const endSec   = item.current_period_end   ?? sub?.current_period_end;
+  const toDate = (s: unknown): Date | null => {
+    if (typeof s !== "number" || !Number.isFinite(s) || s <= 0) return null;
+    const d = new Date(s * 1000);
+    return isNaN(d.getTime()) ? null : d;
+  };
+  return { currentPeriodStart: toDate(startSec), currentPeriodEnd: toDate(endSec) };
+}
+
+/**
  * Boot-time health check that verifies the Stripe API key actually works
  * (a single lightweight `balance.retrieve` call). Logs a clear warning if
  * misconfigured so the issue is visible immediately at startup instead of

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, invoicesTable, subscriptionsTable, partnerCommissionsTable, documentsTable, pricingTiersTable, partnersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { STRIPE_WEBHOOK_SECRET, isStripeConfigured, getStripe } from "../lib/stripe.js";
+import { STRIPE_WEBHOOK_SECRET, isStripeConfigured, getStripe, getSubscriptionPeriod } from "../lib/stripe.js";
 import { sendPaymentReceiptEmail, sendContractEmail, sendSubscriptionApprovedEmail } from "../lib/email.js";
 import { generateMSAContract } from "../lib/contract.js";
 
@@ -91,15 +91,16 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
 
           // Retrieve the live Stripe subscription to get period dates and amount.
           let subAmount = 0;
-          let currentPeriodStart: Date | undefined;
-          let currentPeriodEnd: Date | undefined;
+          let currentPeriodStart: Date | null = null;
+          let currentPeriodEnd: Date | null = null;
           let stripePriceId = "";
           try {
             const stripe = getStripe();
             const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
             subAmount = (stripeSub.items.data[0]?.price?.unit_amount || 0) / 100;
-            currentPeriodStart = new Date((stripeSub as any).current_period_start * 1000);
-            currentPeriodEnd = new Date((stripeSub as any).current_period_end * 1000);
+            const period = getSubscriptionPeriod(stripeSub);
+            currentPeriodStart = period.currentPeriodStart;
+            currentPeriodEnd = period.currentPeriodEnd;
             stripePriceId = stripeSub.items.data[0]?.price?.id || "";
           } catch (subErr) {
             console.error("[Stripe Webhook] auto_checkout: failed to retrieve subscription:", subErr);
@@ -295,14 +296,17 @@ router.post("/webhooks/stripe", async (req: Request, res: Response) => {
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as any;
-        await db.update(subscriptionsTable).set({
+        const { currentPeriodStart, currentPeriodEnd } = getSubscriptionPeriod(subscription);
+        const updates: Record<string, unknown> = {
           status: subscription.status,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
           canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
           updatedAt: new Date(),
-        }).where(eq(subscriptionsTable.stripeSubscriptionId, subscription.id));
+        };
+        if (currentPeriodStart) updates.currentPeriodStart = currentPeriodStart;
+        if (currentPeriodEnd) updates.currentPeriodEnd = currentPeriodEnd;
+        await db.update(subscriptionsTable).set(updates as any)
+          .where(eq(subscriptionsTable.stripeSubscriptionId, subscription.id));
         console.log(`[Stripe Webhook] Subscription ${subscription.id} updated to ${subscription.status}`);
         break;
       }

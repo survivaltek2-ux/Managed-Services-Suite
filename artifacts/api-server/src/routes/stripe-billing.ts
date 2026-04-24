@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, invoicesTable, subscriptionsTable, partnersTable, usersTable, pricingTiersTable, partnerCommissionsTable, documentsTable } from "@workspace/db";
 import { eq, desc, and, or } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth.js";
-import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY } from "../lib/stripe.js";
+import { getStripe, isStripeConfigured, STRIPE_PUBLISHABLE_KEY, getSubscriptionPeriod } from "../lib/stripe.js";
 import { sendContractEmail, sendSubscriptionPendingEmail, sendSubscriptionApprovedEmail, sendSubscriptionRejectedEmail } from "../lib/email.js";
 import { generateMSAContract } from "../lib/contract.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
@@ -203,8 +203,8 @@ router.post("/admin/billing/subscriptions", requireAdmin, async (req: any, res) 
       planId: tier.slug,
       planName: tier.name,
       status: subscription.status as any,
-      currentPeriodStart: new Date(((subscription as any).current_period_start as number) * 1000),
-      currentPeriodEnd: new Date(((subscription as any).current_period_end as number) * 1000),
+      currentPeriodStart: getSubscriptionPeriod(subscription).currentPeriodStart,
+      currentPeriodEnd: getSubscriptionPeriod(subscription).currentPeriodEnd,
       cancelAtPeriodEnd: (subscription as any).cancel_at_period_end ?? false,
       billingCycle,
       amount: String(priceAmount / 100),
@@ -213,7 +213,7 @@ router.post("/admin/billing/subscriptions", requireAdmin, async (req: any, res) 
     // Generate and send MSA contract (non-blocking — errors don't fail the subscription creation)
     (async () => {
       try {
-        const effectiveDate = new Date(((subscription as any).current_period_start as number) * 1000);
+        const effectiveDate = getSubscriptionPeriod(subscription).currentPeriodStart ?? new Date();
         const seats = 1; // Admin-created subscriptions are per-entity, not seat-counted; default to 1
         const cycle = billingCycle as "monthly" | "annual";
         const companyName = name;
