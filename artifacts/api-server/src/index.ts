@@ -1,7 +1,6 @@
 import app from "./app";
 import { ensureTsdConfigsExist, startTsdSyncScheduler } from "./lib/tsdSync.js";
 import { seedDatabase } from "./db-seed.js";
-import { startZoomWebSocketSubscription } from "./lib/zoomWebSocket.js";
 import { startLeadMagnetSequenceScheduler } from "./lib/leadMagnetSequence.js";
 import { startPlanReminderScheduler } from "./routes/written-plans.js";
 import { startPartnerstackScheduler } from "./routes/partnerstack.js";
@@ -349,11 +348,6 @@ app.listen(port, async () => {
     await startTsdSyncScheduler();
   } catch (err) {
     console.error("[TSD] Startup error:", err);
-  }
-  try {
-    await startZoomWebSocketSubscription();
-  } catch (err) {
-    console.error("[Zoom WS] Startup error:", err);
   }
   try {
     startLeadMagnetSequenceScheduler();
