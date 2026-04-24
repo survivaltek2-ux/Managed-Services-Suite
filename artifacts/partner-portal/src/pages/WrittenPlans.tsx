@@ -1041,10 +1041,11 @@ export function PlanWizard({ initial, onComplete, onCancel, onBehalfOfPartnerId 
 
 // ─── Plan Detail View ─────────────────────────────────────────────────────────
 
-function PlanDetail({ planId, onBack, onRevise }: {
+function PlanDetail({ planId, onBack, onRevise, onEditAnswers }: {
   planId: number;
   onBack: () => void;
   onRevise: (plan: WrittenPlan) => void;
+  onEditAnswers: (plan: WrittenPlan) => void;
 }) {
   const { toast } = useToast();
   const [data, setData] = useState<{ plan: WrittenPlan; events: ActivityEvent[]; revisions: WrittenPlan[] } | null>(null);
@@ -1184,6 +1185,11 @@ function PlanDetail({ planId, onBack, onRevise }: {
           >
             <Download className="w-3.5 h-3.5" /> PDF
           </Button>
+          {isEditable && (
+            <Button variant="outline" size="sm" onClick={() => onEditAnswers(plan)} className="gap-1.5">
+              <Edit2 className="w-3.5 h-3.5" /> Edit Answers
+            </Button>
+          )}
           {isEditable && (
             <Button variant="outline" size="sm" onClick={handleSaveEdits} disabled={saving} className="gap-1.5">
               {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Edit2 className="w-3.5 h-3.5" />} Save
@@ -1382,6 +1388,12 @@ export default function WrittenPlans() {
 
   useEffect(() => { load(); }, [load]);
 
+  function handleEditAnswers(plan: WrittenPlan) {
+    const answers = normalizeAnswers(plan.questionnaireAnswers);
+    setRevisionInitial({ answers, planId: plan.id, planContent: plan.planContent as PlanContent | null });
+    setView("wizard");
+  }
+
   async function handleRevise(plan: WrittenPlan) {
     try {
       const createRes = await fetch(`${BASE}/${plan.id}/revise`, { method: "POST", headers: authHeader() });
@@ -1514,6 +1526,7 @@ export default function WrittenPlans() {
             planId={selectedPlanId}
             onBack={() => { setSelectedPlanId(null); setView("list"); load(); }}
             onRevise={handleRevise}
+            onEditAnswers={handleEditAnswers}
           />
         )}
       </div>
